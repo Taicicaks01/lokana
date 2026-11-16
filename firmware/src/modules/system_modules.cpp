@@ -103,27 +103,15 @@ void FindModule::render(Adafruit_GFX& g, uint32_t now) {
 // ================= Cari HP =================
 static const uint32_t PHONE_MS = 30000;
 
+// Tetap di modul setelah berhenti (layar siaga), supaya bisa langsung memanggil lagi
 void PhoneModule::stop(bool tellPhone, const char* msg) {
   if (!_active) return;
   _active = false;
   if (tellPhone) lklink::findPhone(false);
-  if (core::current() == this) core::back();
   if (msg) core::toast(msg, 1200);
 }
 
-void PhoneModule::exit() {                        // pindah modul (double-tap) = hentikan juga
-  if (_active) { _active = false; lklink::findPhone(false); }
-}
-
-bool PhoneModule::input(Gesture g) {
-  (void)g;
-  stop(true, "Dihentikan");
-  return true;
-}
-
-void PhoneModule::event(const Event& e) {
-  if (e.type != EV_FIND_PHONE) return;
-  if (e.value == 0) { stop(false, "HP ditemukan"); return; }
+void PhoneModule::start() {
   if (!lklink::findPhone(true)) {
     core::toast("HP tidak tersambung", 1500);
     buzzer::play(MEL_LOSE);
@@ -132,7 +120,24 @@ void PhoneModule::event(const Event& e) {
   _active = true;
   _since = millis();
   buzzer::play(MEL_SELECT);
-  core::goTo(name());
+}
+
+void PhoneModule::exit() {                        // pindah modul (double-tap) = hentikan juga
+  if (_active) { _active = false; lklink::findPhone(false); }
+}
+
+bool PhoneModule::input(Gesture g) {
+  if (g != G_TAP) return false;                    // tahan = layar mati seperti modul lain
+  if (_active) stop(true, "Dihentikan");
+  else start();
+  return true;
+}
+
+void PhoneModule::event(const Event& e) {
+  if (e.type != EV_FIND_PHONE) return;
+  if (e.value == 0) { stop(false, "HP ditemukan"); return; }
+  core::goTo(name());                              // console `phone`: buka modul lalu panggil
+  if (!_active) start();
 }
 
 void PhoneModule::update(uint32_t now) {
@@ -141,6 +146,24 @@ void PhoneModule::update(uint32_t now) {
 
 void PhoneModule::render(Adafruit_GFX& g, uint32_t now) {
   g.setTextColor(1);
+  g.setTextSize(1);
+  if (!_active) {                                  // siaga
+    bool ok = lklink::phoneReady();
+#if SCREEN_H >= 64
+    const int px = 20, py = 12, pw = 22, ph = 38;
+    g.drawRoundRect(px, py, pw, ph, 4, 1);
+    g.drawRect(px + 3, py + 5, pw - 6, ph - 13, 1);
+    g.fillCircle(px + pw / 2, py + ph - 4, 2, 1);
+    g.setCursor(56, 16); g.print("Cari HP");
+    g.setCursor(56, 30); g.print(ok ? "HP" : "HP belum");
+    g.setCursor(56, 40); g.print("tersambung");
+    display::centerText(ok ? "tap: bunyikan HP" : "sambungkan di app", 56);
+#else
+    display::centerText("Cari HP", 4);
+    display::centerText(ok ? "tap: bunyikan HP" : "HP belum tersambung", 20);
+#endif
+    return;
+  }
 #if SCREEN_H >= 64
   const int px = 20, py = 12, pw = 22, ph = 38;   // ikon HP + gelombang sinyal
   g.drawRoundRect(px, py, pw, ph, 4, 1);

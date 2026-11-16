@@ -35,7 +35,7 @@ static Reply afterAck = nullptr;
 
 enum SettingKey : uint8_t {
   SK_BRIGHTNESS = 0x01, SK_SOUND = 0x02, SK_SCREEN_TIMEOUT = 0x03, SK_FLIP = 0x04,
-  SK_DEVICE_NAME = 0x05, SK_BUTTON_EVENTS = 0x06,
+  SK_DEVICE_NAME = 0x05, SK_BUTTON_EVENTS = 0x06, SK_NOTIF_POPUP = 0x07, SK_BOOT_GUIDE = 0x08,
 };
 enum SettingsOp : uint8_t { SO_GET = 0, SO_SET = 1, SO_REPORT = 2 };
 
@@ -71,6 +71,14 @@ static struct {
   Anim a;
 } out;
 
+// Daftar slot teks ke host (TEXT_SLOT LIST): satu ITEM per giliran, slot 1..8
+static struct {
+  bool active = false;
+  Transport t = TR_USB;
+  uint8_t next = 1;
+  uint32_t at = 0;
+} textOut;
+
 // UNPAIR lewat BLE: dihapus sesudah ACK terkirim
 static uint32_t unpairAt = 0;
 
@@ -95,7 +103,7 @@ static void sendDeviceInfo(Transport t) {
   if (lklink::bondCount() > 0) flags |= 1 << 2;
   uint32_t caps = CAP_NOTIF | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
-  caps |= CAP_SCREEN;
+  caps |= CAP_SCREEN | CAP_TEXT_SLOT;
 #if PIN_BUZZER >= 0
   caps |= CAP_BUZZER;
 #endif
@@ -122,6 +130,8 @@ static uint16_t buildReport(uint8_t* p, uint16_t cap, Transport t) {
   w.u8(SK_FLIP);          w.u8(1); w.u8(s.flip ? 1 : 0);
   w.u8(SK_DEVICE_NAME);   w.str(devName);         // nama yang berlaku; str = len u8 + isi (TLV)
   w.u8(SK_BUTTON_EVENTS); w.u8(1); w.u8(btnEvents[t] ? 1 : 0);
+  w.u8(SK_NOTIF_POPUP);   w.u8(1); w.u8(s.notifPopupS);
+  w.u8(SK_BOOT_GUIDE);    w.u8(1); w.u8(s.bootGuide ? 1 : 0);
   return w.len();
 }
 
@@ -183,6 +193,8 @@ static uint8_t onSettings(Transport t, Reader& r) {
       case SK_FLIP:           if (n) { s.flip = v[0] != 0; display = true; } break;
       case SK_DEVICE_NAME:    sanitizeUtf8(v, n, s.name, sizeof(s.name) - 1); renamed = true; break;
       case SK_BUTTON_EVENTS:  if (n) btnEvents[t] = v[0] != 0; continue;   // sesi saja, tidak disimpan
+      case SK_NOTIF_POPUP:    if (n) s.notifPopupS = settings::clampNotifPopup(v[0]); break;
+      case SK_BOOT_GUIDE:     if (n) s.bootGuide = v[0] != 0; break;
       default: continue;                          // key dari versi lebih baru: abaikan
     }
     changed = true;
@@ -252,7 +264,7 @@ static uint8_t onGoto(Reader& r) {
   if (!r.ok() || !name[0]) return ST_BAD_PAYLOAD;
   for (uint8_t i = 0; i < core::moduleCount(); i++) {
     Module* m = core::moduleAt(i);
-    if (!m->hidden() && !strcasecmp(m->name(), name)) { events::post(EV_GOTO, 0, m->name()); return ST_OK; }
+    if (m->remoteOpen() && !strcasecmp(m->name(), name)) { events::post(EV_GOTO, 0, m->name()); return ST_OK; }
   }
   return ST_ERROR;                                // modul tidak ada
 }
@@ -280,7 +292,9 @@ static uint8_t onCustomText(Reader& r) {
   m.durationS = r.u16();
   uint8_t slot = r.u8();
   r.str(m.text, sizeof(m.text), true);
+  if (r.ok() && r.has()) m.font = r.u8();            // field akhir opsional (0.5.2)
   if (!r.ok() || slot > textstore::SLOTS) return ST_BAD_PAYLOAD;
+  if (m.font >= textstore::FONTS) m.font = 0;       // font dari versi lebih baru -> piksel
   if (m.style > 2) m.style = 0;                   // gaya dari versi lebih baru -> diam
   if (m.size > 3) m.size = 0;
   if (slot == 0) {
@@ -293,6 +307,44 @@ static uint8_t onCustomText(Reader& r) {
   snprintf(msg, sizeof(msg), m.text[0] ? "Disimpan: slot %u" : "Slot %u dihapus", slot);
   events::post(EV_TOAST, 0, msg);
   return ST_OK;
+}
+
+// ---------------- TEXT_SLOT ----------------
+enum TextSlotOp : uint8_t { TS_LIST = 0, TS_ITEM = 1, TS_SHOW = 2 };
+
+static uint8_t onTextSlot(Transport t, Reader& r) {
+  uint8_t op = r.u8();
+  if (!r.ok()) return ST_BAD_PAYLOAD;
+  switch (op) {
+    case TS_LIST:
+      textOut.active = true; textOut.t = t; textOut.next = 1; textOut.at = millis() + 20;   // sesudah ACK
+      return ST_OK;
+    case TS_SHOW: {
+      uint8_t slot = r.u8();
+      uint16_t dur = r.has() ? r.u16() : 0;
+      if (!r.ok() || slot < 1 || slot > textstore::SLOTS) return ST_BAD_PAYLOAD;
+      TextMsg m;
+      if (!textstore::load(slot, m)) return ST_ERROR;
+      events::post(EV_TEXT, slot | (int32_t)dur << 8);   // modul Teks membaca slot sendiri
+      return ST_OK;
+    }
+    case TS_ITEM: return ST_BAD_PAYLOAD;            // hanya D->H
+    default: return ST_NOT_SUPPORTED;
+  }
+}
+
+static void pumpTextOut(uint32_t now) {
+  if (!textOut.active || (int32_t)(now - textOut.at) < 0) return;
+  TextMsg m;
+  bool has = textstore::load(textOut.next, m);
+  uint8_t p[5 + 1 + sizeof(m.text)];
+  Writer w(p, sizeof(p));
+  w.u8(TS_ITEM); w.u8(textOut.next);
+  w.u8(has ? m.style : 0); w.u8(has ? m.size : 0); w.u8(has ? m.font : 0);
+  w.str(has ? m.text : "");
+  lklink::send(textOut.t, T_TEXT_SLOT, 0, p, w.len());
+  if (++textOut.next > textstore::SLOTS) textOut.active = false;
+  textOut.at = now + (textOut.t == TR_BLE ? 40 : 5);
 }
 
 static void toastSlot(uint8_t slot, bool removed) {
@@ -551,6 +603,7 @@ void dispatch(Transport t, uint8_t type, uint8_t seq, const uint8_t* p, uint16_t
       case T_ANIM:        st = onAnim(t, r); break;
       case T_UNPAIR:      st = onUnpair(t); break;
       case T_SCREEN:      st = onScreen(t, r); break;
+      case T_TEXT_SLOT:   st = onTextSlot(t, r); break;
       // Dikenal, tapi belum ada di firmware ini / arahnya hanya D->H
       case T_DEVICE_INFO: case T_OTA: case T_BUTTON:
       case T_NAV: case T_PC_STATS: case T_MEETING: case T_PHONE_STATS:
@@ -637,6 +690,7 @@ void update(uint32_t now) {
   if (blePrevSecure && !sec) {                    // HP putus: sesi & button_events selesai
     endSession(TR_BLE);
     if (out.active && out.t == TR_BLE) { out.active = false; out.a.release(); }
+    if (textOut.active && textOut.t == TR_BLE) textOut.active = false;
   }
   blePrevSecure = sec;
   if (unpairAt && (int32_t)(now - unpairAt) >= 0) {
@@ -646,6 +700,7 @@ void update(uint32_t now) {
   }
 #endif
   pumpOutbox(now);
+  pumpTextOut(now);
   pumpMirror(now);
 }
 

@@ -1,5 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import '../link/link.dart';
+import '../theme.dart';
+import '../ui.dart';
+import 'guide_page.dart';
 import 'settings_page.dart';
 
 /// Belum tersambung: scan Lokana di sekitar, sambungkan, pairing (kode 6 digit di OLED).
@@ -60,20 +63,38 @@ class _ConnectPageState extends State<ConnectPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Lokana'), actions: [
         IconButton(
+          icon: const Icon(Icons.help_outline),
+          tooltip: 'Cara pakai',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GuidePage())),
+        ),
+        IconButton(
           icon: const Icon(Icons.settings_outlined),
           tooltip: 'Pengaturan',
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
         ),
       ]),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
-        Text('Sambungkan Lokana', style: t.headlineSmall),
-        const SizedBox(height: 8),
-        Text('Nyalakan Lokana dan dekatkan ke HP. HP baru akan diminta kode 6 digit '
-            'yang tampil di layar Lokana.', style: t.bodyMedium),
-        const SizedBox(height: 16),
+      body: PageBody(children: [
+        // ---------- Pembuka ----------
+        Card(
+          color: Colors.black,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24), side: const BorderSide(color: Colors.white12)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
+            child: Column(children: [
+              LokanaEyes(color: AppTheme.instance.oled.color, height: 54, sleepy: !busy),
+              const SizedBox(height: Gap.l),
+              Text(busy ? 'Menyambung...' : 'Sambungkan Lokana', style: t.headlineSmall?.copyWith(color: Colors.white)),
+              const SizedBox(height: Gap.xs),
+              Text('Nyalakan Lokana dan dekatkan ke HP. Saat pertama kali, masukkan kode 6 digit yang tampil di '
+                  'layar Lokana.', style: t.bodySmall?.copyWith(color: Colors.white70), textAlign: TextAlign.center),
+            ]),
+          ),
+        ),
+        const SizedBox(height: Gap.m),
         if (busy)
-          Card(
-            child: ListTile(
+          Panel(padding: const EdgeInsets.symmetric(vertical: 6), children: [
+            ListTile(
               leading: const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 3)),
               title: Text(switch (link.state) {
                 LinkState.pairing => 'Pairing dengan ${link.name ?? 'Lokana'}',
@@ -83,69 +104,86 @@ class _ConnectPageState extends State<ConnectPage> {
               subtitle: link.message != null ? Text(link.message!) : null,
               trailing: TextButton(onPressed: () => link.disconnect(), child: const Text('Batal')),
             ),
-          ),
+          ]),
         if (!busy && link.saved != null)
           Card(
-            child: ListTile(
-              leading: const Icon(Icons.history),
-              title: Text(link.saved!.name),
-              subtitle: const Text('Lokana terakhir'),
-              trailing: FilledButton(
-                onPressed: () => _connect(link.saved!.address, link.saved!.name),
-                child: const Text('Sambungkan'),
-              ),
+            color: cs.primaryContainer,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
               onLongPress: () => link.disconnect(forget: true),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Row(children: [
+                    IconBadge(Icons.history, background: cs.primary, color: cs.onPrimary),
+                    const SizedBox(width: Gap.m),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(link.saved!.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: t.titleMedium?.copyWith(color: cs.onPrimaryContainer)),
+                        Text('Lokana terakhir · tahan kartu ini untuk melupakan',
+                            style: t.bodySmall?.copyWith(color: cs.onPrimaryContainer)),
+                      ]),
+                    ),
+                  ]),
+                  const SizedBox(height: Gap.m),
+                  FilledButton.icon(
+                    onPressed: () => _connect(link.saved!.address, link.saved!.name),
+                    icon: const Icon(Icons.bluetooth_connected),
+                    label: const Text('Sambungkan'),
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  ),
+                ]),
+              ),
             ),
           ),
-        if (link.action == 'bt_settings' && !busy)
-          Card(
-            color: Theme.of(context).colorScheme.errorContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Pairing lama perlu dihapus', style: t.titleSmall),
-                const SizedBox(height: 4),
-                Text(link.message ?? 'Lokana sudah melupakan HP ini. Hapus Lokana di Pengaturan Bluetooth HP, '
-                    'lalu sambungkan lagi untuk memasukkan kode baru.'),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: link.openBluetoothSettings,
-                  icon: const Icon(Icons.bluetooth),
-                  label: const Text('Buka Pengaturan Bluetooth'),
-                ),
-              ]),
+        if (link.action == 'bt_settings' && !busy) ...[
+          const SizedBox(height: Gap.m),
+          Panel(color: cs.errorContainer, children: [
+            Text('Pairing lama perlu dihapus', style: t.titleSmall?.copyWith(color: cs.onErrorContainer)),
+            const SizedBox(height: 4),
+            Text(link.message ?? 'Lokana sudah melupakan HP ini. Hapus Lokana di Pengaturan Bluetooth HP, '
+                'lalu sambungkan lagi untuk memasukkan kode baru.', style: TextStyle(color: cs.onErrorContainer)),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: link.openBluetoothSettings,
+              icon: const Icon(Icons.bluetooth),
+              label: const Text('Buka Pengaturan Bluetooth'),
             ),
-          ),
-        if (error != null) ...[
-          const SizedBox(height: 12),
-          Text(error!, style: TextStyle(color: cs.error)),
+          ]),
         ],
-        const SizedBox(height: 24),
-        Row(children: [
-          Expanded(child: Text('Lokana di sekitar', style: t.titleMedium)),
-          if (link.state == LinkState.scanning)
-            TextButton.icon(onPressed: link.stopScan, icon: const Icon(Icons.stop), label: const Text('Berhenti'))
-          else
-            FilledButton.tonalIcon(
-                onPressed: busy ? null : _scan, icon: const Icon(Icons.bluetooth_searching), label: const Text('Cari')),
-        ]),
-        if (link.state == LinkState.scanning) const LinearProgressIndicator(),
-        const SizedBox(height: 8),
+        if (error != null) ...[
+          const SizedBox(height: Gap.m),
+          Notice(error!, icon: Icons.error_outline, warning: true),
+        ],
+
+        // ---------- Lokana di sekitar ----------
+        SectionHeader(
+          'Lokana di sekitar',
+          icon: Icons.bluetooth_searching,
+          trailing: link.state == LinkState.scanning
+              ? TextButton.icon(onPressed: link.stopScan, icon: const Icon(Icons.stop), label: const Text('Berhenti'))
+              : FilledButton.tonalIcon(
+                  onPressed: busy ? null : _scan, icon: const Icon(Icons.search), label: const Text('Cari')),
+        ),
+        if (link.state == LinkState.scanning)
+          const Padding(padding: EdgeInsets.only(bottom: 8), child: LinearProgressIndicator()),
         if (devices.isEmpty && link.state != LinkState.scanning)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text('Tekan "Cari" untuk mencari Lokana.', style: t.bodyMedium, textAlign: TextAlign.center),
-          ),
-        for (final d in devices)
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.remove_red_eye_outlined),
-              title: Text(d.name),
-              subtitle: Text('Sinyal ${d.rssi} dBm'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: busy ? null : () => _connect(d.address, d.name),
-            ),
-          ),
+          Panel(children: [
+            Icon(Icons.radar, size: 40, color: cs.outline),
+            const SizedBox(height: Gap.s),
+            Text('Tekan "Cari" untuk menemukan Lokana', style: t.bodyMedium, textAlign: TextAlign.center),
+          ])
+        else if (devices.isNotEmpty)
+          Panel(padding: const EdgeInsets.symmetric(vertical: 6), children: [
+            for (final d in devices)
+              NavRow(
+                icon: Icons.remove_red_eye_outlined,
+                title: d.name,
+                subtitle: 'Sinyal ${d.rssi > -60 ? 'kuat' : d.rssi > -80 ? 'sedang' : 'lemah'} (${d.rssi} dBm)',
+                onTap: busy ? null : () => _connect(d.address, d.name),
+              ),
+          ]),
       ]),
     );
   }

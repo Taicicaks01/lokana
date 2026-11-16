@@ -8,6 +8,8 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -21,6 +23,7 @@ import androidx.core.app.NotificationCompat
  * Cari HP (FIND_PHONE): bunyi alarm keras + getar + notifikasi dengan tombol "Ketemu".
  * Memakai stream alarm supaya tetap terdengar saat HP dalam mode senyap.
  * Volume alarm dinaikkan sementara lalu dikembalikan.
+ * Nada bisa dipilih pengguna (Pengaturan aplikasi): nada sistem atau file audio sendiri.
  */
 object Alarm {
     private const val TAG = "LokanaAlarm"
@@ -31,6 +34,69 @@ object Alarm {
     private var savedVolume = -1
     private val main = Handler(Looper.getMainLooper())
     var ringing = false; private set
+    private var preview: MediaPlayer? = null
+    private val previewStop = Runnable { stopPreview() }
+
+    private const val PREF_SOUND = "find_ringtone"   // URI (string) di SharedPreferences "lokana_app"
+
+    private fun defaultUri(): Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+
+    private fun prefs(ctx: Context) = ctx.applicationContext.getSharedPreferences("lokana_app", Context.MODE_PRIVATE)
+
+    /** Nada pilihan pengguna, null = bawaan (alarm HP). */
+    fun customUri(ctx: Context): Uri? = prefs(ctx).getString(PREF_SOUND, null)?.takeIf { it.isNotEmpty() }?.let(Uri::parse)
+
+    fun setSound(ctx: Context, uri: Uri?) {
+        prefs(ctx).edit().putString(PREF_SOUND, uri?.toString() ?: "").apply()
+    }
+
+    /** Nama nada untuk ditampilkan di aplikasi. */
+    fun soundTitle(ctx: Context): String {
+        val uri = customUri(ctx) ?: return "Bawaan (alarm HP)"
+        return try {
+            if (uri.scheme == "content" && uri.authority != "settings" && uri.authority != "media") {
+                ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) c.getString(0) else null
+                }
+            } else null
+        } catch (_: Exception) { null }
+            ?: RingtoneManager.getRingtone(ctx, uri)?.getTitle(ctx)
+            ?: "Nada pilihan"
+    }
+
+    private fun newPlayer(app: Context, uri: Uri, loop: Boolean): MediaPlayer = MediaPlayer().apply {
+        setAudioAttributes(AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        setDataSource(app, uri)
+        isLooping = loop
+        prepare()
+        start()
+    }
+
+    /** Nada pilihan; kalau file sudah dihapus / izin hilang, kembali ke nada bawaan. */
+    private fun play(app: Context, loop: Boolean): MediaPlayer? {
+        customUri(app)?.let { u ->
+            try { return newPlayer(app, u, loop) } catch (e: Exception) { Log.w(TAG, "nada pilihan gagal, pakai bawaan", e) }
+        }
+        return try { newPlayer(app, defaultUri(), loop) } catch (e: Exception) { Log.w(TAG, "alarm tidak bisa diputar", e); null }
+    }
+
+    /** Coba nada 4 detik dengan volume alarm saat ini. */
+    fun preview(ctx: Context) {
+        if (ringing) return
+        stopPreview()
+        val app = ctx.applicationContext
+        preview = play(app, false)
+        main.removeCallbacks(previewStop)
+        main.postDelayed(previewStop, 4000)
+    }
+
+    fun stopPreview() {
+        preview?.let { try { it.stop(); it.release() } catch (_: Exception) {} }
+        preview = null
+    }
 
     fun start(ctx: Context) {
         if (ringing) return
@@ -39,21 +105,8 @@ object Alarm {
         val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         savedVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
         am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        try {
-            player = MediaPlayer().apply {
-                setAudioAttributes(AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-                setDataSource(app, uri)
-                isLooping = true
-                prepare()
-                start()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "alarm tidak bisa diputar", e)
-        }
+        stopPreview()
+        player = play(app, true)
         vibrator(app)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 400), 0))
         showNotification(app)
         main.removeCallbacksAndMessages(null)

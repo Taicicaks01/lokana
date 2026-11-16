@@ -15,7 +15,7 @@ Versi **0.5.0**. Android dulu; iOS menyusul (lihat `docs/ARCHITECTURE.md` §4).
 | Jembatan | `lib/link/link.dart` ↔ `MainActivity.kt` | MethodChannel `lokana/link`, EventChannel `lokana/events` |
 | BLE + framing | `android/.../BleLink.kt` | Scan, connect, MTU 247, bonding, notify, antrean tulis, `seq`/ACK/kirim ulang |
 | Layanan latar | `android/.../LinkService.kt` | *Foreground service* (connectedDevice) menjaga koneksi saat aplikasi ditutup |
-| Cari HP | `android/.../Alarm.kt` | Bunyi alarm (tetap terdengar saat senyap) + getar + notifikasi "Ketemu" |
+| Cari HP | `android/.../Alarm.kt` | Bunyi alarm (tetap terdengar saat senyap) + getar + notifikasi "Ketemu"; nada pilihan (nada HP / file audio) |
 | Notifikasi | `android/.../NotifListener.kt`, `NotifPrefs.kt` | *NotificationListener*: aplikasi pilihan → `NOTIF`, panggilan (CallStyle) → `CALL` |
 
 BLE ditulis langsung di Kotlin, **tanpa plugin BLE pihak ketiga**: `flutter_blue_plus` 2.x
@@ -66,6 +66,28 @@ Play Store disiapkan sebelum rilis resmi.
 Emoji/teks digambar HP lalu **dipotong rapat** ke piksel yang terisi (tidak terpotong lagi), diberi efek
 (Diam, Denyut, Memantul, Goyang, Putar, Kedip, Geser), atau ambil **gambar/GIF** dari HP (dithering untuk
 foto, maks 16 bingkai layar penuh). Galeri menampilkan isi slot 1–8 langsung dari Lokana.
+
+## Tampilan (0.5.3)
+
+Komponen bersama di `lib/ui.dart` (`PageBody`, `SectionHeader`, `Panel`, `Field`, `Choices`, `ActionBar`, `FeatureCard`,
+`NavRow`, `Notice`, `Pill`, `LokanaEyes`); judul memakai Baloo 2 (`theme.dart`). Halaman kirim (Teks, Gambar, Dadu)
+punya tombol utama yang selalu terlihat di bawah. Setelan terakhir halaman Teks & Gambar diingat di HP
+(`AppTheme.remember`, kunci `text_*` / `img_*`).
+
+- **Beranda**: kartu wajah Lokana + status, aksi cepat (Cari kunci, Sinkron jam, Layar), fitur, menu.
+- **Cara pakai Lokana** (`pages/guide_page.dart`, dari beranda/Pengaturan): gerakan, modul, menu, tips, dan
+  setelan **Panduan di layar Lokana** (SETTINGS `boot_guide`, tombol putar = `GOTO "Panduan"`).
+- **Teks**: pratinjau **sama persis** dengan Lokana (`lib/oled_text.dart` meniru `text_module.cpp`, font dari
+  `lib/oled_fonts.dart`; diuji piksel demi piksel terhadap tangkapan layar asli di `test/oled_text_test.dart`).
+  Slot tersimpan dibaca dari Lokana (`TEXT_SLOT`, firmware 0.5.3): tampilkan, ubah, atau kosongkan.
+- **Galeri gambar**: thumbnail selalu pas di bingkai 2:1 (`OledPreview` diskalakan dari sisi tersempit).
+
+## Teks, notifikasi, dan Cari HP (0.5.2)
+
+- **Teks**: pilih font (Piksel, Sans, Sans Tebal, Serif, Mono Tebal; perlu firmware 0.5.2). Enter di keyboard = kirim.
+- **Notifikasi → Lama tampil di Lokana**: 3–30 detik atau "Jangan muncul" (SETTINGS `notif_popup`).
+- **Pengaturan → Cari HP**: nada saat Lokana memanggil HP. Pilih dari nada HP atau file audio sendiri
+  (izin baca disimpan permanen), tombol coba 4 detik, dan kembali ke bawaan. Kalau file hilang, alarm bawaan dipakai.
 
 ## Layar Lokana & tema
 

@@ -170,6 +170,17 @@ class LokanaLink extends ChangeNotifier {
 
   Future<void> openBluetoothSettings() => _m.invokeMethod('openBluetooth');
 
+  // ---------------- Nada Cari HP (0.5.2) ----------------
+  /// Nama nada yang dipakai saat Lokana memanggil HP ini.
+  Future<String> ringtoneTitle() async =>
+      (await _m.invokeMapMethod<String, dynamic>('ringtoneInfo'))?['title'] as String? ?? 'Bawaan (alarm HP)';
+  /// Pilih dari nada sistem ([file] = false) atau file audio sendiri. Hasil: nama nada baru, null = batal.
+  Future<String?> pickRingtone({bool file = false}) =>
+      _m.invokeMethod<String>(file ? 'pickRingtoneFile' : 'pickRingtone');
+  Future<String?> resetRingtone() => _m.invokeMethod<String>('resetRingtone');
+  Future<void> previewRingtone() => _m.invokeMethod('previewRingtone');
+  Future<void> stopRingtonePreview() => _m.invokeMethod('stopPreview');
+
   /// Simpan PNG ke galeri HP (Pictures/Lokana).
   Future<bool> saveImage(Uint8List png, String name) async =>
       await _m.invokeMethod<bool>('saveImage', {'bytes': png, 'name': name}) ?? false;
@@ -227,6 +238,33 @@ class LokanaLink extends ChangeNotifier {
 
   Future<int> deleteSlot(int slot) => send(T.anim, pAnimOp(AnimOp.delete, [slot]));
   Future<int> showSlot(int slot, {int durationS = 0}) => send(T.anim, pAnimShow(slot, durationS: durationS));
+
+  // ---------------- Slot teks (TEXT_SLOT, firmware 0.5.3) ----------------
+  bool get hasTextSlots => info?.has(Caps.textSlot) ?? false;
+
+  /// Isi slot teks 1-8 dari Lokana. null = firmware lama / tidak ada balasan.
+  Future<List<TextSlot>?> listTextSlots() async {
+    if (!hasTextSlots) return null;
+    final got = <int, TextSlot>{};
+    final done = Completer<void>();
+    final sub = frames.where((f) => f.$1 == T.textSlot).listen((f) {
+      final s = TextSlot.parse(f.$2);
+      if (s == null) return;
+      got[s.slot] = s;
+      if (got.length >= 8 && !done.isCompleted) done.complete();
+    });
+    try {
+      final st = await send(T.textSlot, pTextSlotList());
+      if (st != Status.ok) return null;
+      await done.future.timeout(const Duration(seconds: 4), onTimeout: () {});
+      return [for (var i = 1; i <= 8; i++) got[i] ?? TextSlot(i, 0, 0, 0, '')];
+    } finally {
+      await sub.cancel();
+    }
+  }
+
+  Future<int> showTextSlot(int slot, {int durationS = 0}) => send(T.textSlot, pTextSlotShow(slot, durationS: durationS));
+  Future<int> deleteTextSlot(int slot) => send(T.customText, pCustomText('', slot: slot));
 
   // ---------------- Notifikasi (v0.5) ----------------
   Future<NotifStatus> notifStatus() async =>

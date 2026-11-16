@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import '../link/proto.dart';
 import '../main.dart';
+import '../ui.dart';
 
 class ExpressionPage extends StatefulWidget {
   const ExpressionPage({super.key});
@@ -18,9 +19,17 @@ class _ExpressionPageState extends State<ExpressionPage> {
     final t = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Ekspresi')),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
-        Text('Ketuk ekspresi untuk ditampilkan di Lokana.', style: t.bodyMedium),
-        const SizedBox(height: 16),
+      body: PageBody(children: [
+        Text('Ketuk ekspresi untuk ditampilkan di wajah Lokana.',
+            style: t.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: Gap.l),
+        Panel(children: [
+          Field('Lama ditahan: ${holdS.round()} detik', first: true,
+              help: 'Setelah itu Lokana kembali ke ekspresi biasanya.',
+              child: Slider(value: holdS, min: 1, max: 30, divisions: 29, label: '${holdS.round()} dtk',
+                  onChanged: (v) => setState(() => holdS = v))),
+        ]),
+        const SizedBox(height: Gap.l),
         GridView.count(
           crossAxisCount: 3,
           shrinkWrap: true,
@@ -30,7 +39,8 @@ class _ExpressionPageState extends State<ExpressionPage> {
           children: [
             for (var i = 0; i < expressions.length; i++)
               Card(
-                color: last == i ? Theme.of(context).colorScheme.primaryContainer : null,
+                color: last == i ? Theme.of(context).colorScheme.primaryContainer
+                    : Theme.of(context).colorScheme.surfaceContainerLow,
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: () async {
@@ -46,10 +56,6 @@ class _ExpressionPageState extends State<ExpressionPage> {
               ),
           ],
         ),
-        const SizedBox(height: 24),
-        Text('Lama ditahan: ${holdS.round()} detik', style: t.titleSmall),
-        Slider(value: holdS, min: 1, max: 30, divisions: 29, label: '${holdS.round()} dtk',
-            onChanged: (v) => setState(() => holdS = v)),
       ]),
     );
   }

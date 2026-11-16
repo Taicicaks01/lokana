@@ -24,4 +24,5 @@ private:
   Face& _face;
   uint32_t _t0 = 0, _freeze = 0;
   uint8_t _sfx = 0;
+  bool _played = false;            // splash boot sudah selesai (putar ulang tidak memicu Panduan)
 };

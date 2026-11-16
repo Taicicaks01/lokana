@@ -42,8 +42,7 @@ private:
 // Tap / 30 detik = hentikan; HP mengirim FIND_PHONE op 0 = sudah ditemukan.
 class PhoneModule : public Module {
 public:
-  const char* name() const override { return "Cari HP"; }
-  bool hidden() const override { return true; }
+  const char* name() const override { return "Cari HP"; }   // modul biasa (double-tap) sejak 0.5.2
   void exit() override;
   bool input(Gesture g) override;
   void event(const Event& e) override;
@@ -52,6 +51,7 @@ public:
   bool keepAwake() const override { return _active; }
 
 private:
+  void start();
   void stop(bool tellPhone, const char* msg);
   bool _active = false;
   uint32_t _since = 0;

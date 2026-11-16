@@ -21,11 +21,28 @@ static uint32_t tabUntil = 0;
 static Gesture injected = G_NONE;
 static bool swallowNext = false;
 static uint32_t loopPrev = 0, loopMax = 0, loopMaxShown = 0, loopWin = 0;
+static char laterName[16] = {0};                 // goToLater: tujuan, waktu, dan modul asal
+static uint32_t laterAt = 0;
+static uint8_t laterFrom = 0;
 
 // ---------------- Menu ----------------
-enum MenuItem : uint8_t { MI_PHONE, MI_BRIGHT, MI_SOUND, MI_SCREEN, MI_FLIP, MI_FORGET, MI_INFO, MI_EXIT, MI_COUNT };
-static const char* const MENU_LABEL[MI_COUNT] = {"Cari HP", "Kecerahan", "Suara", "Layar mati", "Putar layar", "Lupakan HP", "Info", "Keluar"};
+enum MenuItem : uint8_t { MI_BRIGHT, MI_SOUND, MI_SCREEN, MI_FLIP, MI_GUIDE, MI_FORGET, MI_INFO, MI_EXIT, MI_COUNT };
+static const char* const MENU_LABEL[MI_COUNT] = {"Kecerahan", "Suara", "Layar mati", "Putar layar", "Panduan",
+                                                 "Lupakan HP", "Info", "Keluar"};
+// Sub-menu Panduan
+enum GuideItem : uint8_t { GI_PLAY, GI_BOOT, GI_BACK, GI_COUNT };
+static const char* const GUIDE_LABEL[GI_COUNT] = {"Putar sekarang", "Saat boot", "Kembali"};
+static bool guideOpen = false;
+static uint8_t guideIdx = 0;
 static bool settingsDirty = false;
+
+static const char* guideValue(uint8_t i) {
+  switch (i) {
+    case GI_PLAY: return ">";
+    case GI_BOOT: return settings::get().bootGuide ? "On" : "Off";
+    default:      return "";
+  }
+}
 
 static const char* menuValue(uint8_t i) {
   Settings& s = settings::get();
@@ -34,7 +51,7 @@ static const char* menuValue(uint8_t i) {
     case MI_SOUND:  return s.sound ? "On" : "Off";
     case MI_SCREEN: return SCREEN_TIMEOUT_LABEL[s.screenIdx];
     case MI_FLIP:   return s.flip ? "On" : "Off";
-    case MI_PHONE:
+    case MI_GUIDE:
     case MI_FORGET:
     case MI_INFO:   return ">";
     default:        return "";
@@ -47,7 +64,7 @@ static void applySettings() {
 }
 
 static void closeMenu() {
-  menuOpen = infoOpen = false;
+  menuOpen = infoOpen = guideOpen = false;
   if (settingsDirty) { settings::save(); lklink::reportSettings(); settingsDirty = false; }
   buzzer::play(MEL_SELECT);
 }
@@ -56,16 +73,28 @@ static void menuInput(Gesture g) {
   menuLast = millis();
   if (infoOpen) { infoOpen = false; return; }
   Settings& s = settings::get();
+  if (guideOpen) {                                 // sub-menu Panduan: double/triple = kembali
+    if (g == G_TAP) { guideIdx = (guideIdx + 1) % GI_COUNT; buzzer::play(MEL_MENU); return; }
+    if (g == G_DOUBLE || g == G_TRIPLE) { guideOpen = false; buzzer::play(MEL_SELECT); return; }
+    if (g != G_LONG) return;
+    switch (guideIdx) {
+      case GI_PLAY: closeMenu(); events::post(EV_GUIDE); return;
+      case GI_BOOT: s.bootGuide = !s.bootGuide; settingsDirty = true; break;
+      case GI_BACK: guideOpen = false; break;
+    }
+    buzzer::play(MEL_SELECT);
+    return;
+  }
   if (g == G_TAP) { menuIdx = (menuIdx + 1) % MI_COUNT; buzzer::play(MEL_MENU); return; }
   if (g == G_DOUBLE || g == G_TRIPLE) { closeMenu(); return; }
   if (g == G_LONG) {
     if (menuIdx >= MI_BRIGHT && menuIdx <= MI_FLIP) settingsDirty = true;
     switch (menuIdx) {
-      case MI_PHONE:  closeMenu(); events::post(EV_FIND_PHONE, 1); return;
       case MI_BRIGHT: s.brightness = (s.brightness + 1) % 3; applySettings(); break;
       case MI_SOUND:  s.sound = !s.sound; break;
       case MI_SCREEN: s.screenIdx = (s.screenIdx + 1) % SCREEN_TIMEOUT_COUNT; break;
       case MI_FLIP:   s.flip = !s.flip; applySettings(); break;
+      case MI_GUIDE:  guideOpen = true; guideIdx = 0; break;
       case MI_FORGET: lklink::forgetBonds(); core::toast("Pairing dihapus", 1200); break;
       case MI_INFO:   infoOpen = true; break;
       case MI_EXIT:   closeMenu(); return;
@@ -88,16 +117,18 @@ static const int MENU_ROW_H = 10, MENU_TOP = 11;
 static const int MENU_ROWS = (SCREEN_H - 22) / MENU_ROW_H > 0 ? (SCREEN_H - 22) / MENU_ROW_H : 1;
 
 static void drawMenu(Adafruit_GFX& g) {
-  char pos[8]; snprintf(pos, sizeof(pos), "%d/%d", menuIdx + 1, MI_COUNT);
-  drawHeader(g, "MENU", pos);
-  uint8_t top = menuIdx < MENU_ROWS ? 0 : menuIdx - MENU_ROWS + 1;
-  for (uint8_t r = 0; r < MENU_ROWS && top + r < MI_COUNT; r++) {
+  const char* const* labels = guideOpen ? GUIDE_LABEL : MENU_LABEL;
+  const uint8_t n = guideOpen ? GI_COUNT : MI_COUNT, idx = guideOpen ? guideIdx : menuIdx;
+  char pos[8]; snprintf(pos, sizeof(pos), "%d/%d", idx + 1, n);
+  drawHeader(g, guideOpen ? "PANDUAN" : "MENU", pos);
+  uint8_t top = idx < MENU_ROWS ? 0 : idx - MENU_ROWS + 1;
+  for (uint8_t r = 0; r < MENU_ROWS && top + r < n; r++) {
     uint8_t i = top + r;
     int y = MENU_TOP + r * MENU_ROW_H;
-    bool sel = i == menuIdx;
+    bool sel = i == idx;
     if (sel && MENU_ROWS > 1) { g.fillRect(0, y, SCREEN_W, MENU_ROW_H - 1, 1); g.setTextColor(0); }
-    g.setCursor(2, y + 1); g.print(MENU_LABEL[i]);
-    const char* v = menuValue(i);
+    g.setCursor(2, y + 1); g.print(labels[i]);
+    const char* v = guideOpen ? guideValue(i) : menuValue(i);
     g.setCursor(SCREEN_W - 2 - display::textWidth(v), y + 1); g.print(v);
     g.setTextColor(1);
   }
@@ -176,6 +207,13 @@ Module* moduleAt(uint8_t i) { return i < count ? mods[i] : nullptr; }
 Module* current() { return count ? mods[active] : nullptr; }
 bool screenOn() { return screenIsOn; }
 
+void goToLater(const char* name, uint32_t ms) {
+  strlcpy(laterName, name, sizeof(laterName));
+  laterFrom = active;
+  laterAt = millis() + ms;
+  if (!laterAt) laterAt = 1;
+}
+
 bool goTo(const char* name, bool announce) {
   for (uint8_t i = 0; i < count; i++)
     if (!strcasecmp(mods[i]->name(), name)) { menuOpen = false; switchTo(i, announce); wake(); return true; }
@@ -191,7 +229,7 @@ void next() {
 
 void back() { switchTo(prevActive < count ? prevActive : 0, false); }
 
-void openMenu() { menuOpen = true; infoOpen = false; menuIdx = 0; menuLast = millis(); buzzer::play(MEL_SELECT); }
+void openMenu() { menuOpen = true; infoOpen = guideOpen = false; menuIdx = 0; menuLast = millis(); buzzer::play(MEL_SELECT); }
 
 void toast(const char* text, uint16_t ms) {
   strlcpy(toastText, text, sizeof(toastText));
@@ -248,6 +286,7 @@ void loop() {
   // Gestur
   if (g != G_NONE) {
     lastInput = now;
+    laterAt = 0;                                   // pengguna sudah memakai Lokana: batalkan goToLater
     led::pulse(30);
     Serial.printf("[btn] %s\r\n", button::name(g));
     if (!menuOpen) lklink::reportButton((uint8_t)g, mods[active]->name());   // G_TAP..G_LONG = 1..4
@@ -269,6 +308,10 @@ void loop() {
     for (uint8_t i = 0; i < count; i++) mods[i]->event(e);
   }
 
+  if (laterAt && (int32_t)(now - laterAt) >= 0) {
+    laterAt = 0;
+    if (!menuOpen && active == laterFrom) goTo(laterName);
+  }
   mods[active]->update(now);
 
   // Layar mati otomatis

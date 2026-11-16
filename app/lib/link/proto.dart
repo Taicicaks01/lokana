@@ -8,7 +8,7 @@ class T {
   static const hello = 0x00, timeSync = 0x01, deviceInfo = 0x02, settings = 0x03, ack = 0x05, unpair = 0x06;
   static const notif = 0x10, call = 0x15;
   static const findKeys = 0x20, findPhone = 0x21, expression = 0x22, dice = 0x23, goto = 0x24, button = 0x25;
-  static const customText = 0x30, bitmap = 0x31, anim = 0x32, screen = 0x33;
+  static const customText = 0x30, bitmap = 0x31, anim = 0x32, screen = 0x33, textSlot = 0x34;
 }
 
 /// Status ACK. Nilai negatif dari sisi Kotlin: -1 tanpa ACK, -2 tidak tersambung.
@@ -32,7 +32,7 @@ class Status {
 
 class Caps {
   static const notif = 1 << 0, customText = 1 << 4, bitmap = 1 << 5, buzzer = 1 << 9;
-  static const dice = 1 << 10, findPhone = 1 << 11, anim = 1 << 12, screen = 1 << 13;
+  static const dice = 1 << 10, findPhone = 1 << 11, anim = 1 << 12, screen = 1 << 13, textSlot = 1 << 14;
 }
 
 /// ID ekspresi = urutan enum Expression di firmware. Jangan diurutkan ulang.
@@ -97,14 +97,30 @@ Uint8List pFindKeys(bool on, {int seconds = 30}) => (Writer()..u8(on ? 1 : 0)..u
 Uint8List pFindPhone(bool ring) => (Writer()..u8(ring ? 1 : 0)).done();
 
 /// style: 0 diam, 1 berjalan, 2 berkedip. size 0 = otomatis. slot 0 = tampilkan sekarang.
-Uint8List pCustomText(String text, {int style = 0, int size = 0, int durationS = 0, int slot = 0}) =>
-    (Writer()
-          ..u8(style)
-          ..u8(size)
-          ..u16(durationS)
-          ..u8(slot)
-          ..str(toLokanaAscii(text), max: 200))
-        .done();
+/// Font teks di Lokana (CUSTOM_TEXT `font`, firmware 0.5.2+). Firmware lama mengabaikannya (font piksel).
+class TextFont {
+  final int id;
+  final String label, preview;   // preview = fontFamily Android yang mirip, untuk label pilihan
+  const TextFont(this.id, this.label, this.preview);
+  static const all = [
+    TextFont(0, 'Piksel', 'monospace'),
+    TextFont(1, 'Sans', 'sans-serif'),
+    TextFont(2, 'Sans Tebal', 'sans-serif'),
+    TextFont(3, 'Serif', 'serif'),
+    TextFont(4, 'Mono Tebal', 'monospace'),
+  ];
+}
+
+Uint8List pCustomText(String text, {int style = 0, int size = 0, int durationS = 0, int slot = 0, int? font}) {
+  final w = Writer()
+    ..u8(style)
+    ..u8(size)
+    ..u16(durationS)
+    ..u8(slot)
+    ..str(toLokanaAscii(text), max: 200);
+  if (font != null) w.u8(font);              // field akhir opsional
+  return w.done();
+}
 
 Uint8List pBitmap(Bitmap1 b, {int op = 0, int slot = 0, int durationS = 0, int x = 0, int y = 0}) =>
     (Writer()
@@ -136,7 +152,7 @@ List<int> bleNameBytes(String name) {
 }
 
 Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool? flip, String? deviceName,
-    bool? buttonEvents}) {
+    bool? buttonEvents, int? notifPopupS, bool? bootGuide}) {
   final w = Writer()..u8(1);
   void item(int key, List<int> v) { w.u8(key); w.u8(v.length); w.bytes(v); }
   if (brightness != null) item(0x01, [brightness]);
@@ -145,7 +161,32 @@ Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool?
   if (flip != null) item(0x04, [flip ? 1 : 0]);
   if (deviceName != null) item(0x05, bleNameBytes(deviceName));
   if (buttonEvents != null) item(0x06, [buttonEvents ? 1 : 0]);
+  if (notifPopupS != null) item(0x07, [notifPopupS.clamp(0, 255)]);
+  if (bootGuide != null) item(0x08, [bootGuide ? 1 : 0]);
   return w.done();
+}
+
+// ---------------- TEXT_SLOT (0.5.3) ----------------
+class TextSlotOp {
+  static const list = 0, item = 1, show = 2;
+}
+
+Uint8List pTextSlotList() => Uint8List.fromList([TextSlotOp.list]);
+Uint8List pTextSlotShow(int slot, {int durationS = 0}) =>
+    (Writer()..u8(TextSlotOp.show)..u8(slot)..u16(durationS)).done();
+
+/// Isi satu slot teks di Lokana. [text] kosong = slot kosong.
+class TextSlot {
+  final int slot, style, size, font;
+  final String text;
+  const TextSlot(this.slot, this.style, this.size, this.font, this.text);
+  bool get isEmpty => text.isEmpty;
+
+  static TextSlot? parse(Uint8List p) {
+    if (p.length < 6 || p[0] != TextSlotOp.item) return null;
+    final n = p[5].clamp(0, p.length - 6);
+    return TextSlot(p[1], p[2], p[3], p[4], utf8.decode(p.sublist(6, 6 + n), allowMalformed: true));
+  }
 }
 
 // ---------------- ANIM (animasi bingkai) ----------------
@@ -249,6 +290,17 @@ class ScreenFrame {
 }
 
 // ---------------- Payload D->H ----------------
+/// Bandingkan versi "a.b.c": true jika [v] >= [min].
+bool versionAtLeast(String v, String min) {
+  List<int> parts(String s) => s.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+  final a = parts(v), b = parts(min);
+  for (var i = 0; i < 3; i++) {
+    final x = i < a.length ? a[i] : 0, y = i < b.length ? b[i] : 0;
+    if (x != y) return x > y;
+  }
+  return true;
+}
+
 class DeviceInfo {
   final int protoVer, deviceType, screenW, screenH, battery, flags, caps;
   final String fwVersion, name;
@@ -272,6 +324,10 @@ class LokanaSettings {
   int brightness = 1, screenTimeoutS = 60;
   bool sound = true, flip = false, buttonEvents = false;
   String deviceName = '';
+  /// Lama popup notifikasi (detik), 0 = tidak muncul. null = firmware belum mendukung (sebelum 0.5.2).
+  int? notifPopupS;
+  /// Panduan cara pakai setelah splash boot. null = firmware sebelum 0.5.3.
+  bool? bootGuide;
 
   static LokanaSettings parse(Uint8List p) {
     final s = LokanaSettings();
@@ -288,6 +344,8 @@ class LokanaSettings {
         case 0x04: s.flip = v[0] != 0;
         case 0x05: s.deviceName = utf8.decode(v, allowMalformed: true);
         case 0x06: s.buttonEvents = v[0] != 0;
+        case 0x07: s.notifPopupS = v[0];
+        case 0x08: s.bootGuide = v[0] != 0;
       }
     }
     return s;

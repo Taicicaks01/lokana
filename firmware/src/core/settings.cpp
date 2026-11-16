@@ -20,6 +20,8 @@ void load() {
   s.flip       = prefs.getBool("flip", false);
   s.tzMin      = constrain(prefs.getShort("tz", TZ_OFFSET_MIN), -720, 840);
   prefs.getString("name", s.name, sizeof(s.name));
+  s.notifPopupS = clampNotifPopup(prefs.getUChar("npop", 6));
+  s.bootGuide  = prefs.getBool("guide", true);
   prefs.end();
 }
 
@@ -31,10 +33,14 @@ void save() {
   prefs.putBool("flip", s.flip);
   prefs.putShort("tz", s.tzMin);
   prefs.putString("name", s.name);
+  prefs.putUChar("npop", s.notifPopupS);
+  prefs.putBool("guide", s.bootGuide);
   prefs.end();
 }
 
 void reset() { s = Settings(); save(); }
+
+uint8_t clampNotifPopup(uint8_t v) { return v == 0 ? 0 : constrain(v, 3, 60); }
 
 uint32_t screenTimeoutMs() { return SCREEN_TIMEOUT_MS[s.screenIdx]; }
 uint16_t screenTimeoutS() { return SCREEN_TIMEOUT_MS[s.screenIdx] / 1000; }

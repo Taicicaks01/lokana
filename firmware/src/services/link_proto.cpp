@@ -15,6 +15,7 @@ const char* typeName(uint8_t t) {
     case T_GOTO: return "GOTO";               case T_BUTTON: return "BUTTON";
     case T_CUSTOM_TEXT: return "CUSTOM_TEXT"; case T_BITMAP: return "BITMAP";
     case T_ANIM: return "ANIM";               case T_UNPAIR: return "UNPAIR";
+    case T_TEXT_SLOT: return "TEXT_SLOT";
     case T_SCREEN: return "SCREEN";
     case T_WIFI_PROV: return "WIFI_PROV";     case T_WIFI_STATUS: return "WIFI_STATUS";
     default: return "?";

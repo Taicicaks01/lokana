@@ -31,6 +31,7 @@ static void help() {
     "call <nama>|stop     panggilan masuk uji\r\n"
     "img                  tampilkan animasi uji di modul Gambar\r\n"
     "splash [ms]          putar ulang splash boot (ms = bekukan di waktu itu)\r\n"
+    "guide [ms]           putar Panduan cara pakai (ms = bekukan di waktu itu)\r\n"
     "name [nama]          nama Bluetooth (kosong = bawaan)\r\n"
     "ble                  status BLE & pairing\r\n"
     "forget               hapus semua pairing HP\r\n"
@@ -98,6 +99,7 @@ static void handle(char* line) {
       events::post(EV_BITMAP);
     }
   } else if (!strcasecmp(line, "splash")) events::post(EV_SPLASH, atoi(arg));   // splash [ms]
+  else if (!strcasecmp(line, "guide")) events::post(EV_GUIDE, atoi(arg));         // guide [ms]
   else if (!strcasecmp(line, "name")) {
     if (*arg) lklink::rename(!strcmp(arg, "-") ? "" : arg);   // "name -" = kembali ke bawaan
     Serial.printf("nama Bluetooth: %s\r\n", lklink::deviceName());

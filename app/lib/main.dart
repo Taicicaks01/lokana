@@ -9,6 +9,10 @@ import 'pages/connect_page.dart';
 import 'pages/dashboard_page.dart';
 import 'splash.dart';
 import 'theme.dart';
+import 'ui.dart';
+
+/// Versi aplikasi (samakan dengan pubspec.yaml dan CLIENT_NAME di BleLink.kt).
+const appVersion = '0.5.3';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,21 +78,25 @@ class _FindPhoneOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
     return Material(
-      color: cs.primaryContainer,
+      color: Colors.black,
       child: SafeArea(
-        child: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.phonelink_ring, size: 96, color: cs.onPrimaryContainer),
-            const SizedBox(height: 24),
-            Text('Lokana memanggil HP ini', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 32),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(children: [
+            const Spacer(),
+            LokanaEyes(color: AppTheme.instance.oled.color, height: 80),
+            const SizedBox(height: 40),
+            Text('Ini HP-mu!', style: t.displaySmall?.copyWith(color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('Lokana sedang memanggil HP ini', style: t.bodyLarge?.copyWith(color: Colors.white70)),
+            const Spacer(),
             FilledButton.icon(
               onPressed: () => LokanaLink.instance.phoneFound(),
-              icon: const Icon(Icons.check),
-              label: const Text('Ketemu!'),
-              style: FilledButton.styleFrom(minimumSize: const Size(200, 56)),
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('Ketemu! Hentikan bunyi'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60)),
             ),
           ]),
         ),

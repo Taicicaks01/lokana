@@ -50,19 +50,21 @@ except ImportError:  # selftest tetap bisa jalan tanpa pyserial
 T = dict(HELLO=0x00, TIME_SYNC=0x01, DEVICE_INFO=0x02, SETTINGS=0x03, OTA=0x04, ACK=0x05, UNPAIR=0x06,
          NOTIF=0x10, NAV=0x11, PC_STATS=0x12, MEETING=0x13, PHONE_STATS=0x14, CALL=0x15,
          FIND_KEYS=0x20, FIND_PHONE=0x21, EXPRESSION=0x22, DICE=0x23, GOTO=0x24, BUTTON=0x25,
-         CUSTOM_TEXT=0x30, BITMAP=0x31, ANIM=0x32, SCREEN=0x33, WIFI_PROV=0x40, WIFI_STATUS=0x41)
+         CUSTOM_TEXT=0x30, BITMAP=0x31, ANIM=0x32, SCREEN=0x33, TEXT_SLOT=0x34, WIFI_PROV=0x40, WIFI_STATUS=0x41)
 TYPE_NAME = {v: k for k, v in T.items()}
 STATUS = ["OK", "UNKNOWN_TYPE", "BAD_PAYLOAD", "BUSY", "NOT_SUPPORTED", "NOT_ALLOWED", "ERROR"]
 EXPRESSIONS = ["netral", "senang", "sedih", "marah", "ngantuk", "kaget", "cinta",
                "pusing", "curiga", "bosan", "semangat", "gugup", "kedip"]
 CAPS = ["NOTIF", "NAV", "PC_STATS", "PHONE_STATS", "CUSTOM_TEXT", "BITMAP", "OTA", "WIFI",
-        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN"]
+        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN", "TEXT_SLOT"]
 STYLES = {"diam": 0, "static": 0, "scroll": 1, "jalan": 1, "blink": 2, "kedip": 2}
 DICE = ["1d6", "2d6", "d4", "d8", "d10", "d12", "d20", "koin"]
 GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
 # Key SETTINGS: nama -> (key, format struct; None = string)
 SETTING_KEYS = {"brightness": (0x01, "<B"), "sound": (0x02, "<B"), "screen_timeout": (0x03, "<H"),
-                "flip": (0x04, "<B"), "device_name": (0x05, None), "button_events": (0x06, "<B")}
+                "flip": (0x04, "<B"), "device_name": (0x05, None), "button_events": (0x06, "<B"),
+                "notif_popup": (0x07, "<B"), "boot_guide": (0x08, "<B")}
+FONTS = {"piksel": 0, "sans": 1, "sans-tebal": 2, "serif": 3, "mono-tebal": 4}
 SETTING_NAME = {k: n for n, (k, _) in SETTING_KEYS.items()}
 CLIENT_SCRIPT = 4
 ACK_TIMEOUT = 2.0
@@ -106,8 +108,9 @@ def p_time(epoch=None, tz_min=None):
     return struct.pack("<Ih", epoch, tz_min)
 
 
-def p_text(text, style=0, size=0, duration=0, slot=0):
-    return struct.pack("<BBHB", style, size, duration, slot) + s(text.replace("|", "\n"))
+def p_text(text, style=0, size=0, duration=0, slot=0, font=None):
+    p = struct.pack("<BBHB", style, size, duration, slot) + s(text.replace("|", "\n"))
+    return p if font is None else p + bytes([font])          # font: field akhir opsional (0.5.2)
 
 
 def p_expr(expr, hold=0):
@@ -319,11 +322,35 @@ def parse_device_info(p: bytes) -> dict:
     return d
 
 
+def parse_text_item(p):
+    """TEXT_SLOT ITEM (op 1): slot, style, size, font, text."""
+    n = p[5]
+    return {"slot": p[1], "style": p[2], "size": p[3], "font": p[4], "text": p[6:6 + n].decode("utf-8", "replace")}
+
+
+def list_text_slots(lk, timeout=2.0):
+    """TEXT_SLOT LIST -> {slot: item}. Kosong jika tidak ada balasan."""
+    lk.frames.clear()
+    if lk.request(T["TEXT_SLOT"], bytes([0])) != 0:
+        return {}
+    got, end = {}, time.time() + timeout
+    while len(got) < 8 and time.time() < end:
+        f = lk.wait_frame(lambda f: f[0] == T["TEXT_SLOT"], end - time.time())
+        if f and len(f[2]) >= 6 and f[2][0] == 1:
+            it = parse_text_item(f[2])
+            got[it["slot"]] = it
+    return got
+
+
 def describe(type_, seq, payload) -> str:
     name = TYPE_NAME.get(type_, f"0x{type_:02X}")
     if type_ == T["ACK"] and len(payload) >= 2:
         st = STATUS[payload[1]] if payload[1] < len(STATUS) else payload[1]
         return f"ACK seq={seq} untuk {TYPE_NAME.get(payload[0], hex(payload[0]))}: {st}"
+    if type_ == T["TEXT_SLOT"] and len(payload) >= 6 and payload[0] == 1:
+        it = parse_text_item(payload)
+        return f"TEXT_SLOT slot {it['slot']}: " + (repr(it["text"]) + f" gaya {it['style']} ukuran {it['size']} font {it['font']}"
+                                                 if it["text"] else "kosong")
     if type_ == T["DEVICE_INFO"]:
         d = parse_device_info(payload)
         caps = [c for b, c in enumerate(CAPS) if d["caps"] >> b & 1]
@@ -551,10 +578,27 @@ def cmd_settings(a):
     if a.timeout is not None: items["screen_timeout"] = a.timeout
     if a.flip is not None: items["flip"] = onoff(a.flip)
     if a.name is not None: items["device_name"] = a.name
+    if a.notif_popup is not None: items["notif_popup"] = a.notif_popup
+    if a.boot_guide is not None: items["boot_guide"] = onoff(a.boot_guide)
     st = lk.request(T["SETTINGS"], p_settings_set(**items) if items else p_settings_get())
     lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
     lk.close()
     return 0 if st == 0 else 1
+
+
+def cmd_textslots(a):
+    lk = Link(a.port, verbose=False)
+    lk.request(T["HELLO"], p_hello())
+    if a.show:
+        st = lk.request(T["TEXT_SLOT"], struct.pack("<BBH", 2, a.show, a.duration))
+        print(f"tampilkan slot {a.show}:", STATUS[st] if st is not None and st < len(STATUS) else st)
+    else:
+        items = list_text_slots(lk)
+        for n in range(1, 9):
+            it = items.get(n)
+            print(f"  slot {n}: " + ("(tidak ada balasan)" if it is None else repr(it["text"]) if it["text"] else "kosong"))
+    lk.close()
+    return 0
 
 
 def cmd_dice(a):
@@ -861,6 +905,133 @@ def test_v05c(lk, expect):
     lk.request(T["GOTO"], s("lokana"))
 
 
+def _capture(lk):
+    lk.frames.clear()
+    lk.request(T["SCREEN"], bytes([SC["CAPTURE"]]))
+    f = lk.wait_frame(lambda f: f[0] == T["SCREEN"] and f[2][0] == SC["FRAME"], 1.5)
+    return f[2][4:] if f else b""
+
+
+def test_v052(lk, expect):
+    """v0.5.2: SETTINGS notif_popup, font CUSTOM_TEXT, modul Cari HP."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_get())
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    orig = parse_settings(rep_[2]).get("notif_popup") if rep_ else None
+    expect("REPORT berisi notif_popup", orig is not None, True)
+
+    def popup(v):
+        lk.frames.clear()
+        lk.request(T["SETTINGS"], p_settings_set(notif_popup=v))
+        r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+        return parse_settings(r[2]).get("notif_popup") if r else None
+    expect("notif_popup 10 dtk", popup(10), 10, raw=True)
+    expect("notif_popup 1 dibulatkan ke 3", popup(1), 3, raw=True)
+    expect("notif_popup 200 dibatasi 60", popup(200), 60, raw=True)
+    expect("notif_popup 0 (tidak muncul)", popup(0), 0, raw=True)
+
+    # Popup mati: notifikasi masuk tidak membuka layar Notif (bilah judul terbalik di baris atas)
+    lk.request(T["GOTO"], s("lokana"))
+    time.sleep(1.2)
+    lk.request(T["NOTIF"], p_notif(0x52, "Uji", "Popup mati", "tidak boleh muncul", silent=True))
+    time.sleep(0.4)
+    d = _capture(lk)
+    expect("notif_popup 0: layar tidak berpindah ke Notif", d[0:16] == b"\xff" * 16, False)
+    popup(5)
+    lk.request(T["NOTIF"], p_notif(0x53, "Uji", "Popup nyala", "harus muncul", silent=True))
+    time.sleep(0.4)
+    d = _capture(lk)
+    expect("notif_popup 5: popup Notif muncul", d[0:16] == b"\xff" * 16, True)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))      # tap = tutup popup
+    for i in (0x52, 0x53):
+        lk.request(T["NOTIF"], p_notif_delete(i))
+    popup(orig if orig is not None else 6)
+
+    # Font CUSTOM_TEXT
+    shots = {}
+    for f in (0, 1, 2, 3, 4):
+        expect(f"CUSTOM_TEXT font {f}", lk.request(T["CUSTOM_TEXT"], p_text("Halo Lokana", font=f)), 0)
+        time.sleep(0.3)
+        shots[f] = _capture(lk)
+    expect("tiap font tampil berbeda", len(set(shots.values())), 5, raw=True)
+    expect("CUSTOM_TEXT font 9 (belum ada) = piksel", lk.request(T["CUSTOM_TEXT"], p_text("Halo Lokana", font=9)), 0)
+    time.sleep(0.3)
+    expect("font tidak dikenal tampil seperti font piksel", _capture(lk) == shots[0], True)
+    expect("CUSTOM_TEXT tanpa field font (host lama)", lk.request(T["CUSTOM_TEXT"], p_text("Halo Lokana")), 0)
+    time.sleep(0.3)
+    expect("tanpa font = font piksel", _capture(lk) == shots[0], True)
+    expect("CUSTOM_TEXT font Serif ukuran 3 berjalan",
+           lk.request(T["CUSTOM_TEXT"], p_text("Teks berjalan panjang dengan font serif", style=1, size=3, font=3)), 0)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))
+
+    # Cari HP sekarang modul biasa: bisa dibuka lewat GOTO
+    expect("GOTO \"Cari HP\" (modul biasa)", lk.request(T["GOTO"], s("Cari HP")), 0)
+    lk.request(T["GOTO"], s("lokana"))
+
+
+def test_v053(lk, expect):
+    """v0.5.3: TEXT_SLOT, SETTINGS boot_guide, GOTO Panduan."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps TEXT_SLOT", bool(caps >> CAPS.index("TEXT_SLOT") & 1), True)
+
+    # boot_guide
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_get())
+    r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    orig = parse_settings(r[2]).get("boot_guide") if r else None
+    expect("REPORT berisi boot_guide", orig is not None, True)
+
+    def guide(v):
+        lk.frames.clear()
+        lk.request(T["SETTINGS"], p_settings_set(boot_guide=v))
+        r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+        return parse_settings(r[2]).get("boot_guide") if r else None
+    expect("boot_guide 0", guide(0), 0, raw=True)
+    expect("boot_guide 1", guide(1), 1, raw=True)
+    guide(orig if orig is not None else 1)
+
+    # TEXT_SLOT: simpan ke slot 8 lewat CUSTOM_TEXT, baca kembali, tampilkan
+    before = list_text_slots(lk)
+    expect("TEXT_SLOT LIST: 8 slot", len(before), 8, raw=True)
+    old8 = before.get(8)
+    expect("CUSTOM_TEXT simpan slot 8", lk.request(T["CUSTOM_TEXT"], p_text("Uji slot|delapan", style=2, size=2, slot=8, font=3)), 0)
+    it = list_text_slots(lk).get(8)
+    expect("TEXT_SLOT slot 8 terbaca", (it["text"], it["style"], it["size"], it["font"]) if it else None,
+           ("Uji slot\ndelapan", 2, 2, 3), raw=True)
+    expect("TEXT_SLOT SHOW slot 8", lk.request(T["TEXT_SLOT"], struct.pack("<BBH", 2, 8, 3)), 0)
+    time.sleep(0.3)
+    shown = _capture(lk)
+    lk.request(T["CUSTOM_TEXT"], p_text("Uji slot|delapan", style=0, size=2, font=3))
+    time.sleep(0.3)
+    expect("SHOW slot 8 = teks dengan font Serif", shown == _capture(lk), True)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))
+    expect("CUSTOM_TEXT hapus slot 8", lk.request(T["CUSTOM_TEXT"], p_text("", slot=8)), 0)
+    expect("TEXT_SLOT SHOW slot kosong", lk.request(T["TEXT_SLOT"], struct.pack("<BBH", 2, 8, 0)), 6)
+    expect("TEXT_SLOT SHOW slot 9", lk.request(T["TEXT_SLOT"], struct.pack("<BBH", 2, 9, 0)), 2)
+    expect("TEXT_SLOT SHOW tanpa slot", lk.request(T["TEXT_SLOT"], bytes([2])), 2)
+    expect("TEXT_SLOT ITEM dari host", lk.request(T["TEXT_SLOT"], bytes([1, 1, 0, 0, 0, 0])), 2)
+    expect("TEXT_SLOT op 7 (belum ada)", lk.request(T["TEXT_SLOT"], bytes([7])), 4)
+    expect("TEXT_SLOT payload kosong", lk.request(T["TEXT_SLOT"], b""), 2)
+    if old8 and old8["text"]:                              # kembalikan isi slot 8 semula
+        lk.request(T["CUSTOM_TEXT"], p_text(old8["text"].replace("\n", "|"), style=old8["style"], size=old8["size"],
+                                            slot=8, font=old8["font"]))
+
+    # Panduan: modul tersembunyi yang boleh dibuka lewat GOTO; tap = kembali
+    lk.request(T["GOTO"], s("lokana"))
+    time.sleep(1.2)
+    expect("GOTO \"Panduan\"", lk.request(T["GOTO"], s("panduan")), 0)
+    time.sleep(3.5)                                        # kartu ke-2 (TAP): ada kaki "sentuh: lewati"
+    d = _capture(lk)
+    expect("Panduan tampil (baris kaki terisi)", any(d[56 * 16:64 * 16]), True)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))
+    time.sleep(0.3)
+    expect("tap = Panduan selesai", any(_capture(lk)[56 * 16:64 * 16]), False)
+    expect("GOTO \"Splash\" tetap ditolak", lk.request(T["GOTO"], s("splash")), 6)
+
+
 def test_v05(lk, expect):
     """Pesan v0.5: NOTIF, CALL."""
     lk.request(T["HELLO"], p_hello("lokana_link.py test"))
@@ -908,7 +1079,7 @@ def test_v04(lk, expect, a):
     rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
     expect("SETTINGS REPORT dikirim", rep_ is not None, True)
     orig = parse_settings(rep_[2]) if rep_ else {}
-    expect("REPORT berisi 6 key", all(k in orig for k in SETTING_KEYS), True)
+    expect("REPORT berisi semua key", all(k in orig for k in SETTING_KEYS), True)
 
     # SET lalu periksa REPORT; nilai asli dikembalikan di akhir
     lk.frames.clear()
@@ -931,7 +1102,7 @@ def test_v04(lk, expect, a):
     expect("SETTINGS op 9 (belum ada)", lk.request(T["SETTINGS"], bytes([9])), 4)
     expect("SETTINGS key 0x7F (tidak dikenal) diabaikan", lk.request(T["SETTINGS"], bytes([1, 0x7F, 1, 1])), 0)
     if orig:
-        restore = {k: orig[k] for k in ("brightness", "sound", "screen_timeout", "flip", "device_name")}
+        restore = {k: orig[k] for k in ("brightness", "sound", "screen_timeout", "flip", "device_name", "notif_popup", "boot_guide")}
         expect("SETTINGS dikembalikan ke nilai awal", lk.request(T["SETTINGS"], p_settings_set(**restore)), 0)
     lk.poll(0.3)
 
@@ -1051,6 +1222,8 @@ def cmd_test(a):
     test_v05(lk, expect)
     test_v05b(lk, expect)
     test_v05c(lk, expect)
+    test_v052(lk, expect)
+    test_v053(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1091,6 +1264,7 @@ def main():
     t.add_argument("--size", type=int, default=0, choices=[0, 1, 2, 3])
     t.add_argument("--duration", type=int, default=0, help="detik, 0 = sampai disentuh")
     t.add_argument("--slot", type=int, default=0, help="1-8 = simpan; teks kosong = hapus slot")
+    t.add_argument("--font", choices=list(FONTS), help="font Lokana (firmware 0.5.2+)")
     t = sub.add_parser("expr", help="EXPRESSION: " + " ".join(EXPRESSIONS))
     t.add_argument("expr")
     t.add_argument("--hold", type=int, default=0, help="ms, 0 = default 4000")
@@ -1104,7 +1278,12 @@ def main():
     t.add_argument("--sound", help="on/off")
     t.add_argument("--timeout", type=int, help="layar mati (detik), 0 = tidak pernah")
     t.add_argument("--flip", help="on/off")
-    t.add_argument("--name", help="nama pemilik, maks 24 byte; \"\" = nama bawaan")
+    t.add_argument("--name", help="nama Bluetooth, maks 26 byte UTF-8; \"\" = nama bawaan")
+    t.add_argument("--notif-popup", type=int, help="lama popup notifikasi (detik), 0 = tidak muncul")
+    t.add_argument("--boot-guide", help="on/off: Panduan cara pakai setelah splash boot (firmware 0.5.3+)")
+    t = sub.add_parser("textslots", help="TEXT_SLOT: daftar slot teks, atau tampilkan satu slot (--show)")
+    t.add_argument("--show", type=int, help="slot 1-8 yang ditampilkan sekarang")
+    t.add_argument("--duration", type=int, default=0, help="detik, 0 = sampai disentuh")
     t = sub.add_parser("dice", help="DICE: " + " ".join(DICE) + " (kosong = jenis aktif)")
     t.add_argument("dice", nargs="?")
     t = sub.add_parser("bitmap", help="BITMAP: gambar bawaan atau file gambar")
@@ -1151,11 +1330,13 @@ def main():
         "selftest": cmd_selftest,
         "hello": cmd_hello,
         "time": simple("TIME_SYNC", lambda a: p_time(tz_min=a.tz)),
-        "text": simple("CUSTOM_TEXT", lambda a: p_text(a.text, STYLES[a.style], a.size, a.duration, a.slot)),
+        "text": simple("CUSTOM_TEXT", lambda a: p_text(a.text, STYLES[a.style], a.size, a.duration, a.slot,
+                                                      FONTS[a.font] if a.font else None)),
         "expr": simple("EXPRESSION", lambda a: p_expr(expr_id(a.expr), a.hold)),
         "goto": simple("GOTO", lambda a: s(a.module)),
         "find": simple("FIND_KEYS", lambda a: p_find(not a.stop, a.duration)),
         "settings": cmd_settings,
+        "textslots": cmd_textslots,
         "dice": cmd_dice,
         "bitmap": cmd_bitmap,
         "listen": cmd_listen,

@@ -23,6 +23,7 @@
 #include "modules/notif_module.h"
 #include "modules/system_modules.h"
 #include "modules/splash_module.h"
+#include "modules/guide_module.h"
 
 // Daftar modul. Modul pertama = layar utama.
 // Menambah fitur: buat modul di src/modules/, lalu daftarkan di sini.
@@ -34,10 +35,11 @@ static TextModule  textModule;
 static ImageModule imageModule;
 static PairModule  pairModule;     // sistem (tersembunyi)
 static FindModule  findModule;     // sistem (tersembunyi)
-static PhoneModule phoneModule;    // sistem (tersembunyi)
+static PhoneModule phoneModule;    // Cari HP (modul biasa sejak 0.5.2)
 static CallModule  callModule;     // sistem (tersembunyi)
 
 static SplashModule splashModule(faceModule.face());   // splash boot लोचन (tersembunyi)
+static GuideModule guideModule;                         // panduan cara pakai (tersembunyi)
 
 static const char* resetReason() {
   switch (esp_reset_reason()) {
@@ -86,14 +88,15 @@ void setup() {
   core::addModule(&faceModule);
   core::addModule(&clockModule);
   core::addModule(&notifModule);
+  core::addModule(&phoneModule);
   core::addModule(&diceModule);
   core::addModule(&textModule);
   core::addModule(&imageModule);
   core::addModule(&pairModule);
   core::addModule(&findModule);
-  core::addModule(&phoneModule);
   core::addModule(&callModule);
   core::addModule(&splashModule);
+  core::addModule(&guideModule);
   TRACE("core");
   core::begin();
   core::goTo(splashModule.name());   // splash berjalan di loop: BLE & console sudah aktif selama animasi

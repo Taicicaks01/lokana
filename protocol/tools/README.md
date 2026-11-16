@@ -9,12 +9,17 @@ Penguji Lokana Link v1 lewat **USB serial**. Satu file, hanya butuh `pyserial`
 pip install pyserial
 cd lokana\protocol\tools
 python lokana_link.py selftest        # cek CRC & contoh byte spesifikasi (tanpa device)
-python lokana_link.py test            # uji otomatis pesan v0.3 - v0.5
+python lokana_link.py test            # uji otomatis pesan v0.3 - v0.5.3
 python lokana_link.py test --touch    # + uji BUTTON (sentuh Lokana saat diminta)
 python lokana_link.py hello           # HELLO -> DEVICE_INFO
 python lokana_link.py time            # sinkron jam dari PC
 python lokana_link.py text "Halo Wayan" --style scroll --duration 10
 python lokana_link.py text "Wayan|KRTI 2026" --slot 1     # simpan name tag ke slot 1
+python lokana_link.py text "Halo!" --font sans-tebal     # font: piksel sans sans-tebal serif mono-tebal (0.5.2)
+python lokana_link.py settings --notif-popup 10          # lama popup notifikasi, 0 = tidak muncul
+python lokana_link.py settings --boot-guide off          # Panduan setelah splash boot (0.5.3)
+python lokana_link.py textslots                          # isi slot teks 1-8 (TEXT_SLOT, 0.5.3)
+python lokana_link.py textslots --show 1 --duration 5    # tampilkan slot 1 sekarang
 python lokana_link.py expr senang --hold 3000
 python lokana_link.py goto jam
 python lokana_link.py find --duration 5

@@ -12,7 +12,7 @@
 #ifndef BLE_NAME_DEFAULT
 #define BLE_NAME_DEFAULT "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01"   // Lokana_लोचन-01
 #endif
-#define FW_VERSION "0.5.1"
+#define FW_VERSION "0.5.3"
 
 // ---------- Layar ----------
 #define SCREEN_W 128

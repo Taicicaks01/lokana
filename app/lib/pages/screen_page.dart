@@ -6,6 +6,7 @@ import '../link/link.dart';
 import '../link/proto.dart';
 import '../render.dart';
 import '../theme.dart';
+import '../ui.dart';
 
 /// Layar Lokana langsung di HP (SCREEN) + remote gestur + screenshot.
 class ScreenPage extends StatefulWidget {
@@ -90,7 +91,7 @@ class _ScreenPageState extends State<ScreenPage> {
               tooltip: 'Screenshot'),
         ],
       ),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      body: PageBody(children: [
         Stack(children: [
           OledPreview(anim: frame),
           if (frame == null)

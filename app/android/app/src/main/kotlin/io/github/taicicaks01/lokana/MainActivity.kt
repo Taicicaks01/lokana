@@ -93,6 +93,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "saveImage" -> result.success(saveImage(call.argument<ByteArray>("bytes")!!, call.argument<String>("name")!!))
 
+                // ---- Nada Cari HP (v0.5.2) ----
+                "ringtoneInfo" -> result.success(mapOf("title" to Alarm.soundTitle(this), "custom" to (Alarm.customUri(this) != null)))
+                "pickRingtone" -> pickRingtone(result)
+                "pickRingtoneFile" -> pickRingtoneFile(result)
+                "resetRingtone" -> { Alarm.setSound(this, null); result.success(Alarm.soundTitle(this)) }
+                "previewRingtone" -> { Alarm.preview(this); result.success(null) }
+                "stopPreview" -> { Alarm.stopPreview(); result.success(null) }
+
                 // ---- Notifikasi (v0.5) ----
                 "notifStatus" -> result.success(mapOf(
                     "access" to NotifPrefs.hasAccess(this),
@@ -146,9 +154,50 @@ class MainActivity : FlutterActivity() {
         @Suppress("DEPRECATION") startActivityForResult(Intent.createChooser(i, "Pilih gambar atau GIF"), 77)
     }
 
+    // ---------------- Nada Cari HP ----------------
+    private var ringResult: MethodChannel.Result? = null
+
+    /** Pemilih nada sistem Android (alarm, dering, notifikasi). Hasil: nama nada, atau null jika batal. */
+    private fun pickRingtone(result: MethodChannel.Result) {
+        ringResult?.success(null)
+        ringResult = result
+        val i = Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_ALL)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TITLE, "Nada Cari HP")
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Alarm.customUri(this))
+        @Suppress("DEPRECATION") startActivityForResult(i, 78)
+    }
+
+    /** File audio sendiri (lagu, rekaman). Izin baca disimpan permanen supaya bisa diputar dari layanan. */
+    private fun pickRingtoneFile(result: MethodChannel.Result) {
+        ringResult?.success(null)
+        ringResult = result
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).setType("audio/*").addCategory(Intent.CATEGORY_OPENABLE)
+        @Suppress("DEPRECATION") startActivityForResult(i, 79)
+    }
+
+    private fun onRingtoneResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val r = ringResult ?: return
+        ringResult = null
+        if (resultCode != RESULT_OK || data == null) { r.success(null); return }
+        val uri: android.net.Uri? = if (requestCode == 78) {
+            if (Build.VERSION.SDK_INT >= 33)
+                data.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, android.net.Uri::class.java)
+            else @Suppress("DEPRECATION") data.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        } else data.data?.also {
+            try { contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
+        }
+        if (uri == null) { r.success(null); return }
+        Alarm.setSound(this, uri)
+        r.success(Alarm.soundTitle(this))
+    }
+
     @Deprecated("startActivityForResult")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 78 || requestCode == 79) { onRingtoneResult(requestCode, resultCode, data); return }
         if (requestCode != 77) return
         val r = pickResult ?: return
         pickResult = null

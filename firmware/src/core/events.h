@@ -18,6 +18,7 @@ enum EventType : uint8_t {
   EV_NOTIF,        // value = 1 notifikasi baru (notifstore::at(0)), 0 diperbarui/dihapus
   EV_CALL,         // value = 0 berdering (penelepon di notifstore::caller()), 1 selesai
   EV_SPLASH,       // putar ulang splash boot; value > 0 = bekukan di ms tersebut (uji/screenshot)
+  EV_GUIDE,        // putar Panduan cara pakai; value > 0 = bekukan di ms tersebut (uji/screenshot)
 };
 
 struct Event {

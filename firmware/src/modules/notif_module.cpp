@@ -1,6 +1,7 @@
 #include "notif_module.h"
 #include "config.h"
 #include "core/core.h"
+#include "core/settings.h"
 #include "core/text_wrap.h"
 #include "drivers/buzzer.h"
 #include "drivers/display.h"
@@ -56,12 +57,14 @@ void NotifModule::event(const Event& e) {
   if (!n.silent()) buzzer::play(n.important() ? MEL_NOTIF_HI : MEL_NOTIF);
   Module* cur = core::current();
   if (cur && cur->hidden()) return;                // jangan menimpa pairing / cari / panggilan
+  uint8_t popS = settings::get().notifPopupS;      // SETTINGS notif_popup: 0 = tidak muncul
+  if (!popS) { if (cur == this) layout(); return; }
   _idx = 0;
   layout();
   _incoming = true;
   _shownAt = millis();
   uint32_t extra = _n > BODY_ROWS ? (_n - BODY_ROWS) * SCROLL_STEP : 0;
-  _showMs = (n.important() ? 10000 : 6000) + extra;
+  _showMs = (popS + (n.important() ? 4 : 0)) * 1000UL + extra;
   core::goTo(name());
 }
 

@@ -27,6 +27,22 @@ void main() {
         '01 01 01 02 03 02 3c 00 05 03 48 61 69 06 01 01');
   });
 
+  test('SETTINGS notif_popup dan font CUSTOM_TEXT (0.5.2)', () {
+    expect(hex(pSettingsSet(notifPopupS: 10)), '01 07 01 0a');
+    final s = LokanaSettings.parse(bytes('02 01 01 01 07 01 00'));
+    expect(s.notifPopupS, 0);
+    expect(LokanaSettings.parse(bytes('02 01 01 01')).notifPopupS, isNull);   // firmware lama
+    expect(hex(pCustomText('Hi', font: 3)), '00 00 00 00 00 02 48 69 03');
+    expect(hex(pCustomText('Hi')), '00 00 00 00 00 02 48 69');                // tanpa font = format lama
+  });
+
+  test('Perbandingan versi firmware', () {
+    expect(versionAtLeast('0.5.2', '0.5.2'), isTrue);
+    expect(versionAtLeast('0.5.10', '0.5.2'), isTrue);
+    expect(versionAtLeast('0.5.1', '0.5.2'), isFalse);
+    expect(versionAtLeast('1.0', '0.5.2'), isTrue);
+  });
+
   test('DICE d20', () => expect(hex(pDice(6)), '00 06'));
 
   test('BITMAP 9x2 di (44,-2) ke slot 3', () {
@@ -121,6 +137,22 @@ void main() {
     expect(f.bitmap.get(15, 1), isTrue);
     expect(f.bitmap.get(1, 0), isFalse);
     expect(ScreenFrame.parse(bytes('02 00 10')), isNull);
+  });
+
+  // Byte asli dari firmware 0.5.3 (USB, 2026-11-17)
+  test('TEXT_SLOT: LIST, SHOW, ITEM', () {
+    expect(hex(pTextSlotList()), '00');
+    expect(hex(pTextSlotShow(1, durationS: 3)), '02 01 03 00');
+    final s = TextSlot.parse(bytes('01 01 01 03 02 04 48 61 69 21'))!;
+    expect((s.slot, s.style, s.size, s.font, s.text), (1, 1, 3, 2, 'Hai!'));
+    expect(TextSlot.parse(bytes('01 05 00 00 00 00'))!.isEmpty, isTrue);
+    expect(TextSlot.parse(bytes('02 01')), isNull);
+  });
+
+  test('SETTINGS boot_guide (0.5.3)', () {
+    expect(hex(pSettingsSet(bootGuide: false)), '01 08 01 00');
+    expect(LokanaSettings.parse(bytes('02 07 01 06 08 01 01')).bootGuide, isTrue);
+    expect(LokanaSettings.parse(bytes('02 07 01 06')).bootGuide, isNull);
   });
 
   test('Teks ke ASCII OLED', () {

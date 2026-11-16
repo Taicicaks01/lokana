@@ -4,6 +4,8 @@ import 'package:material_ui/material_ui.dart';
 import '../link/link.dart';
 import '../link/proto.dart';
 import '../render.dart';
+import '../theme.dart';
+import '../ui.dart';
 
 /// Emoji, teks, gambar & GIF -> animasi 1-bit; kirim sekarang atau simpan ke galeri Lokana (slot 1-8).
 class ImagePage extends StatefulWidget {
@@ -18,13 +20,18 @@ enum _Source { emoji, file }
 class _ImagePageState extends State<ImagePage> {
   static const quick = ['😊', '😂', '😍', '😎', '🥳', '😴', '👍', '❤️', '⭐', '🔥', '☕', '🎵', '🐱', '🌙', '⚡', '🍀'];
   final link = LokanaLink.instance;
+  final prefs = AppTheme.instance;
   final ctrl = TextEditingController(text: '😊');
 
+  // Setelan terakhir diingat di HP (bukan di Lokana): yang dikirim ke Lokana adalah hasil gambarnya.
   _Source source = _Source.emoji;
-  Effect effect = Effect.still;
-  double threshold = 110, speedMs = 110;
-  bool invert = false, dither = true, busy = false;
-  int slot = 0, duration = 10;
+  late Effect effect = Effect.values.firstWhere((e) => e.name == prefs.pref('img_effect'), orElse: () => Effect.still);
+  late double threshold = prefs.prefInt('img_threshold_emoji', 110).toDouble(),
+      speedMs = prefs.prefInt('img_speed', 110).toDouble();
+  late bool invert = prefs.prefBool('img_invert', false), dither = prefs.prefBool('img_dither', true);
+  bool busy = false;
+  int slot = 0;
+  late int duration = prefs.prefInt('img_duration', 10);
   double progress = 0;
 
   ui.Image? glyph;                  // emoji/teks yang sudah dipotong rapat
@@ -88,18 +95,30 @@ class _ImagePageState extends State<ImagePage> {
   Future<void> _pickFile() async {
     final b = await link.pickImage();
     if (b == null) return;
-    setState(() { fileBytes = b; source = _Source.file; threshold = 128; });
+    setState(() {
+      fileBytes = b;
+      source = _Source.file;
+      threshold = prefs.prefInt('img_threshold_file', 128).toDouble();
+    });
     await _rebuildAnim();
     if (anim == null && mounted) _snack('Gambar tidak bisa dibaca');
   }
 
-  void _snack(String m) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(m)));
+  void _snack(String m) => showSnack(context, m);
+
+  void _remember() {
+    prefs.remember('img_effect', effect.name);
+    prefs.remember(source == _Source.file ? 'img_threshold_file' : 'img_threshold_emoji', threshold.round());
+    prefs.remember('img_speed', speedMs.round());
+    prefs.remember('img_invert', invert);
+    prefs.remember('img_dither', dither);
+    prefs.remember('img_duration', duration);
+  }
 
   Future<void> _send() async {
     final a = anim;
     if (a == null) return;
+    _remember();
     setState(() { busy = true; progress = 0; });
     int st;
     if (link.hasAnim) {
@@ -140,17 +159,26 @@ class _ImagePageState extends State<ImagePage> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
     final a = anim;
+    final used = slots == null ? const <int>{} : {for (var i = 0; i < slots!.length; i++) if (slots![i].$1 > 0) i + 1};
     return Scaffold(
       appBar: AppBar(title: const Text('Emoji & Gambar')),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      bottomNavigationBar: ActionBar(
+        label: slot == 0 ? 'Tampilkan di Lokana' : (used.contains(slot) ? 'Ganti isi slot $slot' : 'Simpan ke slot $slot'),
+        icon: slot == 0 ? Icons.send_rounded : Icons.save_alt_rounded,
+        onPressed: a == null || !a.fits ? null : _send,
+        progress: busy ? progress : null,
+      ),
+      body: PageBody(children: [
         OledPreview(anim: a, screenW: _w, screenH: _h),
-        const SizedBox(height: 6),
+        const SizedBox(height: Gap.s),
         Text(a == null ? 'Belum ada gambar'
             : '${a.frames.length} bingkai · ${a.w}x${a.h} · ${(a.totalBytes / 1024).toStringAsFixed(1)} KB'
               '${a.fits ? '' : ' · terlalu besar'}',
-            style: t.bodySmall, textAlign: TextAlign.center),
-        const SizedBox(height: 12),
+            style: t.bodySmall?.copyWith(color: a != null && !a.fits ? cs.error : cs.onSurfaceVariant),
+            textAlign: TextAlign.center),
+        const SizedBox(height: Gap.l),
         SegmentedButton<_Source>(
           segments: const [
             ButtonSegment(value: _Source.emoji, icon: Icon(Icons.emoji_emotions_outlined), label: Text('Emoji / teks')),
@@ -158,110 +186,128 @@ class _ImagePageState extends State<ImagePage> {
           ],
           selected: {source},
           onSelectionChanged: (v) {
-            setState(() { source = v.first; threshold = source == _Source.file ? 128 : 110; });
+            setState(() {
+              source = v.first;
+              threshold = prefs.prefInt(source == _Source.file ? 'img_threshold_file' : 'img_threshold_emoji',
+                  source == _Source.file ? 128 : 110).toDouble();
+            });
             if (source == _Source.file && fileBytes == null) { _pickFile(); } else { _rebuildAnim(); }
           },
         ),
-        const SizedBox(height: 12),
-        if (source == _Source.emoji) ...[
-          Wrap(spacing: 4, runSpacing: 4, children: [
-            for (final e in quick)
-              InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () { ctrl.text = e; _rebuildGlyph(); },
-                child: Padding(padding: const EdgeInsets.all(6), child: Text(e, style: const TextStyle(fontSize: 28))),
-              ),
-          ]),
-          const SizedBox(height: 8),
-          TextField(
-            controller: ctrl,
-            maxLength: 24,
-            onChanged: (_) => _rebuildGlyph(),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Emoji atau teks',
-              helperText: 'Emoji apa saja, huruf beraksen, atau gabungan seperti "Hai 👋"',
+
+        // ---------- Sumber ----------
+        SectionHeader(source == _Source.emoji ? 'Emoji atau teks' : 'Gambar', icon: Icons.brush_outlined),
+        Panel(children: [
+          if (source == _Source.emoji) ...[
+            GridView.count(
+              crossAxisCount: 8,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                for (final e in quick)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () { ctrl.text = e; _rebuildGlyph(); },
+                    child: Center(child: Text(e, style: const TextStyle(fontSize: 26))),
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text('Animasi', style: t.titleSmall),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final fx in Effect.values)
-              ChoiceChip(label: Text(fx.label), selected: effect == fx,
-                  onSelected: (_) { setState(() => effect = fx); _rebuildAnim(); }),
-          ]),
-          if (effect != Effect.still) ...[
-            const SizedBox(height: 8),
-            Text('Kecepatan: ${speedMs.round()} ms/bingkai', style: t.titleSmall),
-            Slider(value: speedMs, min: 50, max: 300, divisions: 25,
-                onChanged: (v) => setState(() => speedMs = v), onChangeEnd: (_) => _rebuildAnim()),
+            const SizedBox(height: Gap.s),
+            TextField(
+              controller: ctrl,
+              maxLength: 24,
+              onChanged: (_) => _rebuildGlyph(),
+              decoration: const InputDecoration(
+                hintText: 'Emoji, huruf, atau "Hai 👋"',
+                helperText: 'Emoji apa saja, huruf beraksen, atau gabungan',
+              ),
+            ),
+          ] else ...[
+            OutlinedButton.icon(
+              onPressed: _pickFile,
+              icon: const Icon(Icons.folder_open),
+              label: Text(fileBytes == null ? 'Pilih gambar atau GIF' : 'Ganti gambar'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Dithering'),
+              subtitle: const Text('Titik-titik halus untuk foto. Matikan untuk logo & gambar garis.'),
+              value: dither,
+              onChanged: (v) { setState(() => dither = v); _rebuildAnim(); },
+            ),
           ],
-        ] else ...[
-          OutlinedButton.icon(
-            onPressed: _pickFile,
-            icon: const Icon(Icons.folder_open),
-            label: Text(fileBytes == null ? 'Pilih gambar atau GIF' : 'Ganti gambar'),
-          ),
+        ]),
+
+        // ---------- Tampilan ----------
+        const SectionHeader('Tampilan', icon: Icons.tune),
+        Panel(children: [
+          if (source == _Source.emoji) ...[
+            Field('Animasi', first: true,
+                child: Choices<Effect>(
+                  options: {for (final fx in Effect.values) fx: fx.label},
+                  value: effect,
+                  onChanged: (fx) { setState(() => effect = fx); _rebuildAnim(); },
+                )),
+            if (effect != Effect.still)
+              Field('Kecepatan: ${speedMs.round()} ms/bingkai',
+                  child: Slider(value: speedMs, min: 50, max: 300, divisions: 25,
+                      onChanged: (v) => setState(() => speedMs = v), onChangeEnd: (_) => _rebuildAnim())),
+          ],
+          Field('Ketajaman: ${threshold.round()}', first: source == _Source.file,
+              help: 'Batas terang piksel yang menyala. Geser sampai pratinjau paling jelas.',
+              child: Slider(value: threshold, min: 20, max: 235,
+                  onChanged: (v) => setState(() => threshold = v), onChangeEnd: (_) => _rebuildAnim())),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Dithering (untuk foto)'),
-            value: dither,
-            onChanged: (v) { setState(() => dither = v); _rebuildAnim(); },
+            title: const Text('Balik warna'),
+            value: invert,
+            onChanged: (v) { setState(() => invert = v); _rebuildAnim(); },
           ),
-        ],
-        Text('Ketajaman: ${threshold.round()}', style: t.titleSmall),
-        Slider(value: threshold, min: 20, max: 235,
-            onChanged: (v) => setState(() => threshold = v), onChangeEnd: (_) => _rebuildAnim()),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Balik warna'),
-          value: invert,
-          onChanged: (v) { setState(() => invert = v); _rebuildAnim(); },
-        ),
-        const SizedBox(height: 8),
-        Text('Kirim ke', style: t.titleSmall),
-        const SizedBox(height: 8),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          ChoiceChip(label: const Text('Tampilkan sekarang'), selected: slot == 0, onSelected: (_) => setState(() => slot = 0)),
-          for (var s = 1; s <= 8; s++)
-            ChoiceChip(label: Text('Slot $s'), selected: slot == s, onSelected: (_) => setState(() => slot = s)),
         ]),
-        if (slot == 0) ...[
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, children: [
-            for (final d in const [5, 10, 30, 0])
-              ChoiceChip(label: Text(d == 0 ? 'Sampai disentuh' : '$d detik'), selected: duration == d,
-                  onSelected: (_) => setState(() => duration = d)),
-          ]),
-        ],
-        const SizedBox(height: 20),
-        if (busy) LinearProgressIndicator(value: progress),
-        const SizedBox(height: 4),
-        FilledButton.icon(
-          onPressed: a == null || busy || !a.fits ? null : _send,
-          icon: Icon(slot == 0 ? Icons.send : Icons.save),
-          label: Text(slot == 0 ? 'Kirim ke Lokana' : 'Simpan ke slot $slot'),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        ),
+
+        // ---------- Tujuan ----------
+        const SectionHeader('Kirim ke', icon: Icons.outbox_outlined),
+        Panel(children: [
+          Choices<int>(
+            options: {0: 'Tampilkan sekarang', for (var s = 1; s <= 8; s++) s: used.contains(s) ? 'Slot $s •' : 'Slot $s'},
+            value: slot,
+            onChanged: (v) => setState(() => slot = v),
+          ),
+          if (slot == 0)
+            Field('Lama tampil',
+                child: Choices<int>(
+                  options: const {5: '5 dtk', 10: '10 dtk', 30: '30 dtk', 0: 'Sampai disentuh'},
+                  value: duration,
+                  onChanged: (v) => setState(() => duration = v),
+                ))
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: Gap.m),
+              child: Text('Yang disimpan adalah hasil gambar seperti di pratinjau (termasuk ketajaman, warna, '
+                  'dan kecepatan animasi).${used.contains(slot) ? ' Isi slot $slot akan diganti.' : ''}',
+                  style: t.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+            ),
+        ]),
+
+        // ---------- Galeri ----------
         if (link.hasAnim) ...[
-          const SizedBox(height: 28),
-          Row(children: [
-            Expanded(child: Text('Galeri di Lokana', style: t.titleMedium)),
-            if (loadingGallery)
-              const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-            else
-              IconButton(onPressed: _loadGallery, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'),
-          ]),
-          Text('Di Lokana: double-tap sampai modul Gambar, tap untuk berganti slot.', style: t.bodySmall),
-          const SizedBox(height: 8),
+          SectionHeader(
+            'Galeri di Lokana',
+            icon: Icons.photo_library_outlined,
+            subtitle: 'Di Lokana: double-tap sampai modul Gambar, tap untuk berganti slot',
+            trailing: loadingGallery
+                ? const Padding(padding: EdgeInsets.all(12),
+                    child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                : IconButton(onPressed: _loadGallery, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'),
+          ),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.6,
+            mainAxisSpacing: Gap.s,
+            crossAxisSpacing: Gap.s,
+            childAspectRatio: 1.25,
             children: [
               for (var s = 1; s <= 8; s++)
                 _SlotTile(
@@ -269,6 +315,7 @@ class _ImagePageState extends State<ImagePage> {
                   info: slots == null || slots!.length < s ? null : slots![s - 1],
                   thumb: thumbs[s],
                   onTap: () => _openSlot(s),
+                  onEmptyTap: () => setState(() => slot = s),
                 ),
             ],
           ),
@@ -282,30 +329,43 @@ class _SlotTile extends StatelessWidget {
   final int slot;
   final (int, int, int)? info;
   final Anim1? thumb;
-  final VoidCallback onTap;
-  const _SlotTile({required this.slot, this.info, this.thumb, required this.onTap});
+  final VoidCallback onTap, onEmptyTap;
+  const _SlotTile({required this.slot, this.info, this.thumb, required this.onTap, required this.onEmptyTap});
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final empty = info == null || info!.$1 == 0;
+    final cs = Theme.of(context).colorScheme;
+    final loading = info == null;
+    final empty = !loading && info!.$1 == 0;
     return Card(
+      color: empty ? cs.surfaceContainerLowest : cs.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: empty ? BorderSide(color: cs.outlineVariant) : BorderSide.none,
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: empty ? null : onTap,
+        onTap: loading ? null : (empty ? onEmptyTap : onTap),
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Expanded(
               child: empty
-                  ? Center(child: Text('Kosong', style: t.bodySmall))
+                  ? Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.add, color: cs.outline),
+                      Text('Kosong', style: t.bodySmall?.copyWith(color: cs.outline)),
+                    ]))
                   : thumb == null
                       ? const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
                       : OledPreview(anim: thumb),
             ),
-            const SizedBox(height: 4),
-            Text(empty ? 'Slot $slot' : 'Slot $slot · ${info!.$1 > 1 ? '${info!.$1} bingkai' : 'gambar'}',
-                style: t.labelSmall, textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text('Slot $slot', style: t.labelMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+                loading ? '...' : empty ? 'Ketuk untuk memilih' : (info!.$1 > 1 ? 'Animasi · ${info!.$1} bingkai' : 'Gambar'),
+                style: t.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
           ]),
         ),
       ),

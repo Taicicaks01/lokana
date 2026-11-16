@@ -153,6 +153,8 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | Firmware baru crash tapi tidak rollback | Arduino menandai app valid sebelum `setup()` | `docs/ARCHITECTURE.md` §2.7: timpa `verifyRollbackLater()` saat OTA dibuat |
 | Teks bertangga di terminal | Hanya `\n` | Pakai `\r\n` |
 | Di Wokwi GPIO20/21 dipakai serial | Pin I2C bentrok | Sejak v0.2 semua env memakai I2C 8/9 |
+| APK ditolak Play Protect saat dipasang dari file manager/WhatsApp | Perlindungan penipuan Google di Indonesia memblokir aplikasi *sideload* yang memakai izin baca notifikasi; APK juga masih bertanda tangan *debug* | Pasang lewat `adb install -r` (USB debugging), atau matikan sementara Play Protect. Jangka panjang: kunci rilis + Google Play |
+| Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
 | Serial diam setelah upload (port ada, `info` tidak dibalas) | DTR/RTS saat port dibuka | Skrip pyserial: buka dengan `dtr=False, rts=False`, tunggu ±1 dtk, lalu `dtr=True` |
 
 Perintah diagnostik console: `info`, `scan`, `oled`, `i2c <kHz>`, `ble`, `help`.
@@ -215,6 +217,19 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   dipakai bersama. Boot tidak lagi menunggu serial 3 dtk saat USB tidak tersambung ke komputer
   (`HWCDC::isPlugged()`). Aplikasi 0.5.1: `lib/splash.dart`, setelan di Tampilan aplikasi, latar launch hitam.
   Lulus 107/107 uji USB; frame splash dicek lewat `splash <ms>` + SCREEN CAPTURE. Disetujui Wayan.
+- **v0.5.2 ✅** Permintaan Wayan setelah uji v0.5 (2026-11-17): SETTINGS `0x07 notif_popup` (detik, 0 = tidak
+  muncul; NVS `npop`), **Cari HP jadi modul biasa** (setelah Notif; dihapus dari menu; tap = bunyikan/hentikan),
+  `CUSTOM_TEXT font` (5 font, field akhir opsional; slot NVS menyimpan font di 4 bit atas byte ukuran),
+  `wrapTextPx` (bungkus kata berdasar lebar piksel), teks panjang mulai dari atas lalu bergulir. Aplikasi 0.5.2:
+  pilihan font + Enter = kirim di halaman Teks, "Lama tampil di Lokana" di halaman Notifikasi, nada Cari HP
+  (nada HP / file audio, `Alarm.kt`). Lulus 126/126 uji USB. Diuji di HP 2026-11-17: berfungsi.
+- **v0.5.3 ✅** Permintaan Wayan setelah uji v0.5.2 (2026-11-17): `0x34 TEXT_SLOT` (LIST → 8 ITEM dicicil di
+  `pumpTextOut`, SHOW; bit `caps` 14), SETTINGS `0x08 boot_guide` (NVS `guide`), modul tersembunyi **Panduan**
+  (`guide_module`, `remoteOpen()` = boleh lewat GOTO), sub-menu Panduan di menu Lokana, `core::goToLater`.
+  Aplikasi 0.5.3: redesain UI (`lib/ui.dart`, tema Baloo 2), pratinjau teks persis Lokana (`oled_text.dart` +
+  `oled_fonts.dart` dari `firmware/tools/gen_oled_fonts.py`), slot teks di aplikasi, halaman Cara pakai,
+  perbaikan thumbnail galeri meluber, setelan Teks/Gambar diingat. Lulus 146/146 uji USB, 32 uji Flutter.
+  Diuji di HP 2026-11-17 (dipasang lewat adb): semua berfungsi.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

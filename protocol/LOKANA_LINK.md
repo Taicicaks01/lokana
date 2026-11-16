@@ -166,6 +166,7 @@ Arah: **H→D** host ke device, **D→H** device ke host.
 | `0x31` | `BITMAP` | H→D | Gambar/emoji 1-bit | v0.4 |
 | `0x32` | `ANIM` | dua arah | Animasi bingkai 1-bit; simpan, baca, tampilkan, hapus slot gambar | v0.5 |
 | `0x33` | `SCREEN` | dua arah | Layar langsung (*mirror*), screenshot, dan remote gestur | v0.5 |
+| `0x34` | `TEXT_SLOT` | dua arah | Baca daftar slot teks, tampilkan slot tersimpan | v0.5 |
 | **Jaringan** | | | | |
 | `0x40` | `WIFI_PROV` | H→D | Simpan / hapus WiFi | v0.8 |
 | `0x41` | `WIFI_STATUS` | D→H | Status koneksi WiFi | v0.8 |
@@ -214,7 +215,8 @@ device memakai zona waktu terakhir. Zona waktu disimpan di flash.
 Device tanpa sensor baterai (`battery_pct = 255`) dianggap mendapat daya dari USB (bit0 = 1).
 
 Bit `caps`: 0 `NOTIF` · 1 `NAV` · 2 `PC_STATS` · 3 `PHONE_STATS` · 4 `CUSTOM_TEXT` ·
-5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE` · 12 `ANIM` · 13 `SCREEN`.
+5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE` · 12 `ANIM` · 13 `SCREEN` ·
+14 `TEXT_SLOT`.
 Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 
 ### `0x03` SETTINGS (dua arah)
@@ -232,6 +234,8 @@ Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 | `0x04` | flip | u8: `0` normal, `1` diputar 180° |
 | `0x05` | device_name | UTF-8, maks 26 byte. Juga nama iklan BLE. Kosong = kembali ke nama bawaan |
 | `0x06` | button_events | u8: `1` kirim `BUTTON` ke host ini, `0` tidak (bawaan). **Tidak disimpan**: kembali `0` saat koneksi putus |
+| `0x07` | notif_popup | u8 detik: lama notifikasi baru tampil di layar (bawaan `6`). `0` = tidak muncul otomatis (tetap disimpan di modul Notif dan berbunyi) |
+| `0x08` | boot_guide | u8: `1` tampilkan **Panduan** (cara pakai Lokana) setelah splash boot (bawaan), `0` tidak |
 
 Setelah GET atau SET, device mengirim `ACK` (jika `seq ≠ 0`) lalu `REPORT` berisi semua
 pengaturan saat ini ke host yang meminta. Pengaturan yang diubah dari menu Lokana juga
@@ -241,6 +245,7 @@ dikirim sebagai `REPORT` (`seq = 0`) ke host yang sudah `HELLO`.
   dan tidak ada pengaturan yang berubah.
 - Nilai `screen_timeout` dibulatkan ke pilihan terdekat yang didukung firmware
   (15, 30, 60, 300 detik, atau `0`).
+- Nilai `notif_popup` dibatasi `0` atau `3`–`60` detik (1–2 menjadi 3, di atas 60 menjadi 60).
 - `device_name` dipakai di `DEVICE_INFO`, layar Info, dan **nama iklan BLE** (berlaku langsung;
   HP yang sudah *bonded* bisa tetap menampilkan nama lama sampai Bluetooth HP dimatikan-nyalakan).
   UTF-8 tidak valid dan karakter kontrol dibuang; lebih dari 26 byte dipotong di batas karakter.
@@ -310,8 +315,9 @@ dan tidak menyimpannya ke flash.
 
 - Device memotong `app` ke 24 byte, `title` ke 48 byte, dan `body` ke 160 byte; huruf non-ASCII
   menjadi `?` (host sebaiknya mengubah huruf beraksen ke ASCII dan membuang emoji).
-- Notifikasi baru (`id` belum ada) muncul sebentar di layar: 6 detik, atau 10 detik jika `penting`,
-  lalu Lokana kembali ke modul sebelumnya. Tap menutupnya lebih cepat. Bunyi mengikuti setelan
+- Notifikasi baru (`id` belum ada) muncul sebentar di layar selama `notif_popup` detik (SETTINGS `0x07`,
+  bawaan 6), ditambah 4 detik jika `penting` dan waktu gulir untuk isi panjang, lalu Lokana kembali ke
+  modul sebelumnya. `notif_popup = 0`: tidak muncul, hanya berbunyi dan masuk modul Notif. Tap menutupnya lebih cepat. Bunyi mengikuti setelan
   suara dan bit `tanpa bunyi`. Pembaruan `id` yang sudah ada tidak memunculkan layar lagi.
 - Semua notifikasi bisa dilihat di modul **Notif** (`GOTO "Notif"`).
 - `op = 1` untuk `id` yang tidak ada tetap dibalas `OK`. `op` lain yang tidak dikenal = `NOT_SUPPORTED`.
@@ -440,6 +446,7 @@ Device mengirim hasil setiap kali dadu dilempar, baik dari tombol maupun dari ap
 | `module` | str | Nama modul, tidak peka huruf besar/kecil: `"Lokana"`, `"Jam"`, `"Dadu"`, `"Teks"`, … |
 
 Modul yang tidak ada, atau layar sistem (pairing, cari kunci), dibalas `ERROR`.
+Pengecualian (firmware 0.5.3+): `"Panduan"` memutar panduan cara pakai, lalu kembali ke wajah Lokana.
 
 ### `0x25` BUTTON (D→H)
 
@@ -461,8 +468,11 @@ hanya pemberitahuan. Gestur di dalam menu (triple-tap) tidak dikirim.
 | `duration_s` | u16 | `0` = tampil sampai ditutup dengan tombol |
 | `slot` | u8 | `0` tampilkan sekarang, `1`–`8` simpan ke slot (name tag, pesan favorit) |
 | `text` | str | Maks 200 byte. `\n` = baris baru |
+| `font` | u8 | Opsional (firmware 0.5.2+): `0` piksel (bawaan), `1` Sans, `2` Sans Tebal, `3` Serif, `4` Mono Tebal |
 
-- `style`/`size` yang belum dikenal diperlakukan sebagai `0`.
+- `style`/`size`/`font` yang belum dikenal diperlakukan sebagai `0`.
+- `size` untuk font `1`–`4`: `1` kecil (9 pt), `2` sedang (12 pt), `3` besar (18 pt); `0` = terbesar yang muat.
+  Font tersimpan bersama slot.
 - `slot` > 8 dibalas `BAD_PAYLOAD`. Teks kosong ke slot 1–8 = hapus slot itu.
 - Teks yang ditampilkan (`slot = 0`) ditutup dengan tap atau setelah `duration_s`, lalu
   Lokana kembali ke modul sebelumnya.
@@ -538,6 +548,24 @@ Menampilkan isi layar Lokana di aplikasi/PC dan mengirim gestur dari jauh.
 - `FRAME` saat layar mati berisi bitmap kosong dengan bit0 = 0.
 - `INPUT` diperlakukan sama dengan menyentuh Lokana (termasuk membangunkan layar), dan tidak butuh `START`.
 - `START` / `CAPTURE` butuh sesi (`HELLO`) seperti pesan D→H lain.
+
+### `0x34` TEXT_SLOT (dua arah)
+
+Slot teks 1–8 yang disimpan lewat `CUSTOM_TEXT` (name tag, pesan favorit). Menyimpan dan menghapus
+tetap memakai `CUSTOM_TEXT` (`slot` 1–8; teks kosong = hapus).
+
+| `op` | Nama | Arah | Field setelah `op` |
+|---|---|---|---|
+| `0` | LIST | H→D | — |
+| `1` | ITEM | D→H | `slot u8`, `style u8`, `size u8`, `font u8`, `text str` (kosong = slot kosong) |
+| `2` | SHOW | H→D | `slot u8`, `duration_s u16` (opsional, `0` = sampai disentuh) |
+
+- `LIST`: device membalas `ACK` lalu mengirim 8 `ITEM` (`seq = 0`) untuk slot 1–8 ke host itu,
+  dengan jeda kecil antar-pesan. Slot kosong tetap dikirim dengan `text` kosong.
+- `SHOW` slot kosong = `ERROR`; slot di luar `1–8` = `BAD_PAYLOAD`. Teks tampil seperti `CUSTOM_TEXT`
+  `slot = 0`, tapi slot terakhir yang ditampilkan tidak berubah.
+- Yang tersimpan per slot: teks, gaya, ukuran, dan font. `duration_s` tidak disimpan (slot dilihat
+  dengan tap di modul Teks).
 
 ### `0x40` WIFI_PROV (H→D)
 
@@ -661,3 +689,5 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-16 | Untuk firmware 0.5.0 (tambahan, format lama tetap): batas panjang & perilaku tampil `NOTIF` (popup 6/10 detik, modul Notif, hapus `id` tak dikenal = OK), perilaku layar `CALL` (tap = bisukan, pengaman 60 detik), bit `caps NOTIF` mencakup `CALL` |
 | v1 | 2026-11-16 | Juga untuk firmware 0.5.0: `device_name` menjadi nama iklan BLE (maks 26 byte UTF-8, bawaan `Lokana_लोचन-01`); pesan baru `0x06 UNPAIR` dan `0x32 ANIM` (bit `caps` 12); `FIND_KEYS` dua arah (device melapor mulai/berhenti) |
 | v1 | 2026-11-16 | Juga untuk firmware 0.5.0: pesan baru `0x33 SCREEN` (mirror layar, screenshot, gestur jarak jauh; bit `caps` 13) |
+| v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
+| v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |

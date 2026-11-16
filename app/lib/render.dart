@@ -220,7 +220,8 @@ class _OledPreviewState extends State<OledPreview> {
   Widget build(BuildContext context) {
     final a = widget.anim;
     final b = a == null || a.frames.isEmpty ? null : a.frames[_f % a.frames.length];
-    return AspectRatio(
+    // Center: di dalam kotak yang ukurannya dipaksa (misal sel grid), layar tetap 2:1 dan tidak meluber
+    return Center(child: AspectRatio(
       aspectRatio: widget.screenW / widget.screenH,
       child: Container(
         decoration: BoxDecoration(
@@ -231,7 +232,7 @@ class _OledPreviewState extends State<OledPreview> {
         padding: const EdgeInsets.all(6),
         child: CustomPaint(painter: _OledPainter(b, widget.screenW, widget.screenH, AppTheme.instance.oled.color)),
       ),
-    );
+    ));
   }
 }
 
@@ -245,12 +246,16 @@ class _OledPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final bm = b;
     if (bm == null) return;
-    final px = size.width / sw;
+    // Skala dari sisi yang lebih sempit, lalu dipusatkan: gambar tidak pernah keluar dari bingkai
+    final px = min(size.width / sw, size.height / sh);
+    final dx = (size.width - sw * px) / 2, dy = (size.height - sh * px) / 2;
     final p = Paint()..color = color;
     final ox = (sw - bm.w) ~/ 2, oy = (sh - bm.h) ~/ 2;
     for (var y = 0; y < bm.h; y++) {
       for (var x = 0; x < bm.w; x++) {
-        if (bm.get(x, y)) canvas.drawRect(Rect.fromLTWH((ox + x) * px, (oy + y) * px, px * 0.9, px * 0.9), p);
+        if (bm.get(x, y)) {
+          canvas.drawRect(Rect.fromLTWH(dx + (ox + x) * px, dy + (oy + y) * px, px * 0.9, px * 0.9), p);
+        }
       }
     }
   }

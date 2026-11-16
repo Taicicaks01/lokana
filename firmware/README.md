@@ -53,13 +53,25 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 
 | Gestur | Fungsi |
 |---|---|
-| Tap | Aksi modul: colek Lokana · tampilkan detik · notifikasi berikutnya · lempar dadu · ganti slot teks/gambar |
-| Double-tap | Pindah modul (Lokana → Jam → Notif → Dadu → Teks → Gambar) |
-| Triple-tap | Menu: **Cari HP**, kecerahan, suara, layar mati, putar layar, lupakan HP, info |
+| Tap | Aksi modul: colek Lokana · tampilkan detik · notifikasi berikutnya · bunyikan/hentikan HP · lempar dadu · ganti slot teks/gambar |
+| Double-tap | Pindah modul (Lokana → Jam → Notif → Cari HP → Dadu → Teks → Gambar) |
+| Triple-tap | Menu: kecerahan, suara, layar mati, putar layar, **Panduan**, lupakan HP, info |
 | Tahan | Dadu: ganti jenis dadu. Notif: hapus notifikasi yang tampil. Modul lain: layar mati |
 
-Di menu, tap = item berikutnya dan tahan = pilih/ubah. **Cari HP** (item pertama: triple-tap lalu
-tahan) membuat HP yang tersambung berbunyi walau senyap; tap di Lokana untuk berhenti.
+Di menu, tap = item berikutnya dan tahan = pilih/ubah. **Panduan** (0.5.3) membuka sub-menu: *Putar sekarang*,
+*Saat boot* (On/Off, SETTINGS `boot_guide`), *Kembali*; double-tap di sub-menu = kembali ke menu.
+
+**Panduan cara pakai** (`modules/guide_module`, tersembunyi): 6 kartu (Hai → TAP → 2x TAP → 3x TAP → TAHAN →
+aplikasi), tiap gestur diperagakan jari di sensor sentuh, ±17 detik. Diputar 1,8 detik setelah splash boot
+(`core::goToLater`, batal jika Lokana disentuh dulu), dari menu, atau `GOTO "Panduan"`. Sentuhan apa pun = lewati.
+
+Modul **Cari HP** (sejak 0.5.2 modul biasa, bukan
+item menu): tap membuat HP yang tersambung berbunyi walau senyap, tap lagi untuk berhenti. Nadanya
+dipilih di aplikasi (Pengaturan → Cari HP).
+
+Modul **Teks** punya 5 font (CUSTOM_TEXT `font`): piksel bawaan, Sans, Sans Tebal, Serif, Mono Tebal
+(font GFX Adafruit 9/12/18 pt). Teks yang lebih panjang dari layar mulai dari atas lalu bergulir.
+Lama popup notifikasi diatur dari aplikasi (SETTINGS `notif_popup`, bawaan 6 detik, 0 = tidak muncul).
 
 Nama Bluetooth bawaan **`Lokana_लोचन-01`** (`BLE_NAME_DEFAULT` di `config.h`), bisa diganti dari
 aplikasi (Pengaturan) atau console `name`. Di OLED huruf Dewanagari tampil sebagai Latin (`locana`).
@@ -80,9 +92,12 @@ notif WhatsApp|Ibu|Sudah makan?  notif clear  call Ibu  call stop  name  name Lo
 tap  double  triple  long  info  scan  oled  reset  splash  splash 1300
 ```
 
+`guide [ms]` memutar Panduan (ms = bekukan di waktu itu, untuk screenshot).
 `splash` memutar ulang splash boot; `splash <ms>` membekukannya di waktu itu (untuk screenshot lewat
 Layar Lokana / `lokana_link.py screen --shot`). Bitmap लोचन dibuat ulang dengan
 `python firmware/tools/gen_splash.py` (Pillow, font Baloo 2 dari `app/assets/fonts/`).
+`python firmware/tools/gen_oled_fonts.py` menyalin font OLED (glcdfont + 12 font GFX modul Teks) ke
+`app/lib/oled_fonts.dart` untuk pratinjau teks di aplikasi; jalankan ulang jika font modul Teks berubah.
 
 ## Env build
 
@@ -115,7 +130,7 @@ src/
 │                       text_store (NVS), image_store (littlefs, animasi), notif_store (RAM)
 └── modules/            face_module, clock_module, notif_module (+ Panggilan), dice_module,
                         text_module, image_module,
-                        system_modules (Pairing, Cari kunci, Cari HP: tersembunyi)
+                        system_modules (Pairing & Cari kunci: tersembunyi; Cari HP: modul biasa)
 ```
 
 ## Membuat modul baru

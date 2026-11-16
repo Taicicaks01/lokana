@@ -3,6 +3,7 @@
 #include "config.h"
 #include "core/core.h"
 #include "drivers/buzzer.h"
+#include "core/settings.h"
 #include "splash_art.h"
 
 // ---------- Tata letak ----------
@@ -54,7 +55,11 @@ void SplashModule::finish() {
   _face.setOpenNow(0.05f);                         // mulai dari mata terpejam, sama dengan akhir splash
   _face.setOpen(1);
   _face.setExpression(EXP_HAPPY, 1500);
+  bool boot = !_played;
+  _played = true;
   core::goTo("Lokana");
+  // Panduan cara pakai sesudah wajah bangun (hanya saat boot; batal jika Lokana disentuh dulu)
+  if (boot && settings::get().bootGuide) core::goToLater("Panduan", 1800);
 }
 
 bool SplashModule::input(Gesture g) {
