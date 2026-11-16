@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import '../link/link.dart';
+import 'settings_page.dart';
 
 /// Belum tersambung: scan Lokana di sekitar, sambungkan, pairing (kode 6 digit di OLED).
 class ConnectPage extends StatefulWidget {
@@ -57,7 +58,13 @@ class _ConnectPageState extends State<ConnectPage> {
     final devices = link.found.values.toList()..sort((a, b) => b.rssi.compareTo(a.rssi));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lokana')),
+      appBar: AppBar(title: const Text('Lokana'), actions: [
+        IconButton(
+          icon: const Icon(Icons.settings_outlined),
+          tooltip: 'Pengaturan',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
+        ),
+      ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Text('Sambungkan Lokana', style: t.headlineSmall),
         const SizedBox(height: 8),
@@ -88,6 +95,25 @@ class _ConnectPageState extends State<ConnectPage> {
                 child: const Text('Sambungkan'),
               ),
               onLongPress: () => link.disconnect(forget: true),
+            ),
+          ),
+        if (link.action == 'bt_settings' && !busy)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Pairing lama perlu dihapus', style: t.titleSmall),
+                const SizedBox(height: 4),
+                Text(link.message ?? 'Lokana sudah melupakan HP ini. Hapus Lokana di Pengaturan Bluetooth HP, '
+                    'lalu sambungkan lagi untuk memasukkan kode baru.'),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: link.openBluetoothSettings,
+                  icon: const Icon(Icons.bluetooth),
+                  label: const Text('Buka Pengaturan Bluetooth'),
+                ),
+              ]),
             ),
           ),
         if (error != null) ...[

@@ -59,9 +59,7 @@ class LinkService : Service() {
             ACTION_DISCONNECT -> { BleLink.disconnect(forget = false); return START_NOT_STICKY }
         }
         // Dihidupkan ulang sistem setelah proses dimatikan (START_STICKY): sambung lagi ke Lokana terakhir
-        if (intent == null && BleLink.state == BleLink.State.IDLE) {
-            BleLink.savedDevice()?.let { (addr, name) -> BleLink.connect(addr, name) }
-        }
+        if (intent == null) BleLink.resume()
         ensureChannels(this)
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE)

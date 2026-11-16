@@ -1,8 +1,9 @@
 # Lokana OS — firmware
 
-Firmware untuk Lokana (ESP32-C3 Super Mini + OLED 0.96" 128×64). Versi **0.4.0**: sistem modul
-dengan modul **Lokana** (wajah), **Jam**, **Dadu**, **Teks**, dan **Gambar**, plus **Lokana Link**
-lewat USB dan BLE (pairing passkey 6 digit di OLED) untuk aplikasi Lokana.
+Firmware untuk Lokana (ESP32-C3 Super Mini + OLED 0.96" 128×64). Versi **0.5.0**: sistem modul
+dengan modul **Lokana** (wajah), **Jam**, **Notif**, **Dadu**, **Teks**, dan **Gambar**, layar
+**Panggilan masuk**, plus **Lokana Link** lewat USB dan BLE (pairing passkey 6 digit di OLED)
+untuk aplikasi Lokana.
 
 Arsitektur lengkap: [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
 
@@ -52,19 +53,30 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 
 | Gestur | Fungsi |
 |---|---|
-| Tap | Aksi modul: colek Lokana · tampilkan detik · lempar dadu · ganti slot teks/gambar |
-| Double-tap | Pindah modul (Lokana → Jam → Dadu → Teks → Gambar) |
+| Tap | Aksi modul: colek Lokana · tampilkan detik · notifikasi berikutnya · lempar dadu · ganti slot teks/gambar |
+| Double-tap | Pindah modul (Lokana → Jam → Notif → Dadu → Teks → Gambar) |
 | Triple-tap | Menu: **Cari HP**, kecerahan, suara, layar mati, putar layar, lupakan HP, info |
-| Tahan | Dadu: ganti jenis dadu. Modul lain: layar mati |
+| Tahan | Dadu: ganti jenis dadu. Notif: hapus notifikasi yang tampil. Modul lain: layar mati |
 
 Di menu, tap = item berikutnya dan tahan = pilih/ubah. **Cari HP** (item pertama: triple-tap lalu
 tahan) membuat HP yang tersambung berbunyi walau senyap; tap di Lokana untuk berhenti.
+
+Nama Bluetooth bawaan **`Lokana_लोचन-01`** (`BLE_NAME_DEFAULT` di `config.h`), bisa diganti dari
+aplikasi (Pengaturan) atau console `name`. Di OLED huruf Dewanagari tampil sebagai Latin (`locana`).
+
+Modul **Gambar** adalah galeri slot 1–8 (gambar diam & animasi bingkai, littlefs `/img/N.bin`);
+tap = slot berikutnya, label "Slot N" muncul sebentar.
+
+Notifikasi baru muncul 6 detik (10 detik jika penting) lalu kembali ke modul sebelumnya; tap
+menutupnya. Maks 8 notifikasi disimpan di RAM saja. Panggilan masuk menampilkan nama penelepon
+dengan dering; tap membisukan dering Lokana (panggilan di HP tidak ditolak).
 
 ## Perintah serial (115200)
 
 ```
 help  list  go dadu  expr senang  roll  roll d20  time 14:30
 text Halo|dunia  img  find 5  find stop  phone  ble  forget
+notif WhatsApp|Ibu|Sudah makan?  notif clear  call Ibu  call stop  name  name Lokana_saya  name -
 tap  double  triple  long  info  scan  oled  reset
 ```
 
@@ -96,8 +108,9 @@ src/
 ├── core/               core (modul, menu, toast, layar), face (mata Lokana),
 │                       events, settings, clock
 ├── services/           console, link (Lokana Link: link_proto, link_usb, link_ble),
-│                       text_store (NVS), bitmap_store (littlefs)
-└── modules/            face_module, clock_module, dice_module, text_module, image_module,
+│                       text_store (NVS), image_store (littlefs, animasi), notif_store (RAM)
+└── modules/            face_module, clock_module, notif_module (+ Panggilan), dice_module,
+                        text_module, image_module,
                         system_modules (Pairing, Cari kunci, Cari HP: tersembunyi)
 ```
 

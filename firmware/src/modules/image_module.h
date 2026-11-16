@@ -1,14 +1,15 @@
 #pragma once
 #include "core/module.h"
-#include "services/bitmap_store.h"
+#include "services/image_store.h"
 
-// Gambar/emoji 1-bit dari aplikasi (BITMAP).
+// Gambar & animasi 1-bit dari aplikasi (BITMAP / ANIM).
 // Gambar masuk: tampil sampai durasi habis atau tap -> kembali ke modul sebelumnya.
-// Dibuka lewat double-tap: tap = ganti gambar tersimpan (slot 1-8).
+// Dibuka lewat double-tap: galeri slot 1-8, tap = slot berikutnya.
 class ImageModule : public Module {
 public:
   const char* name() const override { return "Gambar"; }
   void enter() override;
+  void exit() override;
   bool input(Gesture g) override;
   void event(const Event& e) override;
   void update(uint32_t now) override;
@@ -17,8 +18,8 @@ public:
 
 private:
   bool nextSlot();
-  BitmapMsg _img;                   // 1 KB
-  bool _incoming = false, _have = false;
-  int8_t _slot = 0;                 // 0 = gambar terakhir dari aplikasi, 1..8 = slot
-  uint32_t _shownAt = 0;
+  Anim _img;                        // bingkai di heap (maks 16 KB)
+  bool _incoming = false;
+  uint8_t _slot = 0;                // slot yang tampil (0 = gambar masuk)
+  uint32_t _shownAt = 0, _labelUntil = 0;
 };

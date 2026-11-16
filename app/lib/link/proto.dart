@@ -5,9 +5,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 class T {
-  static const hello = 0x00, timeSync = 0x01, deviceInfo = 0x02, settings = 0x03, ack = 0x05;
+  static const hello = 0x00, timeSync = 0x01, deviceInfo = 0x02, settings = 0x03, ack = 0x05, unpair = 0x06;
+  static const notif = 0x10, call = 0x15;
   static const findKeys = 0x20, findPhone = 0x21, expression = 0x22, dice = 0x23, goto = 0x24, button = 0x25;
-  static const customText = 0x30, bitmap = 0x31;
+  static const customText = 0x30, bitmap = 0x31, anim = 0x32, screen = 0x33;
 }
 
 /// Status ACK. Nilai negatif dari sisi Kotlin: -1 tanpa ACK, -2 tidak tersambung.
@@ -31,7 +32,7 @@ class Status {
 
 class Caps {
   static const notif = 1 << 0, customText = 1 << 4, bitmap = 1 << 5, buzzer = 1 << 9;
-  static const dice = 1 << 10, findPhone = 1 << 11;
+  static const dice = 1 << 10, findPhone = 1 << 11, anim = 1 << 12, screen = 1 << 13;
 }
 
 /// ID ekspresi = urutan enum Expression di firmware. Jangan diurutkan ulang.
@@ -122,6 +123,18 @@ Uint8List pBitmapDelete(int slot) => (Writer()..u8(1)..u8(slot)..u16(0)..i16(0).
 
 Uint8List pSettingsGet() => Uint8List.fromList([0]);
 
+/// Nama Bluetooth: UTF-8 apa adanya (boleh Dewanagari), dipotong maks 26 byte di batas huruf.
+List<int> bleNameBytes(String name) {
+  final out = <int>[];
+  for (final r in name.runes) {
+    if (r < 0x20 || r == 0x7F) continue;
+    final b = utf8.encode(String.fromCharCode(r));
+    if (out.length + b.length > 26) break;
+    out.addAll(b);
+  }
+  return out;
+}
+
 Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool? flip, String? deviceName,
     bool? buttonEvents}) {
   final w = Writer()..u8(1);
@@ -130,13 +143,109 @@ Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool?
   if (sound != null) item(0x02, [sound ? 1 : 0]);
   if (screenTimeoutS != null) item(0x03, [screenTimeoutS & 0xFF, screenTimeoutS >> 8 & 0xFF]);
   if (flip != null) item(0x04, [flip ? 1 : 0]);
-  if (deviceName != null) {
-    var b = utf8.encode(toLokanaAscii(deviceName));
-    if (b.length > 24) b = b.sublist(0, 24);
-    item(0x05, b);
-  }
+  if (deviceName != null) item(0x05, bleNameBytes(deviceName));
   if (buttonEvents != null) item(0x06, [buttonEvents ? 1 : 0]);
   return w.done();
+}
+
+// ---------------- ANIM (animasi bingkai) ----------------
+class AnimOp {
+  static const begin = 0, frame = 1, end = 2, abort = 3, read = 4, list = 5, listReport = 6, delete = 7, show = 8;
+}
+
+/// Animasi 1-bit: semua bingkai berukuran w x h. Gambar diam = 1 bingkai.
+class Anim1 {
+  final int w, h;
+  final List<Bitmap1> frames;
+  int frameMs, loops;
+  Anim1(this.w, this.h, this.frames, {this.frameMs = 100, this.loops = 0});
+  int get frameBytes => ((w + 7) >> 3) * h;
+  int get totalBytes => frameBytes * frames.length;
+  static const maxBytes = 16384, maxFrames = 32;
+  bool get fits => frames.isNotEmpty && frames.length <= maxFrames && totalBytes <= maxBytes;
+}
+
+Uint8List pAnimBegin(Anim1 a, {int slot = 0, int durationS = 0, int? x, int? y}) => (Writer()
+      ..u8(AnimOp.begin)
+      ..u8(slot)
+      ..u8(a.frames.length)
+      ..u16(a.frameMs)
+      ..u8(a.loops)
+      ..u16(durationS)
+      ..i16(x ?? (128 - a.w) ~/ 2)
+      ..i16(y ?? (64 - a.h) ~/ 2)
+      ..u8(a.w)
+      ..u8(a.h))
+    .done();
+
+Uint8List pAnimFrame(int index, Bitmap1 b) => (Writer()..u8(AnimOp.frame)..u8(index)..bytes(b.data)).done();
+Uint8List pAnimOp(int op, [List<int> args = const []]) => Uint8List.fromList([op, ...args]);
+Uint8List pAnimShow(int slot, {int durationS = 0}) => (Writer()..u8(AnimOp.show)..u8(slot)..u16(durationS)).done();
+
+/// Isi galeri dari LIST_REPORT: (bingkai, w, h) untuk slot 1-8; bingkai 0 = kosong.
+List<(int, int, int)> parseAnimList(Uint8List p) =>
+    [for (var i = 0; i < 8; i++) if (1 + 3 * i + 2 < p.length) (p[1 + 3 * i], p[2 + 3 * i], p[3 + 3 * i]) else (0, 0, 0)];
+
+/// Penyusun animasi dari BEGIN / FRAME / END yang dikirim device (balasan READ).
+class AnimAssembler {
+  int w = 0, h = 0, count = 0, frameMs = 100, loops = 0;
+  final _frames = <int, Bitmap1>{};
+
+  /// Masukkan payload ANIM. Mengembalikan animasi lengkap saat END diterima.
+  Anim1? feed(Uint8List p) {
+    if (p.isEmpty) return null;
+    final r = Reader(p)..u8();
+    switch (p[0]) {
+      case AnimOp.begin:
+        r.u8();
+        count = r.u8();
+        frameMs = r.u16();
+        loops = r.u8();
+        r.u16(); r.u16(); r.u16();               // duration, x, y
+        w = r.u8();
+        h = r.u8();
+        _frames.clear();
+      case AnimOp.frame:
+        final i = r.u8();
+        final b = Bitmap1(w, h);
+        final n = b.data.length.clamp(0, p.length - 2);
+        b.data.setRange(0, n, p, 2);
+        _frames[i] = b;
+      case AnimOp.end:
+        if (w == 0 || h == 0) return null;
+        final list = [for (var i = 0; i < count; i++) _frames[i] ?? Bitmap1(w, h)];
+        return Anim1(w, h, list, frameMs: frameMs, loops: loops);
+    }
+    return null;
+  }
+}
+
+// ---------------- SCREEN (layar langsung + remote) ----------------
+class ScreenOp {
+  static const start = 0, stop = 1, frame = 2, input = 3, capture = 4;
+}
+
+/// Gestur untuk SCREEN INPUT (sama dengan tombol fisik).
+class Gestures {
+  static const tap = 1, double = 2, triple = 3, hold = 4;
+}
+
+Uint8List pScreenStart(int maxFps) => Uint8List.fromList([ScreenOp.start, maxFps]);
+Uint8List pScreenOp(int op) => Uint8List.fromList([op]);
+Uint8List pScreenInput(int gesture) => Uint8List.fromList([ScreenOp.input, gesture]);
+
+class ScreenFrame {
+  final bool screenOn;
+  final Bitmap1 bitmap;
+  ScreenFrame(this.screenOn, this.bitmap);
+
+  static ScreenFrame? parse(Uint8List p) {
+    if (p.length < 4 || p[0] != ScreenOp.frame) return null;
+    final b = Bitmap1(p[2], p[3]);
+    final n = b.data.length.clamp(0, p.length - 4);
+    b.data.setRange(0, n, p, 4);
+    return ScreenFrame(p[1] & 1 != 0, b);
+  }
 }
 
 // ---------------- Payload D->H ----------------

@@ -8,7 +8,9 @@
 #include "drivers/hw.h"
 #include "services/link.h"
 #include "services/text_store.h"
-#include "services/bitmap_store.h"
+#include "services/image_store.h"
+#include "core/settings.h"
+#include "services/notif_store.h"
 #include <Wire.h>
 
 static char buf[128];
@@ -25,7 +27,10 @@ static void help() {
     "text <isi>           tampilkan teks di modul Teks\r\n"
     "find [detik|stop]    bunyikan cari kunci (default 10 dtk)\r\n"
     "phone                cari HP (bunyikan HP yang tersambung)\r\n"
-    "img                  tampilkan gambar uji di modul Gambar\r\n"
+    "notif app|judul|isi  notifikasi uji ('notif clear' = hapus semua)\r\n"
+    "call <nama>|stop     panggilan masuk uji\r\n"
+    "img                  tampilkan animasi uji di modul Gambar\r\n"
+    "name [nama]          nama Bluetooth (kosong = bawaan)\r\n"
     "ble                  status BLE & pairing\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
@@ -63,18 +68,37 @@ static void handle(char* line) {
     for (uint8_t i = 0; i < 8; i++) if (*arg && !strcasecmp(arg, D[i])) id = i;
     events::post(EV_ROLL, id);
   } else if (!strcasecmp(line, "phone")) events::post(EV_FIND_PHONE, 1);
+  else if (!strcasecmp(line, "notif")) {
+    if (!strcasecmp(arg, "clear")) { notifstore::clear(); events::post(EV_NOTIF, 0); return; }
+    static uint32_t nextId = 0xC0DE0000;
+    Notif n;
+    n.id = nextId++;
+    char* parts[3] = {arg, nullptr, nullptr};
+    for (uint8_t i = 1; i < 3; i++) { char* p = parts[i - 1] ? strchr(parts[i - 1], '|') : nullptr; if (p) { *p = 0; parts[i] = p + 1; } }
+    strlcpy(n.app, parts[0] && *parts[0] ? parts[0] : "Console", sizeof(n.app));
+    strlcpy(n.title, parts[1] ? parts[1] : "Notifikasi uji", sizeof(n.title));
+    strlcpy(n.body, parts[2] ? parts[2] : "Halo dari console Lokana.", sizeof(n.body));
+    events::post(EV_NOTIF, notifstore::upsert(n) ? 1 : 0);
+  } else if (!strcasecmp(line, "call")) {
+    bool stop = !strcasecmp(arg, "stop");
+    notifstore::setCall(!stop, stop ? nullptr : (*arg ? arg : "Ibu"));
+    events::post(EV_CALL, stop ? 1 : 0);
+  }
   else if (!strcasecmp(line, "img")) {
-    BitmapMsg& b = bmpstore::current();           // pola uji: bingkai + papan catur 8x8
-    b.x = b.y = 0; b.w = SCREEN_W; b.h = SCREEN_H; b.durationS = 5;
-    const int bw = b.w / 8;
-    for (int y = 0; y < b.h; y++)
-      for (int xb = 0; xb < bw; xb++) {
-        uint8_t v = (y < 2 || y >= b.h - 2) ? 0xFF : (((y / 8) + xb) % 2 ? 0xFF : 0x00);
-        if (xb == 0) v |= 0xC0;
-        if (xb == bw - 1) v |= 0x03;
-        b.data[y * bw + xb] = v;
-      }
-    events::post(EV_BITMAP);
+    Anim a;                                       // animasi uji: papan catur bergeser, 8 bingkai
+    a.w = SCREEN_W; a.h = SCREEN_H; a.frames = 8; a.frameMs = 120; a.durationS = 5;
+    if (a.alloc()) {
+      const int bw = a.w / 8;
+      for (uint8_t f = 0; f < a.frames; f++)
+        for (int y = 0; y < a.h; y++)
+          for (int xb = 0; xb < bw; xb++)
+            a.frame(f)[y * bw + xb] = (((y + f) / 8 + xb) % 2) ? 0xFF : 0x00;
+      imgstore::current().swap(a);
+      events::post(EV_BITMAP);
+    }
+  } else if (!strcasecmp(line, "name")) {
+    if (*arg) lklink::rename(!strcmp(arg, "-") ? "" : arg);   // "name -" = kembali ke bawaan
+    Serial.printf("nama Bluetooth: %s\r\n", lklink::deviceName());
   }
   else if (!strcasecmp(line, "text")) {
     TextMsg m;

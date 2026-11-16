@@ -24,10 +24,12 @@ void reportButton(uint8_t gesture, const char* module);   // 1 tap, 2 double, 3 
 void reportSettings();            // pengaturan diubah dari menu Lokana
 bool findPhone(bool ring);        // false jika tidak ada HP (BLE) yang sudah HELLO
 bool phoneReady();                // ada HP tersambung yang sudah HELLO
+void reportFindKeys(bool on, uint8_t seconds);   // bunyi cari kunci mulai / berhenti
 void consoleActivity();           // ada perintah console di USB -> berhenti kirim frame tanpa diminta
 
-const char* deviceName();         // nama iklan BLE: "Lokana-1A2B"
-const char* ownerName();          // nama dari SETTINGS, atau deviceName() jika belum diatur
+void rename(const char* utf8);    // ganti nama Bluetooth ("" = bawaan): simpan + iklan ulang
+const char* deviceName();         // nama yang berlaku (UTF-8) = nama iklan BLE, bawaan BLE_NAME_DEFAULT
+void displayName(char* out, size_t cap);   // nama untuk OLED (ASCII, Dewanagari -> Latin)
 const char* bleStatus();          // "mati", "iklan", "pairing", "tersambung"
 uint8_t bondCount();
 void forgetBonds();               // hapus semua pairing (menu "Lupakan HP" / console forget)

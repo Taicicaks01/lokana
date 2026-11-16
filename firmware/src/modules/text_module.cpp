@@ -3,25 +3,7 @@
 #include "core/core.h"
 #include "drivers/buzzer.h"
 #include "drivers/display.h"
-
-// Bungkus kata: baris maks `cols` karakter, '\n' = baris baru, kata terlalu panjang dipotong
-template <typename L>
-static uint8_t wrap(const char* t, int cols, L* out, uint8_t maxLines) {
-  int len = strlen(t), s = 0;
-  uint8_t n = 0;
-  while (s <= len && n < maxLines) {
-    int e = s, sp = -1;
-    while (e < len && t[e] != '\n' && e - s < cols) { if (t[e] == ' ') sp = e; e++; }
-    if (e >= len || t[e] == '\n') {                 // sisa muat di satu baris
-      out[n++] = {(uint8_t)s, (uint8_t)(e - s)};
-      if (e >= len) break;
-      s = e + 1;
-    } else if (t[e] == ' ') { out[n++] = {(uint8_t)s, (uint8_t)(e - s)}; s = e + 1; }
-    else if (sp > s)        { out[n++] = {(uint8_t)s, (uint8_t)(sp - s)}; s = sp + 1; }
-    else                    { out[n++] = {(uint8_t)s, (uint8_t)cols}; s += cols; }
-  }
-  return n;
-}
+#include "core/text_wrap.h"
 
 void TextModule::show(const TextMsg& m) {
   _msg = m;
@@ -41,7 +23,7 @@ void TextModule::layout() {
   const uint8_t maxSz = SCREEN_H >= 64 ? 3 : 2;
   uint8_t sz = _msg.size ? _msg.size : maxSz;
   for (;; sz--) {
-    _n = wrap(_msg.text, SCREEN_W / (6 * sz), _lines, MAX_LINES);
+    _n = wrapText(_msg.text, SCREEN_W / (6 * sz), _lines, MAX_LINES);
     if (_msg.size || sz == 1 || _n * 8 * sz <= SCREEN_H) break;
   }
   _sz = sz;

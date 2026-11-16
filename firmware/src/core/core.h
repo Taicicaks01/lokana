@@ -6,7 +6,9 @@ namespace core {
 void begin();
 void loop();
 void addModule(Module* m);       // modul pertama = layar utama (home)
-bool goTo(const char* name);
+// announce: tampilkan nama modul sebentar di atas. Modul yang membuka dirinya karena event
+// (notifikasi, gambar masuk) memakai false supaya isinya tidak tertutup.
+bool goTo(const char* name, bool announce = false);
 void next();
 void back();                     // kembali ke modul (tidak tersembunyi) sebelumnya
 void openMenu();

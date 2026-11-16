@@ -13,8 +13,10 @@ enum EventType : uint8_t {
   EV_FIND_KEYS,    // value = lama bunyi (detik), 0 = berhenti
   EV_PAIR_CODE,    // value = passkey 6 digit yang harus diketik di HP
   EV_PAIR_DONE,    // value = 1 berhasil, 0 gagal/batal
-  EV_BITMAP,       // gambar baru di bmpstore siap ditampilkan (modul Gambar)
+  EV_BITMAP,       // gambar/animasi baru di imgstore::current() siap ditampilkan (modul Gambar)
   EV_FIND_PHONE,   // value = 1 mulai memanggil HP (menu), 0 HP sudah ditemukan (dari HP)
+  EV_NOTIF,        // value = 1 notifikasi baru (notifstore::at(0)), 0 diperbarui/dihapus
+  EV_CALL,         // value = 0 berdering (penelepon di notifstore::caller()), 1 selesai
 };
 
 struct Event {

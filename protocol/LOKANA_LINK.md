@@ -1,7 +1,7 @@
 # Lokana Link — Spesifikasi Protokol v1
 
-> **Status:** v1, diimplementasikan sebagian sejak **Lokana OS 0.3.0**; pesan bertanda v0.3 dan
-> v0.4 di [Daftar pesan](#5-daftar-pesan) sudah ada di **Lokana OS 0.4.0**. Perubahan masih boleh selama belum ada rilis resmi. Setelah dirilis, ikuti [aturan kompatibilitas](#9-aturan-kompatibilitas).
+> **Status:** v1, diimplementasikan sebagian sejak **Lokana OS 0.3.0**; pesan bertanda v0.3 sampai
+> v0.5 di [Daftar pesan](#5-daftar-pesan) sudah ada di **Lokana OS 0.5.0**. Perubahan masih boleh selama belum ada rilis resmi. Setelah dirilis, ikuti [aturan kompatibilitas](#9-aturan-kompatibilitas).
 
 Lokana Link adalah satu format pesan untuk semua komunikasi dengan Lokana:
 **aplikasi HP lewat BLE**, **Lokana Desktop lewat USB serial**, dan **Lokana Desktop lewat WiFi UDP**.
@@ -75,7 +75,9 @@ Satu *GATT service* custom dengan dua *characteristic*, mirip pola UART:
   beberapa *write*/*notify*, dan satu *write* boleh berisi beberapa frame. Penerima menyusun
   ulang berdasarkan `len`. BLE sudah punya CRC sendiri, jadi **tanpa envelope**.
 - Host meminta MTU **247**. Potongan data per *write* = `MTU − 3`.
-- Nama iklan (*advertising name*): `Lokana-XXXX` (`XXXX` = 2 byte terakhir alamat MAC, hex).
+- Nama iklan (*advertising name*) = `device_name` dari `SETTINGS` (UTF-8, maks 26 byte supaya muat
+  di paket iklan). Bawaan firmware: `Lokana_लोचन-01` (*locana* = mata, bahasa Sansekerta).
+  Aplikasi mengenali Lokana dari UUID service, bukan dari nama.
   UUID service ikut diiklankan di *scan response* supaya aplikasi bisa memfilter.
 - Kalau parser menunggu lanjutan frame lebih dari **1 detik**, buffer dibuang (*resync*).
 - Begitu host tersambung, device langsung meminta keamanan (*security request*): HP yang belum
@@ -144,6 +146,7 @@ Arah: **H→D** host ke device, **D→H** device ke host.
 | `0x03` | `SETTINGS` | dua arah | Baca/ubah pengaturan | v0.4 |
 | `0x04` | `OTA` | dua arah | Update firmware (begin/chunk/end/abort) | v0.9 |
 | `0x05` | `ACK` | dua arah | Balasan untuk frame dengan `seq ≠ 0` | v0.3 |
+| `0x06` | `UNPAIR` | H→D | Lupakan HP ini (hapus *bond* di device) | v0.5 |
 | **Informasi** | | | | |
 | `0x10` | `NOTIF` | H→D | Notifikasi HP (tampil / hapus) | v0.5 |
 | `0x11` | `NAV` | H→D | Navigasi: panah, jarak, instruksi | v0.6 |
@@ -152,7 +155,7 @@ Arah: **H→D** host ke device, **D→H** device ke host.
 | `0x14` | `PHONE_STATS` | H→D | Daftar metrik HP | v0.7 |
 | `0x15` | `CALL` | H→D | Panggilan masuk / selesai | v0.5 |
 | **Aksi** | | | | |
-| `0x20` | `FIND_KEYS` | H→D | Bunyikan Lokana / hentikan | v0.3 |
+| `0x20` | `FIND_KEYS` | dua arah | Bunyikan Lokana / hentikan; device melapor saat mulai/berhenti | v0.3 · v0.5 |
 | `0x21` | `FIND_PHONE` | dua arah | Minta HP berbunyi / hentikan | v0.4 |
 | `0x22` | `EXPRESSION` | H→D | Ubah ekspresi Lokana | v0.3 |
 | `0x23` | `DICE` | dua arah | Minta lempar dadu / hasil lemparan | v0.4 |
@@ -161,6 +164,8 @@ Arah: **H→D** host ke device, **D→H** device ke host.
 | **Tampilan** | | | | |
 | `0x30` | `CUSTOM_TEXT` | H→D | Teks custom | v0.3 |
 | `0x31` | `BITMAP` | H→D | Gambar/emoji 1-bit | v0.4 |
+| `0x32` | `ANIM` | dua arah | Animasi bingkai 1-bit; simpan, baca, tampilkan, hapus slot gambar | v0.5 |
+| `0x33` | `SCREEN` | dua arah | Layar langsung (*mirror*), screenshot, dan remote gestur | v0.5 |
 | **Jaringan** | | | | |
 | `0x40` | `WIFI_PROV` | H→D | Simpan / hapus WiFi | v0.8 |
 | `0x41` | `WIFI_STATUS` | D→H | Status koneksi WiFi | v0.8 |
@@ -209,7 +214,7 @@ device memakai zona waktu terakhir. Zona waktu disimpan di flash.
 Device tanpa sensor baterai (`battery_pct = 255`) dianggap mendapat daya dari USB (bit0 = 1).
 
 Bit `caps`: 0 `NOTIF` · 1 `NAV` · 2 `PC_STATS` · 3 `PHONE_STATS` · 4 `CUSTOM_TEXT` ·
-5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE`.
+5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE` · 12 `ANIM` · 13 `SCREEN`.
 Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 
 ### `0x03` SETTINGS (dua arah)
@@ -225,7 +230,7 @@ Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 | `0x02` | sound | u8: `0` mati, `1` nyala |
 | `0x03` | screen_timeout | u16 detik, `0` = tidak pernah mati |
 | `0x04` | flip | u8: `0` normal, `1` diputar 180° |
-| `0x05` | device_name | UTF-8, maks 24 byte. Kosong = kembali ke nama bawaan |
+| `0x05` | device_name | UTF-8, maks 26 byte. Juga nama iklan BLE. Kosong = kembali ke nama bawaan |
 | `0x06` | button_events | u8: `1` kirim `BUTTON` ke host ini, `0` tidak (bawaan). **Tidak disimpan**: kembali `0` saat koneksi putus |
 
 Setelah GET atau SET, device mengirim `ACK` (jika `seq ≠ 0`) lalu `REPORT` berisi semua
@@ -236,8 +241,12 @@ dikirim sebagai `REPORT` (`seq = 0`) ke host yang sudah `HELLO`.
   dan tidak ada pengaturan yang berubah.
 - Nilai `screen_timeout` dibulatkan ke pilihan terdekat yang didukung firmware
   (15, 30, 60, 300 detik, atau `0`).
-- `device_name` hanya mengubah nama di `DEVICE_INFO` dan layar Info. Nama iklan BLE tetap
-  `Lokana-XXXX` supaya mudah dikenali saat scan.
+- `device_name` dipakai di `DEVICE_INFO`, layar Info, dan **nama iklan BLE** (berlaku langsung;
+  HP yang sudah *bonded* bisa tetap menampilkan nama lama sampai Bluetooth HP dimatikan-nyalakan).
+  UTF-8 tidak valid dan karakter kontrol dibuang; lebih dari 26 byte dipotong di batas karakter.
+  `REPORT` selalu berisi nama yang berlaku (tidak pernah kosong).
+- OLED hanya punya font ASCII: huruf Dewanagari ditampilkan sebagai huruf Latin (लोचन → `locana`),
+  huruf lain yang tidak dikenal menjadi `?`.
 - `op` = `2` dari host dibalas `BAD_PAYLOAD`; `op` lain yang tidak dikenal dibalas `NOT_SUPPORTED`.
 
 ### `0x04` OTA (dua arah)
@@ -254,6 +263,16 @@ Setiap BEGIN/CHUNK/END dikirim dengan `seq ≠ 0`. Device menulis ke slot OTA ca
 memeriksa SHA-256 saat END, lalu restart. Firmware baru menandai dirinya valid setelah
 berhasil boot; jika gagal, bootloader kembali ke versi lama (*rollback*). Hanya diizinkan
 lewat BLE terenkripsi atau USB.
+
+### `0x06` UNPAIR (H→D)
+
+Tanpa payload. Lewat BLE: device membalas `ACK` (jika `seq ≠ 0`), menghapus *bond* HP pengirim,
+lalu memutus koneksi. HP sebaiknya juga menghapus *bond*-nya sendiri; sambungan berikutnya akan
+meminta passkey baru. Lewat USB dibalas `NOT_ALLOWED` (pakai perintah console `forget`).
+
+Jika device sudah melupakan HP (menu **Lupakan HP**) tetapi HP masih menyimpan *bond* lama,
+enkripsi gagal dan device memutus koneksi. Aplikasi mendeteksinya, menghapus *bond* lama di HP,
+lalu menyambung ulang supaya passkey baru diminta.
 
 ### `0x05` ACK (dua arah)
 
@@ -288,6 +307,15 @@ lewat BLE terenkripsi atau USB.
 
 Untuk `op = 1`, cukup `op` dan `id`. Device menyimpan maksimal 8 notifikasi terakhir di RAM
 dan tidak menyimpannya ke flash.
+
+- Device memotong `app` ke 24 byte, `title` ke 48 byte, dan `body` ke 160 byte; huruf non-ASCII
+  menjadi `?` (host sebaiknya mengubah huruf beraksen ke ASCII dan membuang emoji).
+- Notifikasi baru (`id` belum ada) muncul sebentar di layar: 6 detik, atau 10 detik jika `penting`,
+  lalu Lokana kembali ke modul sebelumnya. Tap menutupnya lebih cepat. Bunyi mengikuti setelan
+  suara dan bit `tanpa bunyi`. Pembaruan `id` yang sudah ada tidak memunculkan layar lagi.
+- Semua notifikasi bisa dilihat di modul **Notif** (`GOTO "Notif"`).
+- `op = 1` untuk `id` yang tidak ada tetap dibalas `OK`. `op` lain yang tidak dikenal = `NOT_SUPPORTED`.
+- Device yang mendukung `NOTIF` dan `CALL` menyalakan bit `caps` `NOTIF`.
 
 ### `0x11` NAV (H→D)
 
@@ -340,7 +368,12 @@ menganggap PC/HP terputus dan kembali ke tampilan jam.
 | `state` | u8 | `0` berdering, `1` selesai/ditolak/diangkat |
 | `caller` | str | Nama kontak atau nomor |
 
-### `0x20` FIND_KEYS (H→D)
+- `state = 0`: layar **Panggilan masuk** dengan nama penelepon (maks 40 byte) dan nada dering
+  (mengikuti setelan suara). Tap di Lokana hanya membisukan dering Lokana, tidak menolak panggilan.
+- `state = 1` menutup layar. Pengaman: layar menutup sendiri setelah 60 detik tanpa `state = 1`.
+- `caller` boleh kosong untuk `state = 1`. `state` lain yang tidak dikenal = `NOT_SUPPORTED`.
+
+### `0x20` FIND_KEYS (dua arah)
 
 | Field | Tipe | Keterangan |
 |---|---|---|
@@ -348,6 +381,10 @@ menganggap PC/HP terputus dan kembali ke tampilan jam.
 | `duration_s` | u8 | Lama bunyi, `0` atau tidak ada = 30. Tombol di Lokana juga menghentikannya |
 
 Bunyi tetap keluar walaupun suara dimatikan di pengaturan.
+
+**D→H (sejak firmware 0.5.0):** device mengirim `FIND_KEYS` (`seq = 0`) ke host yang sudah
+`HELLO` setiap kali bunyi mulai (`op 1`, `duration_s` = lama bunyi) dan berhenti (`op 0`), apa pun
+penyebabnya (disentuh, waktu habis, atau perintah host). Aplikasi memakai ini untuk status tombolnya.
 
 ### `0x21` FIND_PHONE (dua arah)
 
@@ -450,6 +487,57 @@ hanya pemberitahuan. Gestur di dalam menu (triple-tap) tidak dikirim.
 - Gambar yang ditampilkan (`op = 0`) muncul di modul **Gambar** di atas latar hitam, ditutup
   dengan tap atau setelah `duration_s`, lalu Lokana kembali ke modul sebelumnya. Slot
   tersimpan di flash (littlefs) dan bisa dilihat bergantian di modul Gambar.
+
+### `0x32` ANIM (dua arah)
+
+Animasi bingkai 1-bit. Gambar diam = animasi 1 bingkai. Slot `1–8` **dipakai bersama** dengan
+`BITMAP` (satu galeri gambar di modul Gambar).
+
+| `op` | Nama | Arah | Field setelah `op` |
+|---|---|---|---|
+| `0` | BEGIN | dua arah | `slot u8` (`0` = tampilkan sekarang), `frames u8` (1–32), `frame_ms u16` (≥ 40), `loops u8` (`0` = terus berulang), `duration_s u16` (`0` = sampai ditutup; hanya `slot 0`), `x i16`, `y i16`, `w u8` (≤ 128), `h u8` (≤ 64) |
+| `1` | FRAME | dua arah | `index u8`, `data` bitmap `ceil(w/8) × h` byte |
+| `2` | END | dua arah | — |
+| `3` | ABORT | H→D | — (buang animasi yang sedang dikirim) |
+| `4` | READ | H→D | `slot u8`, `first_only u8` (`1` = bingkai pertama saja, untuk *thumbnail*) |
+| `5` | LIST | H→D | — |
+| `6` | LIST_REPORT | D→H | 8 × (`frames u8`, `w u8`, `h u8`) untuk slot 1–8; `frames = 0` = kosong |
+| `7` | DELETE | H→D | `slot u8` |
+| `8` | SHOW | H→D | `slot u8`, `duration_s u16` — tampilkan slot tersimpan sekarang |
+
+- Kirim: `BEGIN` → `FRAME` 0…n-1 (urutan bebas, boleh diulang) → `END`. Setiap frame sebaiknya
+  dengan `seq ≠ 0`. `END` dibalas `ERROR` jika ada bingkai yang belum diterima; `OK` berarti animasi
+  sudah disimpan (slot 1–8) atau sedang tampil (slot 0).
+- Batas: `frames × ceil(w/8) × h` ≤ **16384 byte** (16 bingkai layar penuh). Lebih = `BAD_PAYLOAD`
+  di `BEGIN`. `FRAME` tanpa `BEGIN`, `index` di luar batas, atau data kurang = `BAD_PAYLOAD`.
+  `BEGIN` baru membatalkan pengiriman sebelumnya.
+- `READ`, `LIST`: device membalas `ACK` lalu mengirim `BEGIN`/`FRAME`/`END` atau `LIST_REPORT`
+  (`seq = 0`) ke host itu, dengan jeda kecil antar-bingkai. `READ` slot kosong = `ERROR`.
+- `DELETE` slot kosong tetap `OK`. `SHOW` slot kosong = `ERROR`.
+- Tampil: diputar dengan jeda `frame_ms`; setelah `loops` putaran berhenti di bingkai terakhir.
+  Animasi sekarang (`slot 0`) ditutup dengan tap atau setelah `duration_s`, lalu kembali ke modul
+  sebelumnya. Di modul **Gambar**, tap = slot berikutnya.
+
+### `0x33` SCREEN (dua arah)
+
+Menampilkan isi layar Lokana di aplikasi/PC dan mengirim gestur dari jauh.
+
+| `op` | Nama | Arah | Field setelah `op` |
+|---|---|---|---|
+| `0` | START | H→D | `max_fps u8` (1–15, `0` = 10) |
+| `1` | STOP | H→D | — |
+| `2` | FRAME | D→H | `flags u8` (bit0 layar menyala), `w u8`, `h u8`, `data` bitmap `ceil(w/8) × h` |
+| `3` | INPUT | H→D | `gesture u8`: `1` tap, `2` double, `3` triple, `4` tahan |
+| `4` | CAPTURE | H→D | — (satu `FRAME` segera, untuk screenshot) |
+
+- Setelah `START`, device mengirim `FRAME` (`seq = 0`) ke host itu hanya saat isi layar berubah,
+  paling sering `max_fps` per detik, plus satu `FRAME` setiap 2 detik sebagai tanda masih hidup.
+- Mirror berhenti setelah `STOP`, koneksi putus, `HELLO` baru, atau **30 detik tanpa `START`**
+  (host mengulang `START` sekitar tiap 10 detik selama layar mirror terbuka). Ini menjaga baterai
+  Lokana jika aplikasi tertutup tanpa `STOP`.
+- `FRAME` saat layar mati berisi bitmap kosong dengan bit0 = 0.
+- `INPUT` diperlakukan sama dengan menyentuh Lokana (termasuk membangunkan layar), dan tidak butuh `START`.
+- `START` / `CAPTURE` butuh sesi (`HELLO`) seperti pesan D→H lain.
 
 ### `0x40` WIFI_PROV (H→D)
 
@@ -570,3 +658,6 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 (draf) | 2026-11-16 | Draf pertama: frame dengan `seq`, transport BLE/USB/UDP, 22 tipe pesan |
 | v1 | 2026-11-16 | Klarifikasi dari implementasi firmware 0.3.0 (tanpa perubahan format): security request saat BLE tersambung, batas `epoch` TIME_SYNC, field akhir opsional, `ERROR` untuk GOTO ke modul tidak ada/sistem, `NOT_SUPPORTED` untuk ID ekspresi baru, aturan `style`/`slot` CUSTOM_TEXT, bunyi FIND_KEYS mengabaikan setelan suara |
 | v1 | 2026-11-16 | Untuk firmware 0.4.0 (tambahan, format lama tetap): key SETTINGS `0x06 button_events`; REPORT saat pengaturan diubah di device; aturan pesan D→H tanpa diminta (setelah `HELLO`, USB berhenti saat ada teks console); `FIND_PHONE` dua arah (`op 0` dari HP menutup layar); aturan validasi DICE dan BITMAP; hapus slot BITMAP dengan `w`/`h = 0` |
+| v1 | 2026-11-16 | Untuk firmware 0.5.0 (tambahan, format lama tetap): batas panjang & perilaku tampil `NOTIF` (popup 6/10 detik, modul Notif, hapus `id` tak dikenal = OK), perilaku layar `CALL` (tap = bisukan, pengaman 60 detik), bit `caps NOTIF` mencakup `CALL` |
+| v1 | 2026-11-16 | Juga untuk firmware 0.5.0: `device_name` menjadi nama iklan BLE (maks 26 byte UTF-8, bawaan `Lokana_लोचन-01`); pesan baru `0x06 UNPAIR` dan `0x32 ANIM` (bit `caps` 12); `FIND_KEYS` dua arah (device melapor mulai/berhenti) |
+| v1 | 2026-11-16 | Juga untuk firmware 0.5.0: pesan baru `0x33 SCREEN` (mirror layar, screenshot, gestur jarak jauh; bit `caps` 13) |

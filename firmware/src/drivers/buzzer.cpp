@@ -19,10 +19,14 @@ static const Note N_LOSE[]  = {{392, 120}, {330, 120}, {262, 220}, {0, 0}};
 static const Note N_LOVE[]  = {{1047, 80}, {1319, 80}, {1047, 80}, {1568, 140}, {0, 0}};
 static const Note N_FIND[]  = {{2093, 90}, {0, 40}, {2637, 90}, {0, 40}, {2093, 90}, {0, 40}, {2637, 90}, {0, 300}, {0, 0}};
 static const Note N_PAIR[]  = {{1568, 60}, {0, 40}, {1568, 60}, {0, 0}};
+static const Note N_NOTIF[] = {{1568, 60}, {0, 40}, {2093, 90}, {0, 0}};
+static const Note N_NOTHI[] = {{2093, 70}, {0, 40}, {2093, 70}, {0, 40}, {2637, 140}, {0, 0}};
+static const Note N_CALL[]  = {{1319, 70}, {1047, 70}, {1319, 70}, {1047, 70}, {1319, 70}, {1047, 70},
+                               {1319, 70}, {1047, 70}, {0, 1400}, {0, 0}};
 
 static const Note* MEL[MEL_COUNT] = {
   N_BOOT, N_TAP, N_HAPPY, N_ANGRY, N_MENU, N_SEL, N_SLEEP, N_WAKE, N_TICK, N_DONE, N_WIN, N_LOSE, N_LOVE,
-  N_FIND, N_PAIR
+  N_FIND, N_PAIR, N_NOTIF, N_NOTHI, N_CALL
 };
 
 static const Note* cur = nullptr;

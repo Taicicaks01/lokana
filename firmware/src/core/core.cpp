@@ -16,6 +16,8 @@ static uint8_t menuIdx = 0;
 static uint32_t menuLast = 0, lastFrame = 0, lastInput = 0;
 static char toastText[32] = {0};
 static uint32_t toastUntil = 0;
+static char tabText[16] = {0};
+static uint32_t tabUntil = 0;
 static Gesture injected = G_NONE;
 static bool swallowNext = false;
 static uint32_t loopPrev = 0, loopMax = 0, loopMaxShown = 0, loopWin = 0;
@@ -115,9 +117,9 @@ static void drawInfo(Adafruit_GFX& g) {
   snprintf(l[n++], 24, "Jam: %s", clockx::status());
   snprintf(l[n++], 24, "Aktif: %luj %02lum %02lud", up / 3600, (up / 60) % 60, up % 60);
   snprintf(l[n++], 24, "BLE: %s", lklink::bleStatus());
-  char who[16];
-  snprintf(who, sizeof(who), "%.15s", lklink::ownerName());
-  drawHeader(g, "INFO", who);
+  char who[17];
+  lklink::displayName(who, sizeof(who));          // ASCII: Dewanagari -> Latin
+  drawHeader(g, who, nullptr);                    // nama bisa 16+ huruf: tidak muat bersama "INFO"
   for (uint8_t i = 0; i < n; i++) { g.setCursor(0, 13 + i * 10); g.print(l[i]); }
 #else
   snprintf(l[n++], 24, "Jam:%s %lus", clockx::status(), millis() / 1000);
@@ -135,14 +137,29 @@ static void drawToast(Adafruit_GFX& g) {
   g.setCursor(x + 5, y + (h - 7) / 2); g.print(toastText);
 }
 
+// Nama modul saat berganti: label kecil di tengah atas, supaya isi modul (gambar, notifikasi) tetap terlihat
+static void drawTab(Adafruit_GFX& g) {
+  int w = display::textWidth(tabText) + 8;
+  int x = (SCREEN_W - w) / 2;
+  g.fillRect(x - 1, 0, w + 2, 10, 0);             // garis hitam pemisah dari isi di bawahnya
+  g.fillRoundRect(x, -3, w, 12, 3, 1);
+  g.setTextSize(1); g.setTextColor(0);
+  g.setCursor(x + 4, 1); g.print(tabText);
+  g.setTextColor(1);
+}
+
 // ---------------- Perpindahan modul ----------------
 static void switchTo(uint8_t i, bool announce) {
   if (i >= count) return;
   if (i != active) {
     if (!mods[active]->hidden()) prevActive = active;
     mods[active]->exit(); active = i; mods[active]->enter();
+    tabUntil = millis();                          // label modul sebelumnya tidak ikut ke modul baru
   }
-  if (announce) core::toast(mods[active]->name(), 700);
+  if (announce && !mods[active]->hidden()) {
+    strlcpy(tabText, mods[active]->name(), sizeof(tabText));
+    tabUntil = millis() + 900;
+  }
 }
 
 namespace core {
@@ -159,9 +176,9 @@ Module* moduleAt(uint8_t i) { return i < count ? mods[i] : nullptr; }
 Module* current() { return count ? mods[active] : nullptr; }
 bool screenOn() { return screenIsOn; }
 
-bool goTo(const char* name) {
+bool goTo(const char* name, bool announce) {
   for (uint8_t i = 0; i < count; i++)
-    if (!strcasecmp(mods[i]->name(), name)) { menuOpen = false; switchTo(i, true); wake(); return true; }
+    if (!strcasecmp(mods[i]->name(), name)) { menuOpen = false; switchTo(i, announce); wake(); return true; }
   return false;
 }
 
@@ -245,7 +262,7 @@ void loop() {
   Event e;
   while (events::poll(e)) {
     lastInput = now;
-    if (e.type == EV_GOTO) { goTo(e.text); continue; }
+    if (e.type == EV_GOTO) { goTo(e.text, true); continue; }   // GOTO dari HP/PC: tampilkan nama modul
     if (e.type == EV_TOAST) { toast(e.text); continue; }
     if (e.type == EV_SETTINGS) { applySettings(); continue; }
     if (e.type == EV_EXPRESSION) switchTo(0, false);
@@ -266,6 +283,7 @@ void loop() {
     if (menuOpen) { if (infoOpen) drawInfo(gfx); else drawMenu(gfx); }
     else {
       mods[active]->render(gfx, now);
+      if ((int32_t)(tabUntil - now) > 0) drawTab(gfx);
       if ((int32_t)(toastUntil - now) > 0) drawToast(gfx);
     }
     display::show();

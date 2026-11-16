@@ -21,6 +21,11 @@ class LokanaLink extends ChangeNotifier {
 
   LinkState state = LinkState.idle;
   String? address, name, message;
+  /// Saran tindakan dari sisi Kotlin: 'bt_settings' = hapus pairing di Pengaturan Bluetooth HP.
+  String? action;
+  /// Lokana sedang berbunyi (cari kunci), dilaporkan Lokana sendiri sejak firmware 0.5.0.
+  bool findingKeys = false;
+  Timer? _findFallback;
   int mtu = 23;
   ({String address, String name})? saved;
   DeviceInfo? info;
@@ -54,6 +59,7 @@ class LokanaLink extends ChangeNotifier {
     final st = s['settings'] as Uint8List?;
     if (st != null) settings = LokanaSettings.parse(st);
     phoneRinging = s['ringing'] == true;
+    action = s['action'] as String?;
     notifyListeners();
   }
 
@@ -69,9 +75,11 @@ class LokanaLink extends ChangeNotifier {
         address = e['address'] as String? ?? address;
         name = e['name'] as String? ?? name;
         message = e['message'] as String?;
+        action = e['action'] as String?;
         mtu = e['mtu'] as int? ?? mtu;
         if (state == LinkState.ready && address != null) saved = (address: address!, name: name ?? 'Lokana');
         if (state == LinkState.idle) phoneRinging = false;
+        if (state != LinkState.ready) findingKeys = false;
       case 'scan':
         final a = e['address'] as String;
         found.update(a, (d) => d..rssi = e['rssi'] as int,
@@ -96,6 +104,8 @@ class LokanaLink extends ChangeNotifier {
         }
       case T.findPhone:
         phoneRinging = p.isNotEmpty && p[0] != 0;
+      case T.findKeys:
+        setFindingKeys(p.isNotEmpty && p[0] != 0, seconds: p.length > 1 ? p[1] : 30);
     }
     _frames.add((type, p));
   }
@@ -134,4 +144,123 @@ class LokanaLink extends ChangeNotifier {
   }
 
   bool get ready => state == LinkState.ready;
+
+  /// Status tombol cari kunci. Cadangan timer untuk firmware lama yang belum melapor.
+  void setFindingKeys(bool on, {int seconds = 30}) {
+    findingKeys = on;
+    _findFallback?.cancel();
+    if (on) {
+      _findFallback = Timer(Duration(seconds: seconds + 2), () {
+        findingKeys = false;
+        notifyListeners();
+      });
+    }
+    notifyListeners();
+  }
+
+  /// Lupakan Lokana ini di HP dan di Lokana. true = keduanya berhasil.
+  Future<bool> forget() async {
+    final ok = await _m.invokeMethod<bool>('forget') ?? false;
+    saved = null;
+    info = null;
+    settings = null;
+    notifyListeners();
+    return ok;
+  }
+
+  Future<void> openBluetoothSettings() => _m.invokeMethod('openBluetooth');
+
+  /// Simpan PNG ke galeri HP (Pictures/Lokana).
+  Future<bool> saveImage(Uint8List png, String name) async =>
+      await _m.invokeMethod<bool>('saveImage', {'bytes': png, 'name': name}) ?? false;
+
+  /// Pilih gambar / GIF dari HP. null = batal.
+  Future<Uint8List?> pickImage() => _m.invokeMethod<Uint8List>('pickImage');
+
+  // ---------------- Galeri gambar (ANIM) ----------------
+  bool get hasAnim => info?.has(Caps.anim) ?? false;
+
+  /// Kirim animasi: BEGIN, setiap bingkai (dengan ACK), END. [onProgress] 0..1.
+  Future<int> sendAnim(Anim1 a, {int slot = 0, int durationS = 0, void Function(double)? onProgress}) async {
+    var st = await send(T.anim, pAnimBegin(a, slot: slot, durationS: durationS));
+    if (st != Status.ok) return st;
+    for (var i = 0; i < a.frames.length; i++) {
+      st = await send(T.anim, pAnimFrame(i, a.frames[i]));
+      if (st != Status.ok) {
+        await send(T.anim, pAnimOp(AnimOp.abort), ack: false);
+        return st;
+      }
+      onProgress?.call((i + 1) / a.frames.length);
+    }
+    return send(T.anim, pAnimOp(AnimOp.end));
+  }
+
+  /// Isi slot 1-8: (bingkai, w, h); bingkai 0 = kosong. null = tidak ada balasan.
+  Future<List<(int, int, int)>?> listSlots() async {
+    final reply = frames
+        .where((f) => f.$1 == T.anim && f.$2.isNotEmpty && f.$2[0] == AnimOp.listReport)
+        .first
+        .timeout(const Duration(seconds: 3))
+        .then<Uint8List?>((f) => f.$2, onError: (_) => null);
+    final st = await send(T.anim, pAnimOp(AnimOp.list));
+    if (st != Status.ok) return null;
+    final p = await reply;
+    return p == null ? null : parseAnimList(p);
+  }
+
+  /// Baca isi slot dari Lokana (bingkai pertama saja untuk thumbnail).
+  Future<Anim1?> readSlot(int slot, {bool firstOnly = false}) async {
+    final asm = AnimAssembler();
+    final done = Completer<Anim1?>();
+    final sub = frames.where((f) => f.$1 == T.anim).listen((f) {
+      final a = asm.feed(f.$2);
+      if (a != null && !done.isCompleted) done.complete(a);
+    });
+    try {
+      final st = await send(T.anim, pAnimOp(AnimOp.read, [slot, firstOnly ? 1 : 0]));
+      if (st != Status.ok) return null;
+      return await done.future.timeout(const Duration(seconds: 10), onTimeout: () => null);
+    } finally {
+      await sub.cancel();
+    }
+  }
+
+  Future<int> deleteSlot(int slot) => send(T.anim, pAnimOp(AnimOp.delete, [slot]));
+  Future<int> showSlot(int slot, {int durationS = 0}) => send(T.anim, pAnimShow(slot, durationS: durationS));
+
+  // ---------------- Notifikasi (v0.5) ----------------
+  Future<NotifStatus> notifStatus() async =>
+      NotifStatus.fromMap(await _m.invokeMapMethod<String, dynamic>('notifStatus') ?? const {});
+  Future<void> setNotifEnabled(bool on) => _m.invokeMethod('setNotif', {'enabled': on});
+  Future<void> setCallsEnabled(bool on) => _m.invokeMethod('setNotif', {'calls': on});
+  Future<void> setNotifApp(String pkg, bool on) => _m.invokeMethod('setNotif', {'app': pkg, 'on': on});
+  Future<void> openNotifAccess() => _m.invokeMethod('openNotifAccess');
+  Future<void> openBattery() => _m.invokeMethod('openBattery');
+  Future<int> testNotif() async => await _m.invokeMethod<int>('testNotif') ?? Status.noAck;
+
+  Future<List<AppEntry>> installedApps() async {
+    final list = await _m.invokeListMethod<Map>('installedApps') ?? const [];
+    return [
+      for (final e in list) AppEntry(e['package'] as String, e['label'] as String, e['icon'] as Uint8List?),
+    ];
+  }
+}
+
+class NotifStatus {
+  final bool access, enabled, calls, battery;
+  final Set<String> apps;
+  NotifStatus(this.access, this.enabled, this.calls, this.battery, this.apps);
+  factory NotifStatus.fromMap(Map<String, dynamic> m) => NotifStatus(
+        m['access'] == true,
+        m['enabled'] != false,
+        m['calls'] != false,
+        m['battery'] == true,
+        {...(m['apps'] as List? ?? const []).cast<String>()},
+      );
+}
+
+class AppEntry {
+  final String package, label;
+  final Uint8List? icon;
+  AppEntry(this.package, this.label, this.icon);
 }

@@ -6,7 +6,13 @@
 
 #define LOKANA_NAME "Lokana"
 #define LOKANA_OS "Lokana OS"
-#define FW_VERSION "0.4.0"
+
+// Nama Bluetooth bawaan (UTF-8, maks 26 byte). Bisa diganti dari aplikasi (Pengaturan).
+// "locana" = mata (Sansekerta). Di OLED tampil sebagai "Lokana_locana-01".
+#ifndef BLE_NAME_DEFAULT
+#define BLE_NAME_DEFAULT "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01"   // Lokana_लोचन-01
+#endif
+#define FW_VERSION "0.5.0"
 
 // ---------- Layar ----------
 #define SCREEN_W 128

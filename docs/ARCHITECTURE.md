@@ -250,7 +250,7 @@ lokana/
 | v0.2 ✅ | Layar 128×64 + partisi | Tata letak 128×64, `partitions.csv`, cek rollback |
 | v0.3 ✅ | Lokana Link | Parser, transport USB + BLE, pairing passkey, skrip uji Python, modul Teks |
 | v0.4 ✅ | Aplikasi MVP | Sambung, pengaturan, teks/emoji, ekspresi, dadu, cari kunci ↔ HP |
-| v0.5 | Notifikasi | NotificationListener, panggilan, modul Notif |
+| v0.5 ✅ | Notifikasi | NotificationListener, panggilan, modul Notif |
 | v0.6 | Navigasi | Panah + jarak + jalan dari Google Maps, modul Navigasi |
 | v0.7 | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro |
 | v0.8 | Jaringan | WiFi provisioning, UDP, Mode Update |

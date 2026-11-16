@@ -21,7 +21,16 @@ Contoh:
   python lokana_link.py bitmap --demo senyum     # gambar bawaan: senyum, hati, catur
   python lokana_link.py bitmap --image logo.png --slot 1   # butuh Pillow: pip install pillow
   python lokana_link.py listen                   # dengarkan hasil dadu, tombol, cari HP
-  python lokana_link.py test                     # uji otomatis semua pesan v0.3 + v0.4
+  python lokana_link.py notif WhatsApp "Ibu" "Sudah makan?"   # notifikasi (--important, --silent)
+  python lokana_link.py notif --delete 1         # hapus notifikasi id 1
+  python lokana_link.py call "Ibu"               # panggilan masuk;  call --stop  untuk selesai
+  python lokana_link.py anim --demo bola --slot 2  # animasi bawaan: bola, denyut, kedip
+  python lokana_link.py anim --gif kucing.gif     # GIF -> animasi (butuh Pillow)
+  python lokana_link.py gallery                  # isi slot gambar 1-8 (gambar ASCII)
+  python lokana_link.py screen                   # layar Lokana langsung di terminal (Ctrl+C keluar)
+  python lokana_link.py screen --shot layar.png  # screenshot (butuh Pillow)
+  python lokana_link.py press double             # gestur jarak jauh: tap double triple tahan
+  python lokana_link.py test                     # uji otomatis semua pesan v0.3 - v0.5
   python lokana_link.py monitor                  # tampilkan log & frame dari device
 
 Port dipilih otomatis (USB VID 303A = ESP32-C3). Pakai --port COM9 kalau ada beberapa.
@@ -38,16 +47,16 @@ except ImportError:  # selftest tetap bisa jalan tanpa pyserial
     serial = None
 
 # ---------------- Konstanta protokol ----------------
-T = dict(HELLO=0x00, TIME_SYNC=0x01, DEVICE_INFO=0x02, SETTINGS=0x03, OTA=0x04, ACK=0x05,
+T = dict(HELLO=0x00, TIME_SYNC=0x01, DEVICE_INFO=0x02, SETTINGS=0x03, OTA=0x04, ACK=0x05, UNPAIR=0x06,
          NOTIF=0x10, NAV=0x11, PC_STATS=0x12, MEETING=0x13, PHONE_STATS=0x14, CALL=0x15,
          FIND_KEYS=0x20, FIND_PHONE=0x21, EXPRESSION=0x22, DICE=0x23, GOTO=0x24, BUTTON=0x25,
-         CUSTOM_TEXT=0x30, BITMAP=0x31, WIFI_PROV=0x40, WIFI_STATUS=0x41)
+         CUSTOM_TEXT=0x30, BITMAP=0x31, ANIM=0x32, SCREEN=0x33, WIFI_PROV=0x40, WIFI_STATUS=0x41)
 TYPE_NAME = {v: k for k, v in T.items()}
 STATUS = ["OK", "UNKNOWN_TYPE", "BAD_PAYLOAD", "BUSY", "NOT_SUPPORTED", "NOT_ALLOWED", "ERROR"]
 EXPRESSIONS = ["netral", "senang", "sedih", "marah", "ngantuk", "kaget", "cinta",
                "pusing", "curiga", "bosan", "semangat", "gugup", "kedip"]
 CAPS = ["NOTIF", "NAV", "PC_STATS", "PHONE_STATS", "CUSTOM_TEXT", "BITMAP", "OTA", "WIFI",
-        "HID", "BUZZER", "DICE", "FIND_PHONE"]
+        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN"]
 STYLES = {"diam": 0, "static": 0, "scroll": 1, "jalan": 1, "blink": 2, "kedip": 2}
 DICE = ["1d6", "2d6", "d4", "d8", "d10", "d12", "d20", "koin"]
 GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
@@ -141,6 +150,80 @@ def parse_settings(p: bytes) -> dict:
     return d
 
 
+NOTIF_CATEGORIES = {"umum": 0, "pesan": 1, "email": 2, "sosmed": 3, "kalender": 4, "tak_terjawab": 5, "sistem": 6}
+
+
+def p_notif(id_, app="", title="", body="", category=1, silent=False, important=False):
+    flags = (1 if silent else 0) | (2 if important else 0)
+    return struct.pack("<BIBB", 0, id_, category, flags) + s(app) + s(title) + s(body)
+
+
+def p_notif_delete(id_):
+    return struct.pack("<BI", 1, id_)
+
+
+def p_call(ringing=True, caller=""):
+    return bytes([0 if ringing else 1]) + s(caller)
+
+
+SC = dict(START=0, STOP=1, FRAME=2, INPUT=3, CAPTURE=4)
+GESTURE_ID = {"tap": 1, "double": 2, "triple": 3, "tahan": 4, "long": 4}
+
+AO = dict(BEGIN=0, FRAME=1, END=2, ABORT=3, READ=4, LIST=5, LIST_REPORT=6, DELETE=7, SHOW=8)
+
+
+def p_anim_begin(slot, frames, w, h, frame_ms=100, loops=0, duration=0, x=None, y=None):
+    x = (128 - w) // 2 if x is None else x
+    y = (64 - h) // 2 if y is None else y
+    return struct.pack("<BBBHBHhhBB", AO["BEGIN"], slot, frames, frame_ms, loops, duration, x, y, w, h)
+
+
+def p_anim_frame(i, data):
+    return bytes([AO["FRAME"], i]) + bytes(data)
+
+
+def demo_anim(name, w=64, h=64, n=8):
+    """Animasi uji tanpa Pillow. Hasil: (w, h, [data bingkai])."""
+    import math
+    frames = []
+    for f in range(n):
+        px = [[0] * w for _ in range(h)]
+        for y in range(h):
+            for x in range(w):
+                if name == "denyut":                     # lingkaran membesar-mengecil
+                    r = (0.55 + 0.35 * math.sin(2 * math.pi * f / n)) * min(w, h) / 2
+                    on = math.hypot(x - w / 2, y - h / 2) <= r
+                elif name == "kedip":                    # kotak berkedip setengah waktu
+                    on = f < n // 2 and 8 <= x < w - 8 and 8 <= y < h - 8
+                else:                                    # bola memantul
+                    cy = (h - 11) - abs(math.sin(math.pi * f / n)) * (h - 22)   # lantai -> puncak -> lantai
+                    on = math.hypot(x - w / 2, y - cy) <= 9
+                px[y][x] = 1 if on else 0
+        frames.append(pack_bits(px))
+    return w, h, frames
+
+
+def gif_anim(path, max_w=128, max_h=64, max_frames=16):
+    try:
+        from PIL import Image, ImageSequence
+    except ImportError:
+        sys.exit("Pillow belum terpasang: pip install pillow")
+    im = Image.open(path)
+    all_frames = [f.copy() for f in ImageSequence.Iterator(im)]
+    step = max(1, -(-len(all_frames) // max_frames))     # ambil merata jika terlalu banyak
+    picked = all_frames[::step][:max_frames]
+    out, size = [], None
+    for f in picked:
+        g = f.convert("L")
+        g.thumbnail((max_w, max_h))
+        size = size or g.size
+        g = g.resize(size).convert("1")
+        w, h = size
+        out.append(pack_bits([[1 if g.getpixel((x, y)) else 0 for x in range(w)] for y in range(h)]))
+    ms = im.info.get("duration", 100) * step
+    return size[0], size[1], out, max(40, ms)
+
+
 def p_dice(dice=255):
     return bytes([0, dice])
 
@@ -200,6 +283,19 @@ def image_bitmap(path, max_w=128, max_h=64, invert=False):
     return w, h, pack_bits(px)
 
 
+def ascii_art(w, h, data, scale_x=2):
+    bw = (w + 7) // 8
+    rows = []
+    for y in range(0, h, 2):                              # 2 baris piksel per baris teks
+        row = ""
+        for x in range(0, w, scale_x):
+            a = data[y * bw + x // 8] >> (7 - x % 8) & 1
+            b = data[(y + 1) * bw + x // 8] >> (7 - x % 8) & 1 if y + 1 < h else 0
+            row += " ▀▄█"[a | b << 1]
+        rows.append(row)
+    return "\n".join(rows)
+
+
 def parse_device_info(p: bytes) -> dict:
     i = 0
 
@@ -247,6 +343,22 @@ def describe(type_, seq, payload) -> str:
     if type_ == T["BUTTON"] and payload:
         mod = payload[2:2 + payload[1]].decode("utf-8", "replace") if len(payload) > 1 else "?"
         return f"BUTTON {GESTURES.get(payload[0], payload[0])} di modul {mod}"
+    if type_ == T["FIND_KEYS"] and payload:
+        return "FIND_KEYS dari device: " + (f"bunyi {payload[1] if len(payload) > 1 else '?'} dtk" if payload[0] else "berhenti")
+    if type_ == T["SCREEN"] and len(payload) >= 4 and payload[0] == SC["FRAME"]:
+        return f"SCREEN FRAME {payload[2]}x{payload[3]} layar {'nyala' if payload[1] & 1 else 'mati'}"
+    if type_ == T["ANIM"] and payload:
+        op = payload[0]
+        if op == AO["LIST_REPORT"]:
+            slots = [f"{i + 1}:{payload[1 + 3 * i]}b {payload[2 + 3 * i]}x{payload[3 + 3 * i]}"
+                     for i in range(8) if payload[1 + 3 * i]]
+            return "ANIM LIST: " + (", ".join(slots) or "galeri kosong")
+        if op == AO["BEGIN"]:
+            return f"ANIM BEGIN slot {payload[1]} {payload[2]} bingkai {payload[12]}x{payload[13]}"
+        if op == AO["FRAME"]:
+            return f"ANIM FRAME {payload[1]} ({len(payload) - 2} B)"
+        if op == AO["END"]:
+            return "ANIM END"
     if type_ == T["FIND_PHONE"] and payload:
         return "FIND_PHONE " + ("bunyikan HP!" if payload[0] else "hentikan")
     return f"{name} seq={seq} payload={payload.hex(' ')}"
@@ -473,6 +585,157 @@ def cmd_bitmap(a):
     return 0 if st == 0 else 1
 
 
+def cmd_notif(a):
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    if a.delete is not None:
+        st = lk.request(T["NOTIF"], p_notif_delete(a.delete))
+    else:
+        st = lk.request(T["NOTIF"], p_notif(a.id, a.app, a.title, a.body, NOTIF_CATEGORIES[a.category],
+                                            a.silent, a.important))
+    lk.poll(0.3)
+    lk.close()
+    print("Status:", STATUS[st] if st is not None and st < len(STATUS) else st)
+    return 0 if st == 0 else 1
+
+
+def cmd_call(a):
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    st = lk.request(T["CALL"], p_call(not a.stop, a.caller or ""))
+    lk.poll(0.3)
+    lk.close()
+    print("Status:", STATUS[st] if st is not None and st < len(STATUS) else st)
+    return 0 if st == 0 else 1
+
+
+def send_anim(lk, slot, w, h, frames, frame_ms=100, loops=0, duration=0, x=None, y=None):
+    """BEGIN -> FRAME... -> END. Hasil: status END (atau status gagal pertama)."""
+    st = lk.request(T["ANIM"], p_anim_begin(slot, len(frames), w, h, frame_ms, loops, duration, x, y))
+    if st != 0:
+        return st
+    for i, d in enumerate(frames):
+        st = lk.request(T["ANIM"], p_anim_frame(i, d))
+        if st != 0:
+            return st
+    return lk.request(T["ANIM"], bytes([AO["END"]]))
+
+
+def read_slot(lk, slot, first_only=False, timeout=5.0):
+    """ANIM READ -> (info BEGIN, [bingkai]) atau None."""
+    lk.frames.clear()
+    st = lk.request(T["ANIM"], bytes([AO["READ"], slot, 1 if first_only else 0]))
+    if st != 0:
+        return st, None, []
+    begin, frames = None, []
+    end = time.time() + timeout
+    while time.time() < end:
+        f = lk.wait_frame(lambda f: f[0] == T["ANIM"], 0.5)
+        if not f:
+            continue
+        p_ = f[2]
+        if p_[0] == AO["BEGIN"]:
+            begin = struct.unpack("<BBBHBHhhBB", p_[:14])
+        elif p_[0] == AO["FRAME"]:
+            frames.append(p_[2:])
+        elif p_[0] == AO["END"]:
+            break
+    return st, begin, frames
+
+
+def cmd_anim(a):
+    if a.gif:
+        w, h, frames, ms = gif_anim(a.gif)
+    else:
+        w, h, frames = demo_anim(a.demo)
+        ms = a.ms
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    print(f"  animasi {len(frames)} bingkai {w}x{h}, {ms} ms/bingkai")
+    st = send_anim(lk, a.slot, w, h, frames, ms, a.loops, a.duration)
+    lk.poll(0.3)
+    lk.close()
+    print("Status:", STATUS[st] if st is not None and st < len(STATUS) else st)
+    return 0 if st == 0 else 1
+
+
+def cmd_gallery(a):
+    sys.stdout.reconfigure(encoding="utf-8")       # karakter blok untuk gambar ASCII
+    lk = Link(a.port, verbose=False)
+    lk.request(T["HELLO"], p_hello())
+    lk.request(T["ANIM"], bytes([AO["LIST"]]))
+    f = lk.wait_frame(lambda f: f[0] == T["ANIM"] and f[2][0] == AO["LIST_REPORT"], 1.0)
+    if not f:
+        print("Tidak ada balasan LIST")
+        return 1
+    for i in range(8):
+        n, w, h = f[2][1 + 3 * i: 4 + 3 * i]
+        if not n:
+            print(f"Slot {i + 1}: kosong")
+            continue
+        _, begin, frames = read_slot(lk, i + 1, first_only=True)
+        print(f"Slot {i + 1}: {n} bingkai {w}x{h}")
+        if frames:
+            print(ascii_art(w, h, frames[0]))
+    lk.close()
+    return 0
+
+
+def cmd_screen(a):
+    sys.stdout.reconfigure(encoding="utf-8")
+    lk = Link(a.port, verbose=False)
+    lk.request(T["HELLO"], p_hello("lokana_link.py screen"))
+    if a.shot:
+        lk.frames.clear()
+        lk.request(T["SCREEN"], bytes([SC["CAPTURE"]]))
+        f = lk.wait_frame(lambda f: f[0] == T["SCREEN"] and f[2][0] == SC["FRAME"], 2.0)
+        lk.close()
+        if not f:
+            print("Tidak ada FRAME")
+            return 1
+        _, flags, w, h = f[2][:4]
+        try:
+            from PIL import Image
+        except ImportError:
+            sys.exit("Pillow belum terpasang: pip install pillow")
+        img = Image.new("RGB", (w, h))
+        bw = (w + 7) // 8
+        data = f[2][4:]
+        on = (0x9E, 0xE7, 0xFF)
+        for y in range(h):
+            for x in range(w):
+                img.putpixel((x, y), on if data[y * bw + x // 8] >> (7 - x % 8) & 1 else (0, 0, 0))
+        img.resize((w * 4, h * 4), Image.NEAREST).save(a.shot)
+        print(f"Screenshot {w}x{h} disimpan: {a.shot}")
+        return 0
+    lk.request(T["SCREEN"], bytes([SC["START"], a.fps]))
+    last_start = time.time()
+    print("\033[2J", end="")
+    try:
+        while True:
+            if time.time() - last_start > 10:            # ulangi START supaya mirror tidak berhenti
+                lk.request(T["SCREEN"], bytes([SC["START"], a.fps]), ack=False)
+                last_start = time.time()
+            f = lk.wait_frame(lambda f: f[0] == T["SCREEN"] and f[2][0] == SC["FRAME"], 0.5)
+            if f:
+                _, flags, w, h = f[2][:4]
+                print("\033[H" + ascii_art(w, h, f[2][4:], 1) + f"\n layar {'nyala' if flags & 1 else 'mati'}   ")
+    except KeyboardInterrupt:
+        pass
+    lk.request(T["SCREEN"], bytes([SC["STOP"]]))
+    lk.close()
+    return 0
+
+
+def cmd_press(a):
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    st = lk.request(T["SCREEN"], bytes([SC["INPUT"], GESTURE_ID[a.gesture]]))
+    lk.poll(0.3)
+    lk.close()
+    return 0 if st == 0 else 1
+
+
 def cmd_listen(a):
     lk = Link(a.port)
     lk.request(T["HELLO"], p_hello("lokana_link.py listen"))
@@ -498,6 +761,136 @@ def cmd_monitor(a):
         pass
     lk.close()
     return 0
+
+
+def test_v05b(lk, expect):
+    """v0.5 (lanjutan): nama Bluetooth, UNPAIR, FIND_KEYS D->H, ANIM."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps ANIM", bool(caps >> CAPS.index("ANIM") & 1), True)
+
+    # Nama Bluetooth UTF-8
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_get())
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    orig = parse_settings(rep_[2]).get("device_name") if rep_ else None
+    expect("REPORT nama tidak kosong", bool(orig), True)
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_set(device_name="Lokana_लोचन-99"))
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    expect("nama Dewanagari tersimpan utuh", parse_settings(rep_[2]).get("device_name") if rep_ else None,
+           "Lokana_लोचन-99", raw=True)
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_set(device_name="Lokana_" + "लोचन" * 4))
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    got = parse_settings(rep_[2]).get("device_name", "") if rep_ else ""
+    expect("nama panjang dipotong <= 26 byte di batas huruf",
+           len(got.encode()) <= 26 and "\ufffd" not in got and got.startswith("Lokana_"), True)
+    if orig:
+        lk.request(T["SETTINGS"], p_settings_set(device_name=orig))
+    expect("UNPAIR lewat USB", lk.request(T["UNPAIR"]), 5)
+
+    # FIND_KEYS: device melapor mulai & berhenti
+    lk.frames.clear()
+    lk.request(T["FIND_KEYS"], p_find(True, 3))
+    f = lk.wait_frame(lambda f: f[0] == T["FIND_KEYS"], 1.0)
+    expect("FIND_KEYS D->H: mulai", f[2][0] if f else None, 1, raw=True)
+    lk.request(T["FIND_KEYS"], p_find(False))
+    f = lk.wait_frame(lambda f: f[0] == T["FIND_KEYS"], 1.0)
+    expect("FIND_KEYS D->H: berhenti", f[2][0] if f else None, 0, raw=True)
+
+    # ANIM: kirim ke slot 8, daftar, baca, tampilkan, hapus
+    w, h, frames = demo_anim("bola", 32, 32, 4)
+    expect("ANIM 4 bingkai 32x32 ke slot 8", send_anim(lk, 8, w, h, frames, 150), 0)
+    lk.frames.clear()
+    lk.request(T["ANIM"], bytes([AO["LIST"]]))
+    f = lk.wait_frame(lambda f: f[0] == T["ANIM"] and f[2][0] == AO["LIST_REPORT"], 1.0)
+    expect("ANIM LIST: slot 8 = 4 bingkai 32x32", tuple(f[2][22:25]) if f else None, (4, 32, 32), raw=True)
+    st, begin, got = read_slot(lk, 8, first_only=True)
+    expect("ANIM READ slot 8 (bingkai pertama)", (st, len(got), got[0] if got else None), (0, 1, frames[0]), raw=True)
+    st, begin, got = read_slot(lk, 8)
+    expect("ANIM READ slot 8 (semua bingkai sama)", got == list(frames) and st == 0, True)
+    expect("ANIM SHOW slot 8 2 dtk", lk.request(T["ANIM"], bytes([AO["SHOW"], 8, 2, 0])), 0)
+    time.sleep(1.0)
+    expect("BITMAP lama ke slot 7 (galeri sama)", lk.request(T["BITMAP"], p_bitmap(1, 7, 0, 0, 0, 8, 2, b"\xff\x81")), 0)
+    lk.frames.clear()
+    lk.request(T["ANIM"], bytes([AO["LIST"]]))
+    f = lk.wait_frame(lambda f: f[0] == T["ANIM"] and f[2][0] == AO["LIST_REPORT"], 1.0)
+    expect("ANIM LIST: slot 7 = BITMAP 1 bingkai", tuple(f[2][19:22]) if f else None, (1, 8, 2), raw=True)
+    expect("ANIM DELETE slot 7", lk.request(T["ANIM"], bytes([AO["DELETE"], 7])), 0)
+    expect("ANIM DELETE slot 8", lk.request(T["ANIM"], bytes([AO["DELETE"], 8])), 0)
+    st, _, _ = read_slot(lk, 8, timeout=0.5)
+    expect("ANIM READ slot kosong", st, 6)
+    expect("ANIM SHOW slot kosong", lk.request(T["ANIM"], bytes([AO["SHOW"], 8, 0, 0])), 6)
+    expect("ANIM BEGIN 17 bingkai layar penuh (> 16 KB)", lk.request(T["ANIM"], p_anim_begin(0, 17, 128, 64)), 2)
+    lk.request(T["ANIM"], bytes([AO["ABORT"]]))
+    expect("ANIM FRAME tanpa BEGIN", lk.request(T["ANIM"], p_anim_frame(0, bytes(128))), 2)
+    lk.request(T["ANIM"], p_anim_begin(0, 2, 32, 32))
+    lk.request(T["ANIM"], p_anim_frame(0, frames[0]))
+    expect("ANIM END dengan bingkai kurang", lk.request(T["ANIM"], bytes([AO["END"]])), 6)
+    lk.request(T["ANIM"], bytes([AO["ABORT"]]))
+    expect("ANIM op 99 (belum ada)", lk.request(T["ANIM"], bytes([99])), 4)
+    expect("ANIM tampil sekarang 2 dtk", send_anim(lk, 0, w, h, frames, 120, 0, 2), 0)
+    time.sleep(2.3)
+
+
+def test_v05c(lk, expect):
+    """v0.5: SCREEN (mirror, screenshot, gestur jarak jauh)."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps SCREEN", bool(caps >> CAPS.index("SCREEN") & 1), True)
+    lk.frames.clear()
+    expect("SCREEN CAPTURE", lk.request(T["SCREEN"], bytes([SC["CAPTURE"]])), 0)
+    f = lk.wait_frame(lambda f: f[0] == T["SCREEN"], 1.5)
+    expect("SCREEN FRAME 128x64 (1024 B)", (f[2][2], f[2][3], len(f[2]) - 4) if f else None, (128, 64, 1024), raw=True)
+    lk.frames.clear()
+    expect("SCREEN START 10 fps", lk.request(T["SCREEN"], bytes([SC["START"], 10])), 0)
+    expect("SCREEN INPUT double (pindah modul)", lk.request(T["SCREEN"], bytes([SC["INPUT"], 2])), 0)
+    lk.poll(1.5)
+    n = len([f for f in lk.frames if f[0] == T["SCREEN"]])
+    expect(f"SCREEN mengirim bingkai saat layar berubah ({n})", n >= 2, True)
+    expect("SCREEN STOP", lk.request(T["SCREEN"], bytes([SC["STOP"]])), 0)
+    lk.poll(0.3)
+    lk.frames.clear()
+    lk.poll(2.5)
+    expect("SCREEN berhenti setelah STOP", len([f for f in lk.frames if f[0] == T["SCREEN"]]), 0, raw=True)
+    expect("SCREEN INPUT gestur 9", lk.request(T["SCREEN"], bytes([SC["INPUT"], 9])), 2)
+    expect("SCREEN op 9 (belum ada)", lk.request(T["SCREEN"], bytes([9])), 4)
+    lk.request(T["GOTO"], s("lokana"))
+
+
+def test_v05(lk, expect):
+    """Pesan v0.5: NOTIF, CALL."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps NOTIF", bool(caps & 1), True)
+    expect("NOTIF baru (pesan)", lk.request(T["NOTIF"], p_notif(0x51, "WhatsApp", "Ibu", "Sudah makan? Jangan lupa istirahat ya.")), 0)
+    time.sleep(0.5)
+    expect("NOTIF id sama = diperbarui", lk.request(T["NOTIF"], p_notif(0x51, "WhatsApp", "Ibu", "2 pesan baru")), 0)
+    long_body = "Isi panjang " * 30
+    expect("NOTIF isi > 160 byte (dipotong device)", lk.request(T["NOTIF"], p_notif(0x52, "Gmail", "Laporan", long_body, 2, silent=True)), 0)
+    expect("NOTIF huruf non-ASCII", lk.request(T["NOTIF"], p_notif(0x53, "Telegram", "Café ☕", "Halo 👋", silent=True)), 0)
+    for i in range(10):                                  # lebih dari 8: yang terlama dibuang
+        lk.request(T["NOTIF"], p_notif(0x100 + i, "Uji", f"Notif {i}", "isi", silent=True), retries=1)
+    expect("NOTIF ke-10 berturut-turut (maks 8 disimpan)", lk.request(T["NOTIF"], p_notif(0x200, "Uji", "Terakhir", "ok", silent=True)), 0)
+    expect("NOTIF hapus id ada", lk.request(T["NOTIF"], p_notif_delete(0x200)), 0)
+    expect("NOTIF hapus id tidak ada", lk.request(T["NOTIF"], p_notif_delete(0xDEAD)), 0)
+    expect("NOTIF terpotong (tanpa body)", lk.request(T["NOTIF"], struct.pack("<BIBB", 0, 9, 1, 0) + s("App")), 2)
+    expect("NOTIF op 5 (belum ada)", lk.request(T["NOTIF"], struct.pack("<BI", 5, 1)), 4)
+    expect("GOTO Notif", lk.request(T["GOTO"], s("notif")), 0)
+    time.sleep(1.0)
+    expect("CALL berdering", lk.request(T["CALL"], p_call(True, "Ibu")), 0)
+    time.sleep(1.5)
+    expect("CALL selesai", lk.request(T["CALL"], p_call(False)), 0)
+    expect("CALL state 3 (belum ada)", lk.request(T["CALL"], bytes([3])), 4)
+    expect("CALL payload kosong", lk.request(T["CALL"], b""), 2)
+    expect("GOTO modul sistem (Panggilan)", lk.request(T["GOTO"], s("Panggilan")), 6)
+    for i in list(range(10)) + [0x51 - 0x100, 0x52 - 0x100, 0x53 - 0x100]:
+        lk.request(T["NOTIF"], p_notif_delete(0x100 + i), ack=False)
+    lk.poll(0.3)
 
 
 def test_v04(lk, expect, a):
@@ -626,9 +1019,9 @@ def cmd_test(a):
     expect("FIND_KEYS mulai 3 dtk", lk.request(T["FIND_KEYS"], p_find(True, 3)), 0)
     time.sleep(1.0)
     expect("FIND_KEYS berhenti", lk.request(T["FIND_KEYS"], p_find(False)), 0)
-    expect("NOTIF (dikenal, belum didukung v0.4)", lk.request(T["NOTIF"], b"\x00"), 4)
+    expect("NAV (dikenal, belum didukung v0.5)", lk.request(T["NAV"], b"\x00"), 4)
     expect("type 0x7E (tidak dikenal)", lk.request(0x7E, b"abc"), 1)
-    expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["NOTIF"], bytes(1200)), 4)
+    expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["NAV"], bytes(1200)), 4)
     big = lk.request(0x30, bytes(1300))
     expect("payload 1300 B (> 1200)", big, 2)
 
@@ -655,6 +1048,9 @@ def cmd_test(a):
     expect("frame dikirim per byte", f[2][1] if f else None, 0)
 
     test_v04(lk, expect, a)
+    test_v05(lk, expect)
+    test_v05b(lk, expect)
+    test_v05c(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -720,7 +1116,32 @@ def main():
     t.add_argument("--x", type=int)
     t.add_argument("--y", type=int)
     sub.add_parser("listen", help="dengarkan hasil dadu, tombol (BUTTON), cari HP")
-    t = sub.add_parser("test", help="uji otomatis semua pesan v0.3 + v0.4")
+    t = sub.add_parser("notif", help="NOTIF: notifikasi uji")
+    t.add_argument("app", nargs="?", default="WhatsApp")
+    t.add_argument("title", nargs="?", default="Ibu")
+    t.add_argument("body", nargs="?", default="Sudah makan?")
+    t.add_argument("--id", type=int, default=1)
+    t.add_argument("--category", default="pesan", choices=sorted(NOTIF_CATEGORIES))
+    t.add_argument("--silent", action="store_true")
+    t.add_argument("--important", action="store_true")
+    t.add_argument("--delete", type=int, metavar="ID", help="hapus notifikasi dengan id ini")
+    t = sub.add_parser("anim", help="ANIM: animasi bawaan atau GIF")
+    t.add_argument("--demo", default="bola", choices=["bola", "denyut", "kedip"])
+    t.add_argument("--gif", help="file GIF (butuh Pillow), maks 16 bingkai")
+    t.add_argument("--slot", type=int, default=0, help="1-8 = simpan, 0 = tampilkan sekarang")
+    t.add_argument("--ms", type=int, default=100, help="ms per bingkai (demo)")
+    t.add_argument("--loops", type=int, default=0, help="0 = berulang terus")
+    t.add_argument("--duration", type=int, default=0, help="detik tampil (slot 0), 0 = sampai disentuh")
+    sub.add_parser("gallery", help="lihat isi slot gambar 1-8")
+    t = sub.add_parser("screen", help="SCREEN: layar Lokana langsung / screenshot")
+    t.add_argument("--fps", type=int, default=5)
+    t.add_argument("--shot", help="simpan screenshot PNG ke file ini (butuh Pillow)")
+    t = sub.add_parser("press", help="SCREEN INPUT: gestur jarak jauh")
+    t.add_argument("gesture", choices=sorted(GESTURE_ID))
+    t = sub.add_parser("call", help="CALL: panggilan masuk")
+    t.add_argument("caller", nargs="?")
+    t.add_argument("--stop", action="store_true", help="panggilan selesai")
+    t = sub.add_parser("test", help="uji otomatis semua pesan v0.3 - v0.5")
     t.add_argument("-v", "--verbose", action="store_true", help="tampilkan semua frame & log")
     t.add_argument("--touch", action="store_true", help="ikut uji BUTTON (perlu menyentuh Lokana)")
     sub.add_parser("monitor", help="tampilkan log & frame dari device")
@@ -738,6 +1159,12 @@ def main():
         "dice": cmd_dice,
         "bitmap": cmd_bitmap,
         "listen": cmd_listen,
+        "notif": cmd_notif,
+        "call": cmd_call,
+        "anim": cmd_anim,
+        "gallery": cmd_gallery,
+        "screen": cmd_screen,
+        "press": cmd_press,
         "test": cmd_test,
         "monitor": cmd_monitor,
     }

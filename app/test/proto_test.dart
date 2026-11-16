@@ -1,5 +1,6 @@
 // Codec Lokana Link: byte harus sama persis dengan spesifikasi, skrip Python
 // (protocol/tools/lokana_link.py), dan balasan asli dari firmware 0.4.0.
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lokana/link/proto.dart';
@@ -77,6 +78,49 @@ void main() {
     expect(r.values, [2, 5]);
     expect(r.text, '2 + 5 = 7');
     expect(DiceResult.parse(bytes('01 07 01 00'))!.text, 'Angka');
+  });
+
+  test('ANIM BEGIN / FRAME sama dengan skrip Python', () {
+    final a = Anim1(32, 32, List.generate(4, (_) => Bitmap1(32, 32)), frameMs: 150);
+    expect(hex(pAnimBegin(a, slot: 8)), '00 08 04 96 00 00 00 00 30 00 10 00 20 20');
+    final b = Anim1(128, 64, List.generate(2, (_) => Bitmap1(128, 64)), frameMs: 100, loops: 3);
+    expect(hex(pAnimBegin(b, slot: 0, durationS: 10)), '00 00 02 64 00 03 0a 00 00 00 00 00 80 40');
+    final f = Bitmap1(24, 1)..data.setAll(0, [1, 2, 3]);
+    expect(hex(pAnimFrame(1, f)), '01 01 01 02 03');
+    expect(b.fits, isTrue);
+    expect(Anim1(128, 64, List.generate(17, (_) => Bitmap1(128, 64))).fits, isFalse);
+  });
+
+  test('ANIM: susun ulang balasan READ', () {
+    final asm = AnimAssembler();
+    expect(asm.feed(bytes('00 03 02 64 00 00 00 00 00 00 00 00 08 02')), isNull);
+    asm.feed(bytes('01 01 81 42'));
+    asm.feed(bytes('01 00 ff 00'));
+    final a = asm.feed(bytes('02'))!;
+    expect(a.frames.length, 2);
+    expect(hex(a.frames[0].data), 'ff 00');
+    expect(hex(a.frames[1].data), '81 42');
+    expect(a.frameMs, 100);
+  });
+
+  test('Nama Bluetooth UTF-8 (Dewanagari)', () {
+    expect(hex(pSettingsSet(deviceName: 'Lokana_लोचन-01')),
+        '01 05 16 4c 6f 6b 61 6e 61 5f e0 a4 b2 e0 a5 8b e0 a4 9a e0 a4 a8 2d 30 31');
+    final long = bleNameBytes('Lokana_${'लोचन' * 4}');
+    expect(long.length <= 26, isTrue);
+    expect(utf8.decode(long), startsWith('Lokana_'));       // tidak memutus huruf
+  });
+
+  test('SCREEN: START, INPUT, FRAME', () {
+    expect(hex(pScreenStart(10)), '00 0a');
+    expect(hex(pScreenInput(Gestures.double)), '03 02');
+    final f = ScreenFrame.parse(bytes('02 01 10 02 80 00 00 01'))!;
+    expect(f.screenOn, isTrue);
+    expect(f.bitmap.w, 16);
+    expect(f.bitmap.get(0, 0), isTrue);
+    expect(f.bitmap.get(15, 1), isTrue);
+    expect(f.bitmap.get(1, 0), isFalse);
+    expect(ScreenFrame.parse(bytes('02 00 10')), isNull);
   });
 
   test('Teks ke ASCII OLED', () {

@@ -33,6 +33,18 @@ static volatile int8_t authResult = -1;         // -1 belum ada, 0 gagal, 1 berh
 static volatile bool dropped = false, disconnected = false;
 static bool showingKey = false;                 // hanya dipakai di loop
 
+// Data iklan: nama di paket utama, UUID 128-bit di scan response (tidak muat bersama).
+// Nama UTF-8 maks 26 byte = 31 - 3 (flags) - 2 (header nama).
+static void applyAdvertising(const char* name) {
+  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+  NimBLEAdvertisementData ad, sr;
+  ad.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+  ad.setName(name);
+  sr.setCompleteServices(NimBLEUUID(SVC_UUID));
+  adv->setAdvertisementData(ad);
+  adv->setScanResponseData(sr);
+}
+
 class ServerCb : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* s, ble_gap_conn_desc* d) override {
     connHandle = d->conn_handle;
@@ -87,15 +99,8 @@ void begin(const char* name) {
   txChar = svc->createCharacteristic(TX_UUID, NIMBLE_PROPERTY::NOTIFY);
   svc->start();
 
-  // Iklan: nama di paket utama, UUID 128-bit di scan response (tidak muat bersama)
-  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
-  NimBLEAdvertisementData ad, sr;
-  ad.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-  ad.setName(name);
-  sr.setCompleteServices(NimBLEUUID(SVC_UUID));
-  adv->setAdvertisementData(ad);
-  adv->setScanResponseData(sr);
-  adv->start();
+  applyAdvertising(name);
+  NimBLEDevice::getAdvertising()->start();
   Serial.printf("[ble] iklan sebagai \"%s\" (bond tersimpan: %d)\r\n", name, NimBLEDevice::getNumBonds());
 }
 
@@ -113,6 +118,7 @@ void update(uint32_t now) {
     Serial.printf("[ble] autentikasi %s\r\n", a ? "berhasil" : "GAGAL");
     if (showingKey) { showingKey = false; events::post(EV_PAIR_DONE, a); }
     else if (a) events::post(EV_TOAST, 0, "HP tersambung");
+    else events::post(EV_TOAST, 0, "Pairing lama: ulangi di HP");   // HP masih memegang bond lama
   }
   if (disconnected) {
     disconnected = false;
@@ -156,6 +162,24 @@ void forget() {
   NimBLEDevice::deleteAllBonds();
 }
 
+void unpairCurrent() {
+  if (!isConn) return;
+  NimBLEAddress peer = server->getPeerIDInfo(connHandle).getIdAddress();
+  server->disconnect(connHandle);
+  bool ok = NimBLEDevice::deleteBond(peer);
+  Serial.printf("[ble] bond HP %s dihapus: %s\r\n", peer.toString().c_str(), ok ? "ya" : "tidak ada");
+}
+
+void setName(const char* name) {
+  NimBLEDevice::setDeviceName(name);              // nama GAP (dibaca HP saat tersambung)
+  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+  bool was = adv->isAdvertising();
+  if (was) adv->stop();
+  applyAdvertising(name);
+  if (was || !isConn) adv->start();
+  Serial.printf("[ble] nama iklan: %s\r\n", name);
+}
+
 }  // namespace link_ble
 
 #else  // WOKWI_SIM: Wokwi tidak mendukung BLE
@@ -169,6 +193,8 @@ bool secure() { return false; }
 bool pairing() { return false; }
 uint8_t bonds() { return 0; }
 void forget() {}
+void unpairCurrent() {}
+void setName(const char*) {}
 uint16_t mtu() { return 0; }
 }
 

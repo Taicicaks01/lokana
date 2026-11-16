@@ -11,6 +11,9 @@ void power(bool on);
 void setBrightness(uint8_t level);  // 0 redup, 1 sedang, 2 terang
 void setFlip(bool flip);
 bool present();
+// Salin isi layar (koordinat logis, sudah termasuk putar 180°) ke format bitmap Lokana Link:
+// baris demi baris, MSB = kiri. out minimal ceil(SCREEN_W/8)*SCREEN_H byte. Hasil: jumlah byte.
+uint16_t snapshot(uint8_t* out);
 
 // Diagnostik
 uint32_t lastShowUs();              // durasi kirim frame terakhir ke OLED (mikrodetik)

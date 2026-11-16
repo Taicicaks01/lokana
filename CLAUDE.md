@@ -187,12 +187,29 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   Aplikasi Android di `app/` (codec Dart diuji, BLE Kotlin): sambung/pairing, ekspresi, teks, emoji, dadu,
   cari kunci, pengaturan jalan. Belum diuji: Wokwi.
 - **Backlog (dibereskan sekaligus, atas permintaan Wayan):**
-  - Bug kecil & tampilan aplikasi v0.4. Teramati: "Gagal tersambung (22)" saat menyambung ulang
-    (GATT 22 = koneksi diputus host lokal) setelah pairing ulang; dialog pairing Android memakai kolom
-    PIN generik ("Usually 0000 or 1234") meski kodenya 6 digit dari OLED.
-  - **Splash/boot keren & profesional ala Dasai Mochi** dengan tulisan Sansekerta "Lokana"
-    (Dewanagari, cek ejaan: लोकन), di firmware (bitmap) **dan** di aplikasi. Belum dikerjakan.
-- **v0.5** Notifikasi: NotificationListener (Kotlin) → `BleLink`, panggilan masuk, modul Notif.
+  - Dialog pairing Android (Infinix) memakai kolom PIN generik ("Usually 0000 or 1234") meski kodenya
+    6 digit dari OLED: dari sistem, tidak bisa diubah; pertimbangkan CompanionDeviceManager.
+  - **Splash/boot keren & profesional ala Dasai Mochi** dengan tulisan Sansekerta **लोचन** (*locana*,
+    "mata"; ejaan pilihan Wayan), di firmware (bitmap) **dan** di aplikasi. Belum dikerjakan.
+  - **Redesain UI/UX menyeluruh** (aplikasi & OLED: bahasa desain, ikon 1-bit, status bar, transisi), lalu
+    perbaikan bug per modul memakai Layar Lokana + screenshot.
+- **v0.5 ✅** Notifikasi (2026-11-16). Firmware 0.5.0 lulus 107/107 uji USB; aplikasi diuji di HP 2026-11-17. Firmware 0.5.0: `NOTIF` (notif_store RAM maks 8, modul Notif
+  setelah Jam, popup 6/10 dtk), `CALL` (layar Panggilan tersembunyi, dering `MEL_CALL`, tap = bisukan),
+  `core/text_wrap.h` (dipakai Teks & Notif). Aplikasi 0.5.0: `NotifListener.kt` (filter aplikasi di
+  `NotifPrefs`, panggilan dari CallStyle/full-screen intent tanpa izin telepon), halaman Notifikasi,
+  `BleLink.resume()` (sambung otomatis kecuali pengguna memutus). Build semua env + APK lulus.
+  Tambahan v0.5 (hasil uji v0.4 di HP): nama Bluetooth = `device_name` (UTF-8, bawaan `Lokana_लोचन-01`,
+  `BLE_NAME_DEFAULT` di config.h; OLED lewat `core/oled_text` Dewanagari → Latin), `0x06 UNPAIR` + deteksi bond
+  lama di aplikasi (`BleLink.forget`, `removeBond` via refleksi, fallback ke Pengaturan Bluetooth), `FIND_KEYS`
+  D→H, `0x32 ANIM` (galeri `/img/N.bin` dipakai bersama BITMAP, `image_store` menggantikan `bitmap_store`),
+  halaman Emoji & Gambar baru (potong rapat, 7 efek, GIF + dithering, galeri dengan pratinjau),
+  `0x33 SCREEN` (mirror layar hanya saat berubah ≤ 10 fps, berhenti sendiri 30 dtk tanpa START, screenshot,
+  gestur jarak jauh lewat `core::injectGesture`; halaman **Layar Lokana** + screenshot ke Pictures/Lokana),
+  tema aplikasi (`lib/theme.dart`: Sistem/Terang/Gelap, 7 warna aksen, warna piksel pratinjau OLED).
+  Rapikan OLED setelah uji: ikon gagang telepon bitmap 22x22, header Info = nama Lokana, nama modul saat
+  berganti jadi label kecil di atas (`core::goTo(name, announce)`; modul yang membuka diri karena event
+  memakai `announce = false`, layar tersembunyi tidak pernah diumumkan). Belum diuji: Wokwi.
+- **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek
 

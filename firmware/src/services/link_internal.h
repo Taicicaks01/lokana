@@ -22,5 +22,7 @@ bool secure();                                  // tersambung dan terenkripsi + 
 bool pairing();                                 // passkey sedang ditampilkan
 uint8_t bonds();
 void forget();
+void unpairCurrent();                           // hapus bond HP yang sedang tersambung, lalu putus
+void setName(const char* name);                 // ganti nama iklan (UTF-8)
 uint16_t mtu();
 }

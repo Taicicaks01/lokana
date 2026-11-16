@@ -6,31 +6,32 @@ import 'link/link.dart';
 import 'link/proto.dart';
 import 'pages/connect_page.dart';
 import 'pages/dashboard_page.dart';
+import 'theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   LokanaLink.instance.start();
+  AppTheme.instance.load();
   runApp(const LokanaApp());
 }
 
-const lokanaSeed = Color(0xFF2BB3C0);
 
 class LokanaApp extends StatelessWidget {
   const LokanaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme(Brightness b) => ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: lokanaSeed, brightness: b),
-          useMaterial3: true,
-          cardTheme: const CardThemeData(margin: EdgeInsets.zero),
-        );
-    return MaterialApp(
-      title: 'Lokana',
-      debugShowCheckedModeBanner: false,
-      theme: theme(Brightness.light),
-      darkTheme: theme(Brightness.dark),
-      home: const HomePage(),
+    final t = AppTheme.instance;
+    return ListenableBuilder(
+      listenable: t,
+      builder: (context, _) => MaterialApp(
+        title: 'Lokana',
+        debugShowCheckedModeBanner: false,
+        theme: t.data(Brightness.light),
+        darkTheme: t.data(Brightness.dark),
+        themeMode: t.mode,
+        home: const HomePage(),
+      ),
     );
   }
 }

@@ -9,7 +9,7 @@ dan di meja sebagai asisten kerja. Lokana memantau HP, kunci, dan komputermu,
 lalu memberi kabar lewat sepasang matanya.
 
 ![Status](https://img.shields.io/badge/status-pengembangan%20awal-orange)
-![Versi](https://img.shields.io/badge/Lokana%20OS-v0.4.0-blue)
+![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.0-blue)
 ![Platform](https://img.shields.io/badge/MCU-ESP32--C3-red)
 ![Layar](https://img.shields.io/badge/OLED-128%C3%9764-lightgrey)
 ![Lisensi kode](https://img.shields.io/badge/kode-MIT-green)
@@ -22,9 +22,9 @@ lalu memberi kabar lewat sepasang matanya.
 
 ---
 
-> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.4.0**
-> menambahkan pengaturan, dadu, gambar/emoji, dan Cari HP lewat **Lokana Link** (USB & BLE).
-> **Aplikasi Lokana** (Android, MVP) sudah jalan di HP. Berikutnya: notifikasi HP (v0.5).
+> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.5.0**
+> menambahkan **notifikasi HP** dan **panggilan masuk**, di atas pengaturan, dadu, gambar/emoji,
+> dan Cari HP lewat **Lokana Link** (USB & BLE). **Aplikasi Lokana** (Android) sudah jalan di HP.
 > Lokana Desktop belum dimulai.
 > Dokumen ini adalah acuan utama proyek: apa yang dibangun, keputusan yang sudah diambil, dan urutan pengerjaannya.
 
@@ -110,8 +110,8 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 | Ekspresi dari HP | ✅ | Ubah ekspresi Lokana dan lempar dadu dari aplikasi |
 | Cari kunci ↔ cari HP | ✅ | Lokana berbunyi saat dicari; menu Lokana → Cari HP membuat HP berbunyi walau senyap |
 | Pengingat ketinggalan | 📋 | HP memberi peringatan saat koneksi ke Lokana terputus |
-| Notifikasi HP | 🔨 | Nama aplikasi + judul + potongan isi, dengan filter per aplikasi |
-| Panggilan masuk | 🔨 | Nama penelepon + bunyi |
+| Notifikasi HP | ✅ | Nama aplikasi + judul + potongan isi, dengan filter per aplikasi |
+| Panggilan masuk | ✅ | Nama penelepon + bunyi |
 | Navigasi Google Maps | 📋 | Panah belok, jarak, dan nama jalan (lihat [4.3](#43-cara-kerja-notifikasi--navigasi)) |
 | Monitor HP | 📋 | Baterai, sinyal, dan memori HP di layar Lokana |
 | Kontrol musik & cuaca | 📋 | Play/pause/next; cuaca dari aplikasi |
@@ -352,8 +352,8 @@ Supaya pembaruan aman:
 | **v0.2** | Layar 128×64 | Tata letak semua modul untuk 128×64, ekspresi lebih detail, partisi OTA | ✅ selesai |
 | **v0.3** | BLE & Lokana Link | GATT service RX/TX, pairing kode 6 digit, `TIME_SYNC`, `DEVICE_INFO`, `FIND_KEYS`, modul Teks | ✅ selesai |
 | **v0.4** | Aplikasi MVP | Flutter: sambungkan, pengaturan, teks/emoji custom, ekspresi, cari kunci ↔ cari HP | ✅ selesai |
-| **v0.5** | Notifikasi | *NotificationListener*, filter aplikasi, panggilan masuk, modul Notif | 🔨 berikutnya |
-| **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | 📋 |
+| **v0.5** | Notifikasi | *NotificationListener*, filter aplikasi, panggilan masuk, modul Notif | ✅ |
+| **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | 🔨 berikutnya |
 | **v0.7** | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro | 📋 |
 | **v0.8** | Jaringan | Monitor PC via WiFi UDP, *BLE provisioning*, Mode Update | 📋 |
 | **v0.9** | Integrasi | BLE HID (presentasi, media, Win+L), OTA lewat aplikasi, cuaca, musik | 📋 |

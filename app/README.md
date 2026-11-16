@@ -2,8 +2,9 @@
 
 Aplikasi pendamping Lokana: sambungkan lewat BLE, lalu kirim ekspresi, teks, emoji/gambar,
 lempar dadu, cari kunci, ubah pengaturan, dan dipanggil Lokana saat HP terselip (Cari HP).
+Sejak 0.5.0 juga meneruskan **notifikasi** aplikasi pilihan dan **panggilan masuk**.
 
-Versi **0.4.0** (MVP). Android dulu; iOS menyusul (lihat `docs/ARCHITECTURE.md` §4).
+Versi **0.5.0**. Android dulu; iOS menyusul (lihat `docs/ARCHITECTURE.md` §4).
 
 ## Arsitektur
 
@@ -15,6 +16,7 @@ Versi **0.4.0** (MVP). Android dulu; iOS menyusul (lihat `docs/ARCHITECTURE.md` 
 | BLE + framing | `android/.../BleLink.kt` | Scan, connect, MTU 247, bonding, notify, antrean tulis, `seq`/ACK/kirim ulang |
 | Layanan latar | `android/.../LinkService.kt` | *Foreground service* (connectedDevice) menjaga koneksi saat aplikasi ditutup |
 | Cari HP | `android/.../Alarm.kt` | Bunyi alarm (tetap terdengar saat senyap) + getar + notifikasi "Ketemu" |
+| Notifikasi | `android/.../NotifListener.kt`, `NotifPrefs.kt` | *NotificationListener*: aplikasi pilihan → `NOTIF`, panggilan (CallStyle) → `CALL` |
 
 BLE ditulis langsung di Kotlin, **tanpa plugin BLE pihak ketiga**: `flutter_blue_plus` 2.x
 tidak lagi berlisensi BSD (lisensi berbayar untuk perusahaan ≥ 15 orang, dan *ping* ke server
@@ -47,6 +49,41 @@ Play Store disiapkan sebelum rilis resmi.
 | `POST_NOTIFICATIONS` (Android 13+) | Notifikasi koneksi & tombol "Ketemu" saat Cari HP (boleh ditolak) |
 | `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Menjaga koneksi BLE di latar belakang |
 | `VIBRATE` | Getar saat Cari HP |
+| Akses notifikasi (diaktifkan di Pengaturan Android) | Membaca notifikasi aplikasi yang dipilih |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Tombol "Izinkan berjalan di latar" supaya koneksi tidak diputus penghemat baterai |
+
+## Pairing, lupakan, nama
+
+- **Lupakan Lokana ini** (menu dasbor) menghapus pairing di **dua sisi**: aplikasi mengirim `UNPAIR`
+  ke Lokana, lalu menghapus *bond* di HP. Sambungan berikutnya meminta kode 6 digit baru.
+- Jika Lokana sudah melupakan HP (menu Lokana → Lupakan HP) tetapi HP masih menyimpan pairing lama,
+  aplikasi mendeteksinya (koneksi diputus Lokana sebelum siap), menghapus pairing lama, lalu pairing
+  ulang otomatis. Jika HP menolak, muncul tombol **Buka Pengaturan Bluetooth**.
+- **Nama Bluetooth** diganti di Pengaturan (UTF-8, maks 26 byte, boleh Dewanagari).
+
+## Emoji & Gambar
+
+Emoji/teks digambar HP lalu **dipotong rapat** ke piksel yang terisi (tidak terpotong lagi), diberi efek
+(Diam, Denyut, Memantul, Goyang, Putar, Kedip, Geser), atau ambil **gambar/GIF** dari HP (dithering untuk
+foto, maks 16 bingkai layar penuh). Galeri menampilkan isi slot 1–8 langsung dari Lokana.
+
+## Layar Lokana & tema
+
+- **Layar Lokana** (dasbor): isi OLED tampil langsung di HP (`SCREEN`, dikirim hanya saat berubah,
+  maks 10 fps), tombol remote Tap/Double/Triple/Tahan, dan screenshot PNG 4x ke Galeri (Pictures/Lokana).
+- **Pengaturan → Tampilan aplikasi**: tema Sistem/Terang/Gelap, 7 warna aksen, dan warna piksel pratinjau
+  (biru muda, putih, kuning, hijau) sesuai OLED yang dipakai. Disimpan di HP, bisa diubah walau belum tersambung.
+
+## Notifikasi & panggilan
+
+- Hanya aplikasi yang **dicentang** di halaman Notifikasi yang diteruskan (pertama kali: aplikasi
+  pesan/email populer yang terpasang). Yang dikirim hanya nama aplikasi, judul, dan maks 160 karakter isi.
+- Notifikasi *ongoing* (musik, unduhan, layanan) dan ringkasan grup dilewati; isi yang sama tidak
+  dikirim dua kali. Notifikasi dihapus di HP → ikut dihapus di Lokana.
+- Huruf beraksen diubah ke ASCII dan emoji dibuang (font OLED hanya ASCII).
+- Panggilan masuk dibaca dari notifikasi panggilan (telepon biasa & WhatsApp), **tanpa izin telepon**.
+- Membuka aplikasi, atau Android menghidupkan ulang layanan notifikasi, otomatis menyambung lagi ke
+  Lokana terakhir (kecuali pengguna menekan **Putuskan**).
 
 ## Alur sambung
 

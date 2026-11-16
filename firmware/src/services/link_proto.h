@@ -19,7 +19,8 @@ enum Type : uint8_t {
   T_HELLO = 0x00, T_TIME_SYNC = 0x01, T_DEVICE_INFO = 0x02, T_SETTINGS = 0x03, T_OTA = 0x04, T_ACK = 0x05,
   T_NOTIF = 0x10, T_NAV = 0x11, T_PC_STATS = 0x12, T_MEETING = 0x13, T_PHONE_STATS = 0x14, T_CALL = 0x15,
   T_FIND_KEYS = 0x20, T_FIND_PHONE = 0x21, T_EXPRESSION = 0x22, T_DICE = 0x23, T_GOTO = 0x24, T_BUTTON = 0x25,
-  T_CUSTOM_TEXT = 0x30, T_BITMAP = 0x31,
+  T_UNPAIR = 0x06,
+  T_CUSTOM_TEXT = 0x30, T_BITMAP = 0x31, T_ANIM = 0x32, T_SCREEN = 0x33,
   T_WIFI_PROV = 0x40, T_WIFI_STATUS = 0x41,
 };
 
@@ -33,6 +34,7 @@ enum Cap : uint32_t {
   CAP_NOTIF = 1u << 0, CAP_NAV = 1u << 1, CAP_PC_STATS = 1u << 2, CAP_PHONE_STATS = 1u << 3,
   CAP_CUSTOM_TEXT = 1u << 4, CAP_BITMAP = 1u << 5, CAP_OTA = 1u << 6, CAP_WIFI = 1u << 7,
   CAP_HID = 1u << 8, CAP_BUZZER = 1u << 9, CAP_DICE = 1u << 10, CAP_FIND_PHONE = 1u << 11,
+  CAP_ANIM = 1u << 12, CAP_SCREEN = 1u << 13,
 };
 
 const char* typeName(uint8_t t);

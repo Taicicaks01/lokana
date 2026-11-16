@@ -11,7 +11,7 @@ Implementasi yang mengikuti spesifikasi ini:
 
 | Bagian | Lokasi | Status |
 |---|---|---|
-| Firmware (parser + BLE + USB) | `firmware/src/services/link*` | ✅ v0.4 (pesan v0.3 + v0.4) |
-| Skrip uji Python | [`tools/lokana_link.py`](tools/lokana_link.py) | ✅ v0.4 (USB, 58 uji) |
-| Aplikasi Android | [`app/`](../app/) (codec Dart `lib/link/proto.dart`, BLE Kotlin `BleLink.kt`) | ✅ v0.4 |
+| Firmware (parser + BLE + USB) | `firmware/src/services/link*` | ✅ v0.5 (pesan v0.3 – v0.5) |
+| Skrip uji Python | [`tools/lokana_link.py`](tools/lokana_link.py) | ✅ v0.5 (USB) |
+| Aplikasi Android | [`app/`](../app/) (codec Dart `lib/link/proto.dart`, BLE Kotlin `BleLink.kt`, notifikasi `NotifListener.kt`) | ✅ v0.5 |
 | Lokana Desktop | `desktop/` | 📋 v0.7 |

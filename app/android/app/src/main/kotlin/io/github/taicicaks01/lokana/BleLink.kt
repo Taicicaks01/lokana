@@ -22,6 +22,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
 import android.os.SystemClock
+import android.Manifest
+import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 
@@ -38,7 +40,7 @@ object BleLink {
     private const val ACK_TIMEOUT_MS = 2000L
     private const val RETRIES = 3
     private const val PREFS = "lokana"
-    const val CLIENT_NAME = "Lokana Android 0.4.0"
+    const val CLIENT_NAME = "Lokana Android 0.5.0"
 
     enum class State(val id: String) {
         IDLE("idle"), SCANNING("scanning"), CONNECTING("connecting"), PAIRING("pairing"),
@@ -59,12 +61,16 @@ object BleLink {
     var address: String? = null; private set
     var deviceName: String? = null; private set
     var mtu = 23; private set
+    /** Saran tindakan untuk UI: "bt_settings" = pengguna perlu menghapus pairing di Pengaturan Bluetooth. */
+    var action: String? = null; private set
     /** Frame terakhir per type (DEVICE_INFO, SETTINGS) untuk UI yang baru dibuka. */
     val lastFrames = HashMap<Int, ByteArray>()
 
     private var gatt: BluetoothGatt? = null
     private var rx: BluetoothGattCharacteristic? = null
     private var userDisconnect = false
+    private var connectedAt = 0L                 // elapsedRealtime saat link fisik tersambung
+    private var staleRetries = 0                 // percobaan perbaikan bond lama
     private var bondReceiver: BroadcastReceiver? = null
     private val parser = FrameParser()
 
@@ -97,6 +103,24 @@ object BleLink {
         val p = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val a = p.getString("address", null) ?: return null
         return a to (p.getString("name", null) ?: "Lokana")
+    }
+
+    /** Sambung otomatis ke Lokana terakhir: aktif setelah connect(), mati setelah pengguna memutus. */
+    private fun setAuto(on: Boolean) =
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("auto", on).apply()
+
+    /**
+     * Dipanggil saat proses/UI hidup lagi (aplikasi dibuka, NotificationListener tersambung,
+     * service dihidupkan ulang sistem): sambung lagi jika pengguna tidak memutus sendiri.
+     */
+    fun resume() {
+        if (state != State.IDLE) return
+        if (!app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("auto", false)) return
+        if (Build.VERSION.SDK_INT >= 31 &&
+            ContextCompat.checkSelfPermission(app, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return
+        val (a, n) = savedDevice() ?: return
+        Log.i(TAG, "menyambung lagi ke $n")
+        connect(a, n)
     }
 
     private fun save(a: String?, n: String?) {
@@ -143,6 +167,9 @@ object BleLink {
         if (state == State.SCANNING) stopScan()
         closeGatt()
         userDisconnect = false
+        action = null
+        staleRetries = 0
+        setAuto(true)
         address = addr
         deviceName = name ?: savedDevice()?.second
         LinkService.start(app)
@@ -159,6 +186,7 @@ object BleLink {
 
     fun disconnect(forget: Boolean) {
         userDisconnect = true
+        setAuto(false)
         main.removeCallbacksAndMessages(null)
         closeGatt()
         failAllPending()
@@ -166,6 +194,28 @@ object BleLink {
         setState(State.IDLE)
         LinkService.stop(app)
         Alarm.stop(app)
+    }
+
+    /**
+     * Lupakan Lokana ini di dua sisi: kirim UNPAIR (Lokana menghapus bond HP ini), lalu hapus
+     * bond di HP dan alamat tersimpan. Sambungan berikutnya meminta kode 6 digit baru.
+     */
+    fun forget(done: (Boolean) -> Unit) {
+        val dev = address?.let { adapter()?.getRemoteDevice(it) } ?: savedDevice()?.let { adapter()?.getRemoteDevice(it.first) }
+        val finish = { lokanaForgot: Boolean ->
+            disconnect(forget = true)
+            val phoneForgot = dev == null || dev.bondState == BluetoothDevice.BOND_NONE || removeBond(dev)
+            done(lokanaForgot && phoneForgot)
+        }
+        if (state == State.READY) send(Proto.T_UNPAIR, ByteArray(0), true) { st -> finish(st == 0) }
+        else finish(false)
+    }
+
+    /** API tersembunyi Android, tapi tersedia di hampir semua HP. false jika ditolak. */
+    private fun removeBond(device: BluetoothDevice): Boolean = try {
+        device.javaClass.getMethod("removeBond").invoke(device) as Boolean
+    } catch (e: Exception) {
+        Log.w(TAG, "removeBond tidak tersedia", e); false
     }
 
     private fun closeGatt() {
@@ -193,15 +243,35 @@ object BleLink {
             main.post {
                 if (g != gatt) return@post
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    connectedAt = SystemClock.elapsedRealtime()
                     Log.i(TAG, "tersambung, minta MTU 247")
                     setState(State.CONNECTING)
                     g.requestMtu(247)
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     Log.i(TAG, "terputus status=$status")
                     val wasReady = state == State.READY
+                    val device = g.device
+                    val quick = connectedAt > 0 && SystemClock.elapsedRealtime() - connectedAt < 8000
+                    connectedAt = 0
                     closeGatt()
                     failAllPending()
                     if (userDisconnect) { setState(State.IDLE); return@post }
+                    // HP masih menyimpan bond, tapi Lokana sudah melupakannya (menu "Lupakan HP"):
+                    // Lokana menolak enkripsi lalu memutus. Hapus bond lama di HP, pairing ulang.
+                    if (!wasReady && quick && device.bondState == BluetoothDevice.BOND_BONDED) {
+                        if (staleRetries < 1 && removeBond(device)) {
+                            staleRetries++
+                            setState(State.PAIRING, "Lokana tidak mengenali pairing lama. Memulai pairing ulang...")
+                            main.postDelayed({
+                                if (!userDisconnect) adapter()?.let { open(it.getRemoteDevice(device.address), autoConnect = false) }
+                            }, 1500)
+                            return@post
+                        }
+                        action = "bt_settings"
+                        userDisconnect = true             // jangan coba terus-menerus
+                        setState(State.IDLE, "Hapus \"${deviceName ?: "Lokana"}\" di Pengaturan Bluetooth HP, lalu sambungkan lagi")
+                        return@post
+                    }
                     setState(State.RECONNECTING, if (wasReady) "Lokana terputus" else "Gagal tersambung ($status)")
                     scheduleReconnect()
                 }
@@ -299,6 +369,8 @@ object BleLink {
     private fun onSecure() {
         if (gatt == null || state == State.READY) return
         save(address, deviceName)
+        staleRetries = 0
+        action = null
         setState(State.READY)
         send(Proto.T_HELLO, Proto.hello(CLIENT_NAME), true) { st ->
             if (st != 0) Log.w(TAG, "HELLO status=$st")

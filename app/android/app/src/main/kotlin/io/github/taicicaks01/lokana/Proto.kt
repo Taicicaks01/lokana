@@ -25,6 +25,7 @@ object Proto {
     const val T_DEVICE_INFO = 0x02
     const val T_SETTINGS = 0x03
     const val T_ACK = 0x05
+    const val T_UNPAIR = 0x06
     const val T_FIND_PHONE = 0x21
 
     fun frame(type: Int, seq: Int, payload: ByteArray): ByteArray {
@@ -62,6 +63,80 @@ object Proto {
     }
 
     fun settingsGet(): ByteArray = byteArrayOf(0)
+
+    const val T_NOTIF = 0x10
+    const val T_CALL = 0x15
+
+    // Kategori NOTIF
+    const val CAT_GENERAL = 0
+    const val CAT_MESSAGE = 1
+    const val CAT_EMAIL = 2
+    const val CAT_SOCIAL = 3
+    const val CAT_CALENDAR = 4
+    const val CAT_MISSED_CALL = 5
+    const val CAT_SYSTEM = 6
+
+    private fun u32(o: ByteArrayOutputStream, v: Long) {
+        for (i in 0 until 4) o.write((v shr (8 * i) and 0xFF).toInt())
+    }
+
+    /** NOTIF op 0. Teks sebaiknya sudah lewat [toAscii]; panjang dipotong sesuai spesifikasi. */
+    fun notif(id: Long, category: Int, silent: Boolean, important: Boolean,
+              app: String, title: String, body: String): ByteArray {
+        val o = ByteArrayOutputStream()
+        o.write(0)
+        u32(o, id)
+        o.write(category)
+        o.write((if (silent) 1 else 0) or (if (important) 2 else 0))
+        str(o, app.take(24))
+        str(o, title.take(48))
+        str(o, body.take(160))
+        return o.toByteArray()
+    }
+
+    fun notifDelete(id: Long): ByteArray {
+        val o = ByteArrayOutputStream()
+        o.write(1)
+        u32(o, id)
+        return o.toByteArray()
+    }
+
+    fun call(ringing: Boolean, caller: String): ByteArray {
+        val o = ByteArrayOutputStream()
+        o.write(if (ringing) 0 else 1)
+        str(o, caller.take(40))
+        return o.toByteArray()
+    }
+
+    /**
+     * Font OLED hanya ASCII: huruf beraksen jadi huruf dasar (é -> e), tanda kutip/pisah
+     * diganti padanannya, emoji & simbol dibuang, karakter lain jadi '?'.
+     */
+    fun toAscii(s: CharSequence?, max: Int = 255, keepNewline: Boolean = false): String {
+        if (s.isNullOrEmpty()) return ""
+        val norm = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        val sb = StringBuilder()
+        var i = 0
+        while (i < norm.length && sb.length < max) {
+            val cp = norm.codePointAt(i)
+            i += Character.charCount(cp)
+            val type = Character.getType(cp)
+            when {
+                cp == '\n'.code -> sb.append(if (keepNewline) '\n' else ' ')
+                cp in 32..126 -> sb.append(cp.toChar())
+                type == Character.NON_SPACING_MARK.toInt() -> {}            // aksen setelah NFD
+                cp == 0x2018 || cp == 0x2019 -> sb.append('\'')
+                cp == 0x201C || cp == 0x201D -> sb.append('"')
+                cp == 0x2013 || cp == 0x2014 -> sb.append('-')
+                cp == 0x2026 -> sb.append("...")
+                Character.isWhitespace(cp) || Character.isSpaceChar(cp) -> sb.append(' ')
+                cp == 0x200D || cp in 0xFE00..0xFE0F || cp >= 0x1F000 ||
+                    type == Character.OTHER_SYMBOL.toInt() || type == Character.FORMAT.toInt() -> {}   // emoji
+                else -> sb.append('?')
+            }
+        }
+        return sb.toString().replace(Regex("[ ]{2,}"), " ").trim()
+    }
 }
 
 /** Menyusun frame dari aliran byte notify BLE (frame boleh terpotong / tergabung). */

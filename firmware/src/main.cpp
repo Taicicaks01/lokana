@@ -20,18 +20,21 @@
 #include "modules/dice_module.h"
 #include "modules/text_module.h"
 #include "modules/image_module.h"
+#include "modules/notif_module.h"
 #include "modules/system_modules.h"
 
 // Daftar modul. Modul pertama = layar utama.
 // Menambah fitur: buat modul di src/modules/, lalu daftarkan di sini.
 static FaceModule  faceModule;
 static ClockModule clockModule;
+static NotifModule notifModule;
 static DiceModule  diceModule;
 static TextModule  textModule;
 static ImageModule imageModule;
 static PairModule  pairModule;     // sistem (tersembunyi)
 static FindModule  findModule;     // sistem (tersembunyi)
 static PhoneModule phoneModule;    // sistem (tersembunyi)
+static CallModule  callModule;     // sistem (tersembunyi)
 
 static void splash() {
   Adafruit_GFX& g = display::gfx();
@@ -101,12 +104,14 @@ void setup() {
 
   core::addModule(&faceModule);
   core::addModule(&clockModule);
+  core::addModule(&notifModule);
   core::addModule(&diceModule);
   core::addModule(&textModule);
   core::addModule(&imageModule);
   core::addModule(&pairModule);
   core::addModule(&findModule);
   core::addModule(&phoneModule);
+  core::addModule(&callModule);
   TRACE("core");
   core::begin();
   console::begin();

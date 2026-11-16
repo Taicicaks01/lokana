@@ -6,6 +6,8 @@ import '../main.dart';
 import 'dice_page.dart';
 import 'expression_page.dart';
 import 'image_page.dart';
+import 'notif_page.dart';
+import 'screen_page.dart';
 import 'settings_page.dart';
 import 'text_page.dart';
 
@@ -19,8 +21,6 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final link = LokanaLink.instance;
-  Timer? _findTimer;
-  bool _finding = false;
 
   void _changed() => setState(() {});
 
@@ -33,18 +33,48 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void dispose() {
     link.removeListener(_changed);
-    _findTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _findKeys() async {
-    final on = !_finding;
+    final on = !link.findingKeys;
     final ok = await sendWithFeedback(context, T.findKeys, pFindKeys(on, seconds: 30),
         ok: on ? 'Lokana berbunyi 30 detik' : 'Bunyi dihentikan');
     if (!ok || !mounted) return;
-    _findTimer?.cancel();
-    setState(() => _finding = on);
-    if (on) _findTimer = Timer(const Duration(seconds: 30), () => mounted ? setState(() => _finding = false) : null);
+    link.setFindingKeys(on);                      // Lokana juga melapor saat bunyi berhenti
+  }
+
+  Future<void> _forget() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Lupakan Lokana ini?'),
+        content: const Text('Pairing dihapus di HP dan di Lokana. Untuk menyambung lagi, pilih Lokana dari '
+            'daftar dan masukkan kode 6 digit baru yang tampil di layarnya.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Lupakan')),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    final ok = await link.forget();
+    if (!ok && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Hampir selesai'),
+          content: const Text('Pairing di HP belum bisa dihapus otomatis. Hapus Lokana di Pengaturan Bluetooth '
+              'HP supaya kode baru diminta saat menyambung lagi.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Nanti')),
+            FilledButton(
+                onPressed: () { Navigator.pop(c); link.openBluetoothSettings(); },
+                child: const Text('Buka Pengaturan')),
+          ],
+        ),
+      );
+    }
   }
 
   void _open(Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -66,12 +96,12 @@ class _DashboardPageState extends State<DashboardPage> {
             onSelected: (v) {
               if (v == 'sync') sendWithFeedback(context, T.timeSync, pTimeSync(DateTime.now()), ok: 'Jam disinkronkan');
               if (v == 'off') link.disconnect();
-              if (v == 'forget') link.disconnect(forget: true);
+              if (v == 'forget') _forget();
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'sync', child: Text('Sinkronkan jam')),
               PopupMenuItem(value: 'off', child: Text('Putuskan')),
-              PopupMenuItem(value: 'forget', child: Text('Putuskan & lupakan')),
+              PopupMenuItem(value: 'forget', child: Text('Lupakan Lokana ini')),
             ],
           ),
         ],
@@ -107,6 +137,10 @@ class _DashboardPageState extends State<DashboardPage> {
           crossAxisSpacing: 12,
           childAspectRatio: 1.4,
           children: [
+            if (can(Caps.screen))
+              _Tile(icon: Icons.screenshot_monitor_outlined, label: 'Layar Lokana', onTap: () => _open(const ScreenPage())),
+            if (can(Caps.notif))
+              _Tile(icon: Icons.notifications_outlined, label: 'Notifikasi', onTap: () => _open(const NotifPage())),
             _Tile(icon: Icons.mood, label: 'Ekspresi', onTap: () => _open(const ExpressionPage())),
             if (can(Caps.customText))
               _Tile(icon: Icons.text_fields, label: 'Teks', onTap: () => _open(const TextPage())),
@@ -114,9 +148,9 @@ class _DashboardPageState extends State<DashboardPage> {
               _Tile(icon: Icons.emoji_emotions_outlined, label: 'Emoji & Gambar', onTap: () => _open(const ImagePage())),
             if (can(Caps.dice)) _Tile(icon: Icons.casino_outlined, label: 'Dadu', onTap: () => _open(const DicePage())),
             _Tile(
-              icon: _finding ? Icons.volume_off : Icons.key,
-              label: _finding ? 'Hentikan bunyi' : 'Cari kunci',
-              highlight: _finding,
+              icon: link.findingKeys ? Icons.volume_off : Icons.key,
+              label: link.findingKeys ? 'Hentikan bunyi' : 'Cari kunci',
+              highlight: link.findingKeys,
               onTap: _findKeys,
             ),
             _Tile(icon: Icons.settings_outlined, label: 'Pengaturan', onTap: () => _open(const SettingsPage())),

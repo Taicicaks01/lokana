@@ -104,6 +104,15 @@ void setBrightness(uint8_t level) {
 
 void setFlip(bool flip) { oled.setRotation(flip ? 2 : 0); }
 
+uint16_t snapshot(uint8_t* out) {
+  const uint16_t bw = (SCREEN_W + 7) / 8;
+  memset(out, 0, bw * SCREEN_H);
+  for (int y = 0; y < SCREEN_H; y++)
+    for (int x = 0; x < SCREEN_W; x++)
+      if (oled.getPixel(x, y)) out[y * bw + (x >> 3)] |= 0x80 >> (x & 7);
+  return bw * SCREEN_H;
+}
+
 int textWidth(const char* s, uint8_t size) { return (int)strlen(s) * 6 * size; }
 
 void centerText(const char* s, int y, uint8_t size) {

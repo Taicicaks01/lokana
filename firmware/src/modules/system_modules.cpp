@@ -42,7 +42,9 @@ void PairModule::render(Adafruit_GFX& g, uint32_t now) {
   g.drawFastHLine(0, 10, SCREEN_W, 1);
   display::centerText("Ketik kode ini di HP:", 15);
   display::centerText(code, 28, 3);
-  display::centerText(lklink::deviceName(), 56);
+  char nm[22];
+  lklink::displayName(nm, sizeof(nm));
+  display::centerText(nm, 56);
 #else
   display::centerText("Kode pairing:", 0);
   display::centerText(code, 13, 2);
@@ -54,11 +56,12 @@ void FindModule::stop() {
   if (!_active) return;
   _active = false;
   buzzer::stop();
+  lklink::reportFindKeys(false, 0);               // aplikasi mengembalikan tombolnya
   if (core::current() == this) core::back();
 }
 
 void FindModule::exit() {                          // pindah modul (double-tap) = berhenti juga
-  if (_active) { _active = false; buzzer::stop(); }
+  if (_active) { _active = false; buzzer::stop(); lklink::reportFindKeys(false, 0); }
 }
 
 bool FindModule::input(Gesture g) {
@@ -72,6 +75,7 @@ void FindModule::event(const Event& e) {
   if (e.value > 0) {
     _active = true;
     _until = millis() + (uint32_t)e.value * 1000UL;
+    lklink::reportFindKeys(true, (uint8_t)e.value);
     core::goTo(name());
   } else stop();
 }
