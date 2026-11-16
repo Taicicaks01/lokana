@@ -1,0 +1,39 @@
+#include "settings.h"
+#include <Preferences.h>
+
+const uint32_t SCREEN_TIMEOUT_MS[SCREEN_TIMEOUT_COUNT] = {15000UL, 30000UL, 60000UL, 300000UL, 0UL};
+const char* const SCREEN_TIMEOUT_LABEL[SCREEN_TIMEOUT_COUNT] = {"15 dtk", "30 dtk", "1 mnt", "5 mnt", "Tidak"};
+const char* const BRIGHTNESS_LABEL[3] = {"Redup", "Sedang", "Terang"};
+
+static Settings s;
+static Preferences prefs;
+
+namespace settings {
+
+Settings& get() { return s; }
+
+void load() {
+  prefs.begin("lokana", true);
+  s.brightness = min<uint8_t>(prefs.getUChar("bright", 1), 2);
+  s.sound      = prefs.getBool("sound", true);
+  s.screenIdx  = min<uint8_t>(prefs.getUChar("screen", 2), SCREEN_TIMEOUT_COUNT - 1);
+  s.flip       = prefs.getBool("flip", false);
+  s.tzMin      = constrain(prefs.getShort("tz", TZ_OFFSET_MIN), -720, 840);
+  prefs.end();
+}
+
+void save() {
+  prefs.begin("lokana", false);
+  prefs.putUChar("bright", s.brightness);
+  prefs.putBool("sound", s.sound);
+  prefs.putUChar("screen", s.screenIdx);
+  prefs.putBool("flip", s.flip);
+  prefs.putShort("tz", s.tzMin);
+  prefs.end();
+}
+
+void reset() { s = Settings(); save(); }
+
+uint32_t screenTimeoutMs() { return SCREEN_TIMEOUT_MS[s.screenIdx]; }
+
+}  // namespace settings

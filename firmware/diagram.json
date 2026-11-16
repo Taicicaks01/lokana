@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "author": "Lokana",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-c3-devkitm-1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": -105, "left": -10, "attrs": { "i2cAddress": "0x3c" } },
+    { "type": "wokwi-pushbutton", "id": "btn1", "top": 40, "left": -170, "attrs": { "color": "blue", "label": "TOMBOL" } },
+    { "type": "wokwi-buzzer", "id": "bz1", "top": -110, "left": 170, "attrs": { "volume": "0.1" } },
+    { "type": "wokwi-potentiometer", "id": "pot1", "top": 140, "left": -170, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "oled1:SDA", "esp:8", "green", [] ],
+    [ "oled1:SCL", "esp:9", "yellow", [] ],
+    [ "oled1:VCC", "esp:3V3.1", "red", [] ],
+    [ "oled1:GND", "esp:GND.1", "black", [] ],
+    [ "btn1:1.r", "esp:3", "blue", [] ],
+    [ "btn1:2.r", "esp:GND.2", "black", [] ],
+    [ "bz1:2", "esp:10", "orange", [] ],
+    [ "bz1:1", "esp:GND.4", "black", [] ],
+    [ "pot1:SIG", "esp:1", "violet", [] ],
+    [ "pot1:VCC", "esp:3V3.1", "red", [] ],
+    [ "pot1:GND", "esp:GND.3", "black", [] ]
+  ],
+  "dependencies": {}
+}
