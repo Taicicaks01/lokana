@@ -37,3 +37,22 @@ private:
   bool _active = false;
   uint32_t _until = 0;
 };
+
+// Cari HP (FIND_PHONE): dibuka dari menu, meminta HP berbunyi.
+// Tap / 30 detik = hentikan; HP mengirim FIND_PHONE op 0 = sudah ditemukan.
+class PhoneModule : public Module {
+public:
+  const char* name() const override { return "Cari HP"; }
+  bool hidden() const override { return true; }
+  void exit() override;
+  bool input(Gesture g) override;
+  void event(const Event& e) override;
+  void update(uint32_t now) override;
+  void render(Adafruit_GFX& g, uint32_t now) override;
+  bool keepAwake() const override { return _active; }
+
+private:
+  void stop(bool tellPhone, const char* msg);
+  bool _active = false;
+  uint32_t _since = 0;
+};

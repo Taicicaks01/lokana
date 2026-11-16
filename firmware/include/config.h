@@ -6,7 +6,7 @@
 
 #define LOKANA_NAME "Lokana"
 #define LOKANA_OS "Lokana OS"
-#define FW_VERSION "0.3.0"
+#define FW_VERSION "0.4.0"
 
 // ---------- Layar ----------
 #define SCREEN_W 128

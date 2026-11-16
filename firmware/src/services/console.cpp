@@ -8,6 +8,7 @@
 #include "drivers/hw.h"
 #include "services/link.h"
 #include "services/text_store.h"
+#include "services/bitmap_store.h"
 #include <Wire.h>
 
 static char buf[128];
@@ -20,9 +21,11 @@ static void help() {
     "list                 daftar modul\r\n"
     "go <modul>           buka modul (contoh: go dadu)\r\n"
     "expr <nama>          ekspresi Lokana (tanpa nama = daftar)\r\n"
-    "roll                 lempar dadu\r\n"
+    "roll [jenis]         lempar dadu (1d6 2d6 d4 d8 d10 d12 d20 koin)\r\n"
     "text <isi>           tampilkan teks di modul Teks\r\n"
     "find [detik|stop]    bunyikan cari kunci (default 10 dtk)\r\n"
+    "phone                cari HP (bunyikan HP yang tersambung)\r\n"
+    "img                  tampilkan gambar uji di modul Gambar\r\n"
     "ble                  status BLE & pairing\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
@@ -54,7 +57,25 @@ static void handle(char* line) {
       for (uint8_t i = 0; i < EXP_COUNT; i++) { Serial.print(expressionName((Expression)i)); Serial.print(' '); }
       Serial.println();
     }
-  } else if (!strcasecmp(line, "roll")) events::post(EV_ROLL);
+  } else if (!strcasecmp(line, "roll")) {
+    static const char* const D[] = {"1d6", "2d6", "d4", "d8", "d10", "d12", "d20", "koin"};
+    int32_t id = 255;
+    for (uint8_t i = 0; i < 8; i++) if (*arg && !strcasecmp(arg, D[i])) id = i;
+    events::post(EV_ROLL, id);
+  } else if (!strcasecmp(line, "phone")) events::post(EV_FIND_PHONE, 1);
+  else if (!strcasecmp(line, "img")) {
+    BitmapMsg& b = bmpstore::current();           // pola uji: bingkai + papan catur 8x8
+    b.x = b.y = 0; b.w = SCREEN_W; b.h = SCREEN_H; b.durationS = 5;
+    const int bw = b.w / 8;
+    for (int y = 0; y < b.h; y++)
+      for (int xb = 0; xb < bw; xb++) {
+        uint8_t v = (y < 2 || y >= b.h - 2) ? 0xFF : (((y / 8) + xb) % 2 ? 0xFF : 0x00);
+        if (xb == 0) v |= 0xC0;
+        if (xb == bw - 1) v |= 0x03;
+        b.data[y * bw + xb] = v;
+      }
+    events::post(EV_BITMAP);
+  }
   else if (!strcasecmp(line, "text")) {
     TextMsg m;
     strlcpy(m.text, arg, sizeof(m.text));
@@ -109,7 +130,7 @@ void begin() {
 
 void feed(char c) {
   if (c == '\r' || c == '\n') {
-    if (len) { buf[len] = 0; Serial.printf("> %s\r\n", buf); handle(buf); len = 0; }
+    if (len) { buf[len] = 0; lklink::consoleActivity(); Serial.printf("> %s\r\n", buf); handle(buf); len = 0; }
   } else if (c == 8 || c == 127) { if (len) len--; }
   else if (len < sizeof(buf) - 1) buf[len++] = c;
 }

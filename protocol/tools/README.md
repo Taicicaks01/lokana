@@ -2,13 +2,15 @@
 
 ## lokana_link.py
 
-Penguji Lokana Link v1 lewat **USB serial**. Satu file, hanya butuh `pyserial`.
+Penguji Lokana Link v1 lewat **USB serial**. Satu file, hanya butuh `pyserial`
+(`--image` di perintah `bitmap` butuh `pillow`).
 
 ```powershell
 pip install pyserial
 cd lokana\protocol\tools
 python lokana_link.py selftest        # cek CRC & contoh byte spesifikasi (tanpa device)
-python lokana_link.py test            # uji otomatis semua pesan v0.3 (24 uji)
+python lokana_link.py test            # uji otomatis pesan v0.3 + v0.4 (58 uji)
+python lokana_link.py test --touch    # + uji BUTTON (sentuh Lokana saat diminta)
 python lokana_link.py hello           # HELLO -> DEVICE_INFO
 python lokana_link.py time            # sinkron jam dari PC
 python lokana_link.py text "Halo Wayan" --style scroll --duration 10
@@ -16,6 +18,12 @@ python lokana_link.py text "Wayan|KRTI 2026" --slot 1     # simpan name tag ke s
 python lokana_link.py expr senang --hold 3000
 python lokana_link.py goto jam
 python lokana_link.py find --duration 5
+python lokana_link.py settings        # baca pengaturan
+python lokana_link.py settings --brightness 2 --timeout 60 --name "Lokana Wayan"
+python lokana_link.py dice d20        # lempar dadu, tunggu hasilnya
+python lokana_link.py bitmap --demo hati --slot 1            # senyum / hati / catur
+python lokana_link.py bitmap --image logo.png --duration 10  # file gambar, diperkecil ke 128x64
+python lokana_link.py listen          # dengarkan hasil dadu, BUTTON, FIND_PHONE
 python lokana_link.py monitor         # lihat log & frame dari device
 ```
 
@@ -23,6 +31,9 @@ python lokana_link.py monitor         # lihat log & frame dari device
 - **Tutup serial monitor PlatformIO dulu**, karena port hanya bisa dibuka satu program.
 - Skrip membuka port dengan DTR/RTS mati lalu menyalakan DTR. Dengan DTR/RTS aktif sejak
   awal, ESP32-C3 bisa tertahan reset dan tidak membalas.
+- Pesan dari device tanpa diminta (hasil dadu, BUTTON, FIND_PHONE) hanya dikirim lewat USB
+  setelah `HELLO`, dan berhenti begitu ada perintah console. Karena itu `test` menguji console
+  paling akhir, dan BUTTON perlu sentuhan sungguhan (`--touch`), bukan perintah `tap`.
 
 ## Menguji BLE
 

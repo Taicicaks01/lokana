@@ -9,7 +9,7 @@ dan di meja sebagai asisten kerja. Lokana memantau HP, kunci, dan komputermu,
 lalu memberi kabar lewat sepasang matanya.
 
 ![Status](https://img.shields.io/badge/status-pengembangan%20awal-orange)
-![Versi](https://img.shields.io/badge/Lokana%20OS-v0.3.0-blue)
+![Versi](https://img.shields.io/badge/Lokana%20OS-v0.4.0-blue)
 ![Platform](https://img.shields.io/badge/MCU-ESP32--C3-red)
 ![Layar](https://img.shields.io/badge/OLED-128%C3%9764-lightgrey)
 ![Lisensi kode](https://img.shields.io/badge/kode-MIT-green)
@@ -22,9 +22,10 @@ lalu memberi kabar lewat sepasang matanya.
 
 ---
 
-> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.3.0**
-> menambahkan **Lokana Link** lewat USB dan BLE (pairing kode 6 digit), modul Teks, dan
-> cari kunci. Aplikasi HP dan Lokana Desktop belum dimulai.
+> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.4.0**
+> menambahkan pengaturan, dadu, gambar/emoji, dan Cari HP lewat **Lokana Link** (USB & BLE).
+> **Aplikasi Lokana** (Android, MVP) sudah jalan di HP. Berikutnya: notifikasi HP (v0.5).
+> Lokana Desktop belum dimulai.
 > Dokumen ini adalah acuan utama proyek: apa yang dibangun, keputusan yang sudah diambil, dan urutan pengerjaannya.
 
 ## Daftar isi
@@ -85,7 +86,7 @@ Fitur dikelompokkan berdasarkan **dari mana datanya berasal**. Setiap fitur diba
 sebagai **modul** terpisah di Lokana OS, jadi bisa ditambah atau dilepas tanpa mengganggu
 fitur lain.
 
-Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanakan · 🧪 eksperimental
+Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanakan · 🧪 eksperimental / menunggu uji di HP
 
 ### 3.1 Lokana sendiri (tanpa HP)
 
@@ -95,7 +96,7 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 | Sistem mood | ✅ | Lama dicuekin → bosan → ngantuk; dicolek terus → curiga → marah |
 | Jam animasi | ✅ | Digit besar dengan transisi geser, tanggal, detik |
 | Dadu digital | ✅ | 1d6, 2d6, d4, d8, d10, d12, d20, koin; acak dari *hardware RNG* ESP32-C3 |
-| Menu di perangkat | ✅ | Kecerahan, suara, layar mati otomatis, putar layar, info |
+| Menu di perangkat | ✅ | Cari HP, kecerahan, suara, layar mati otomatis, putar layar, lupakan HP, info |
 | Timer, stopwatch, pomodoro | 📋 | Untuk belajar, presentasi, dan fokus kerja |
 | Mini game satu tombol | 📋 | Tes refleks, lompat rintangan |
 
@@ -103,14 +104,14 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 
 | Fitur | Status | Penjelasan |
 |---|---|---|
-| Pairing aman | 🔨 | Kode 6 digit tampil di OLED, dikonfirmasi di aplikasi |
-| Sinkron jam (*time sync*) | 🔨 | Jam dan zona waktu otomatis dari HP |
-| Teks & emoji custom | 🔨 | Teks diam/berjalan/berkedip; emoji dirender HP menjadi bitmap 1-bit |
-| Ekspresi dari HP | 🔨 | Ubah ekspresi Lokana dan lempar dadu dari aplikasi |
-| Cari kunci ↔ cari HP | 🔨 | Lokana berbunyi saat dicari; tahan tombol di Lokana untuk membunyikan HP |
+| Pairing aman | ✅ | Kode 6 digit tampil di OLED, diketik di dialog pairing Android; HP diingat (*bonding*) |
+| Sinkron jam (*time sync*) | ✅ | Jam dan zona waktu otomatis dari HP |
+| Teks & emoji custom | ✅ | Teks diam/berjalan/berkedip; emoji dirender HP menjadi bitmap 1-bit; 8 slot teks + 8 slot gambar |
+| Ekspresi dari HP | ✅ | Ubah ekspresi Lokana dan lempar dadu dari aplikasi |
+| Cari kunci ↔ cari HP | ✅ | Lokana berbunyi saat dicari; menu Lokana → Cari HP membuat HP berbunyi walau senyap |
 | Pengingat ketinggalan | 📋 | HP memberi peringatan saat koneksi ke Lokana terputus |
-| Notifikasi HP | 📋 | Nama aplikasi + judul + potongan isi, dengan filter per aplikasi |
-| Panggilan masuk | 📋 | Nama penelepon + bunyi |
+| Notifikasi HP | 🔨 | Nama aplikasi + judul + potongan isi, dengan filter per aplikasi |
+| Panggilan masuk | 🔨 | Nama penelepon + bunyi |
 | Navigasi Google Maps | 📋 | Panah belok, jarak, dan nama jalan (lihat [4.3](#43-cara-kerja-notifikasi--navigasi)) |
 | Monitor HP | 📋 | Baterai, sinyal, dan memori HP di layar Lokana |
 | Kontrol musik & cuaca | 📋 | Play/pause/next; cuaca dari aplikasi |
@@ -350,8 +351,8 @@ Supaya pembaruan aman:
 | **v0.1** | Fondasi | Driver, core, sistem modul, modul Lokana/Jam/Dadu, console serial, diagnostik I2C | ✅ selesai |
 | **v0.2** | Layar 128×64 | Tata letak semua modul untuk 128×64, ekspresi lebih detail, partisi OTA | ✅ selesai |
 | **v0.3** | BLE & Lokana Link | GATT service RX/TX, pairing kode 6 digit, `TIME_SYNC`, `DEVICE_INFO`, `FIND_KEYS`, modul Teks | ✅ selesai |
-| **v0.4** | Aplikasi MVP | Flutter: sambungkan, pengaturan, teks/emoji custom, ekspresi, cari kunci ↔ cari HP | 🔨 berikutnya |
-| **v0.5** | Notifikasi | *NotificationListener*, filter aplikasi, panggilan masuk, modul Notif | 📋 |
+| **v0.4** | Aplikasi MVP | Flutter: sambungkan, pengaturan, teks/emoji custom, ekspresi, cari kunci ↔ cari HP | ✅ selesai |
+| **v0.5** | Notifikasi | *NotificationListener*, filter aplikasi, panggilan masuk, modul Notif | 🔨 berikutnya |
 | **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | 📋 |
 | **v0.7** | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro | 📋 |
 | **v0.8** | Jaringan | Monitor PC via WiFi UDP, *BLE provisioning*, Mode Update | 📋 |

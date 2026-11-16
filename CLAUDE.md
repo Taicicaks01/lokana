@@ -41,7 +41,7 @@ Masih terbuka: mekanisme Mode Update (WiFi AP + unggah lewat browser HP, atau le
 ```
 firmware/   Lokana OS (PlatformIO, Arduino framework)
 protocol/   spesifikasi Lokana Link + skrip uji Python (protocol/tools/lokana_link.py)
-app/        Aplikasi Lokana (Flutter + Kotlin) — belum dimulai
+app/        Aplikasi Lokana Android (Flutter UI + Kotlin BLE), lihat app/README.md
 desktop/    Lokana Desktop — belum dimulai
 hardware/   skema, PCB, casing — belum dimulai
 docs/       arsitektur, quick start (GitHub Pages)
@@ -70,6 +70,22 @@ pio run -e supermini-091             # varian OLED 0.91" 128x32
 - "No serial data received" di tengah upload = koneksi USB tidak stabil. Coba ulang / ganti kabel.
 - Sebelum menyatakan selesai: **`pio run -e supermini` dan `pio run -e wokwi` harus sama-sama sukses.**
 
+### Aplikasi (folder `app/`)
+
+Flutter ada di `C:\Users\<nama>\dev\flutter` (shallow clone 3.50.0), JDK 21 di `C:\Users\<nama>\dev\jdk-21.0.13+9`
+(keduanya belum di PATH; sudah didaftarkan lewat `flutter config --jdk-dir/--android-sdk`).
+
+```powershell
+flutter analyze                               # harus "No issues found"
+flutter test                                  # uji codec Lokana Link (byte asli firmware)
+flutter build apk --release --split-per-abi   # HP modern: app-arm64-v8a-release.apk (±16 MB)
+```
+
+- Flutter 3.47+: impor `package:material_ui/material_ui.dart` (paket resmi flutter.dev),
+  bukan `package:flutter/material.dart` (deprecated).
+- Build Android pertama mengunduh Gradle, NDK 28.2, dan CMake (dipaksa Flutter Gradle plugin walau
+  tidak ada kode native). Di koneksi lambat ±80 menit; build berikutnya jauh lebih cepat.
+
 ## Hardware & pin
 
 | Komponen | Pin | Catatan |
@@ -88,6 +104,8 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 - **Fitur baru = modul baru** di `src/modules/` (turunan `Module`), didaftarkan di `main.cpp`.
   Jangan menambah logika fitur ke `core/`.
 - Modul **tidak** membaca BLE/USB langsung. Pesan masuk → layanan link (`lklink`) → `events::post()` → modul.
+  Pesan keluar tanpa diminta (hasil dadu, BUTTON, FIND_PHONE, REPORT) lewat fungsi `lklink::report*()` /
+  `lklink::findPhone()`; layanan yang memutuskan host mana yang boleh menerima (sesi setelah HELLO).
   Data besar (teks) lewat penyimpanan layanan (`text_store`), event hanya memberi tahu.
 - Callback NimBLE berjalan di task lain: jangan memanggil display/events dari sana. Titipkan ke
   stream buffer / variabel `volatile`, proses di `link_ble::update()` (loop).
@@ -103,6 +121,17 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 - Teks di layar: font ASCII saja. String UI dalam Bahasa Indonesia, singkat.
 - Acak memakai `esp_random()` (hardware RNG).
 - Komentar kode dalam Bahasa Indonesia, singkat. Istilah teknis boleh tetap Inggris.
+
+## Konvensi aplikasi (app/)
+
+- BLE, framing, `seq`/ACK, dan Cari HP ada di **Kotlin** (`BleLink.kt`, `LinkService.kt`, `Alarm.kt`).
+  Dart hanya membuat/membaca payload (`lib/link/proto.dart`) dan menampilkan UI.
+- **Jangan menambah plugin BLE** (`flutter_blue_plus` 2.x berlisensi berbayar dan *ping* saat build).
+  Usahakan tanpa dependensi Dart pihak ketiga; fitur Android lewat Kotlin + MethodChannel.
+- Payload baru: tambahkan builder/parser di `proto.dart` **dan** uji byte-nya di `test/proto_test.dart`
+  (bandingkan dengan `lokana_link.py` atau balasan asli firmware).
+- Teks UI Bahasa Indonesia. Hindari API Flutter yang sudah *deprecated* (`withOpacity`,
+  `MaterialStateProperty`, `DropdownButtonFormField.value`).
 
 ## Konvensi protokol
 
@@ -128,6 +157,8 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 
 Perintah diagnostik console: `info`, `scan`, `oled`, `i2c <kHz>`, `ble`, `help`.
 Uji protokol dari PC: `python protocol/tools/lokana_link.py test` (tutup serial monitor dulu).
+Perintah console di USB menghentikan pesan tanpa diminta ke USB sampai `HELLO` berikutnya (spesifikasi §3.2),
+jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
 
 ## Status & tugas berikutnya
 
@@ -150,7 +181,18 @@ Uji protokol dari PC: `python protocol/tools/lokana_link.py test` (tutup serial 
   passkey DisplayOnly + bonding), modul Teks (slot 1–8 di NVS), layar Pairing & Cari (FIND_KEYS),
   `protocol/tools/lokana_link.py`. Pesan v0.3: HELLO, TIME_SYNC, DEVICE_INFO, ACK, FIND_KEYS,
   EXPRESSION, GOTO, CUSTOM_TEXT. Belum diuji: tampilan di Wokwi. MTU dari nRF Connect tetap 23 (frame dipecah per 20 B).
-- **v0.4** Aplikasi MVP (Flutter + Kotlin) + pesan SETTINGS, DICE, BUTTON, BITMAP, FIND_PHONE.
+- **v0.4 ✅** Firmware 0.4.0 lulus 58/58 uji USB; aplikasi diuji di HP Android 2026-11-16: SETTINGS (key `0x06 button_events` sesi saja,
+  nama pemilik di NVS), DICE (hasil dikirim tiap lemparan), BUTTON, FIND_PHONE (menu "Cari HP" + layar
+  Memanggil HP; `op 0` dari HP menutup layar), BITMAP (modul Gambar, slot di littlefs `/bmp/N.bin`).
+  Aplikasi Android di `app/` (codec Dart diuji, BLE Kotlin): sambung/pairing, ekspresi, teks, emoji, dadu,
+  cari kunci, pengaturan jalan. Belum diuji: Wokwi.
+- **Backlog (dibereskan sekaligus, atas permintaan Wayan):**
+  - Bug kecil & tampilan aplikasi v0.4. Teramati: "Gagal tersambung (22)" saat menyambung ulang
+    (GATT 22 = koneksi diputus host lokal) setelah pairing ulang; dialog pairing Android memakai kolom
+    PIN generik ("Usually 0000 or 1234") meski kodenya 6 digit dari OLED.
+  - **Splash/boot keren & profesional ala Dasai Mochi** dengan tulisan Sansekerta "Lokana"
+    (Dewanagari, cek ejaan: लोकन), di firmware (bitmap) **dan** di aplikasi. Belum dikerjakan.
+- **v0.5** Notifikasi: NotificationListener (Kotlin) → `BleLink`, panggilan masuk, modul Notif.
 
 ## Cara berkomunikasi dengan pemilik proyek
 

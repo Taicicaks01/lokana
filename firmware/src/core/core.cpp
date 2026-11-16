@@ -21,8 +21,9 @@ static bool swallowNext = false;
 static uint32_t loopPrev = 0, loopMax = 0, loopMaxShown = 0, loopWin = 0;
 
 // ---------------- Menu ----------------
-enum MenuItem : uint8_t { MI_BRIGHT, MI_SOUND, MI_SCREEN, MI_FLIP, MI_FORGET, MI_INFO, MI_EXIT, MI_COUNT };
-static const char* const MENU_LABEL[MI_COUNT] = {"Kecerahan", "Suara", "Layar mati", "Putar layar", "Lupakan HP", "Info", "Keluar"};
+enum MenuItem : uint8_t { MI_PHONE, MI_BRIGHT, MI_SOUND, MI_SCREEN, MI_FLIP, MI_FORGET, MI_INFO, MI_EXIT, MI_COUNT };
+static const char* const MENU_LABEL[MI_COUNT] = {"Cari HP", "Kecerahan", "Suara", "Layar mati", "Putar layar", "Lupakan HP", "Info", "Keluar"};
+static bool settingsDirty = false;
 
 static const char* menuValue(uint8_t i) {
   Settings& s = settings::get();
@@ -31,6 +32,7 @@ static const char* menuValue(uint8_t i) {
     case MI_SOUND:  return s.sound ? "On" : "Off";
     case MI_SCREEN: return SCREEN_TIMEOUT_LABEL[s.screenIdx];
     case MI_FLIP:   return s.flip ? "On" : "Off";
+    case MI_PHONE:
     case MI_FORGET:
     case MI_INFO:   return ">";
     default:        return "";
@@ -44,7 +46,7 @@ static void applySettings() {
 
 static void closeMenu() {
   menuOpen = infoOpen = false;
-  settings::save();
+  if (settingsDirty) { settings::save(); lklink::reportSettings(); settingsDirty = false; }
   buzzer::play(MEL_SELECT);
 }
 
@@ -55,7 +57,9 @@ static void menuInput(Gesture g) {
   if (g == G_TAP) { menuIdx = (menuIdx + 1) % MI_COUNT; buzzer::play(MEL_MENU); return; }
   if (g == G_DOUBLE || g == G_TRIPLE) { closeMenu(); return; }
   if (g == G_LONG) {
+    if (menuIdx >= MI_BRIGHT && menuIdx <= MI_FLIP) settingsDirty = true;
     switch (menuIdx) {
+      case MI_PHONE:  closeMenu(); events::post(EV_FIND_PHONE, 1); return;
       case MI_BRIGHT: s.brightness = (s.brightness + 1) % 3; applySettings(); break;
       case MI_SOUND:  s.sound = !s.sound; break;
       case MI_SCREEN: s.screenIdx = (s.screenIdx + 1) % SCREEN_TIMEOUT_COUNT; break;
@@ -111,7 +115,9 @@ static void drawInfo(Adafruit_GFX& g) {
   snprintf(l[n++], 24, "Jam: %s", clockx::status());
   snprintf(l[n++], 24, "Aktif: %luj %02lum %02lud", up / 3600, (up / 60) % 60, up % 60);
   snprintf(l[n++], 24, "BLE: %s", lklink::bleStatus());
-  drawHeader(g, "INFO", nullptr);
+  char who[16];
+  snprintf(who, sizeof(who), "%.15s", lklink::ownerName());
+  drawHeader(g, "INFO", who);
   for (uint8_t i = 0; i < n; i++) { g.setCursor(0, 13 + i * 10); g.print(l[i]); }
 #else
   snprintf(l[n++], 24, "Jam:%s %lus", clockx::status(), millis() / 1000);
@@ -227,6 +233,7 @@ void loop() {
     lastInput = now;
     led::pulse(30);
     Serial.printf("[btn] %s\r\n", button::name(g));
+    if (!menuOpen) lklink::reportButton((uint8_t)g, mods[active]->name());   // G_TAP..G_LONG = 1..4
     if (menuOpen) menuInput(g);
     else if (g == G_DOUBLE) next();
     else if (g == G_TRIPLE) openMenu();

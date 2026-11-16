@@ -8,6 +8,7 @@ struct Settings {
   uint8_t screenIdx  = 2;     // indeks SCREEN_TIMEOUT_MS
   bool    flip       = false;
   int16_t tzMin      = TZ_OFFSET_MIN;   // selisih zona waktu (menit), dari TIME_SYNC
+  char    name[25]   = "";              // nama pemilik (SETTINGS device_name), kosong = bawaan
 };
 
 constexpr uint8_t SCREEN_TIMEOUT_COUNT = 5;
@@ -21,4 +22,6 @@ void load();
 void save();
 void reset();
 uint32_t screenTimeoutMs();   // 0 = tidak pernah
+uint16_t screenTimeoutS();
+void setScreenTimeoutS(uint16_t s);   // dibulatkan ke pilihan terdekat
 }

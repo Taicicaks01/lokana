@@ -202,10 +202,15 @@ BLE:       frame mentah lewat characteristic RX (write) / TX (notify)
 | Bagian | Teknologi | Tanggung jawab |
 |---|---|---|
 | UI | Flutter | Layar sambung/pairing, pengaturan, teks & emoji, ekspresi, dadu, cari kunci |
-| BLE | `flutter_blue_plus` | Scan, connect, bonding, MTU, kirim/terima Lokana Link |
-| Layanan latar | Kotlin (*foreground service*) | Menjaga koneksi BLE saat aplikasi ditutup |
+| BLE + framing | Kotlin (`BleLink.kt`, tanpa plugin) | Scan, connect, bonding, MTU, antrean tulis, `seq`/ACK/kirim ulang |
+| Layanan latar | Kotlin (*foreground service*) | Menjaga koneksi BLE saat aplikasi ditutup; Cari HP berbunyi walau layar mati |
 | Notifikasi & navigasi | Kotlin (*NotificationListenerService*) | Membaca notifikasi terpilih dan notifikasi navigasi Google Maps |
-| Codec protokol | Dart (bersama untuk semua layar) | Encode/decode frame sesuai spesifikasi |
+| Codec payload | Dart (`lib/link/proto.dart`) | Encode/decode payload sesuai spesifikasi; diuji dengan byte asli firmware |
+
+BLE ditulis langsung di Kotlin, bukan `flutter_blue_plus`: sejak 2.x plugin itu memakai lisensi
+sendiri (berbayar untuk perusahaan ≥ 15 orang) dan mengirim nama paket ke server pembuatnya
+setiap build. Koneksi di Kotlin juga memudahkan v0.5: *NotificationListener* bisa mengirim pesan
+lewat `BleLink` tanpa menunggu UI Flutter hidup.
 
 **Android dulu:** semua fitur wajib berjalan di Android sebelum iOS dikerjakan.
 **iOS nanti:** notifikasi lewat ANCS langsung dari iPhone (butuh bonding, sudah disiapkan),
@@ -244,7 +249,7 @@ lokana/
 | v0.1 ✅ | Fondasi | Driver, core, sistem modul, Lokana/Jam/Dadu, console, diagnostik I2C |
 | v0.2 ✅ | Layar 128×64 + partisi | Tata letak 128×64, `partitions.csv`, cek rollback |
 | v0.3 ✅ | Lokana Link | Parser, transport USB + BLE, pairing passkey, skrip uji Python, modul Teks |
-| v0.4 | Aplikasi MVP | Sambung, pengaturan, teks/emoji, ekspresi, dadu, cari kunci ↔ HP |
+| v0.4 ✅ | Aplikasi MVP | Sambung, pengaturan, teks/emoji, ekspresi, dadu, cari kunci ↔ HP |
 | v0.5 | Notifikasi | NotificationListener, panggilan, modul Notif |
 | v0.6 | Navigasi | Panah + jarak + jalan dari Google Maps, modul Navigasi |
 | v0.7 | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro |

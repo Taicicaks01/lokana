@@ -37,6 +37,9 @@ enum Cap : uint32_t {
 
 const char* typeName(uint8_t t);
 
+// Byte UTF-8 -> ASCII yang bisa ditampilkan (huruf non-ASCII jadi '?'), dipotong ke cap-1
+void toAscii(const uint8_t* s, size_t n, char* out, size_t cap, bool keepNewline = false);
+
 // CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, tanpa refleksi, tanpa XOR akhir
 inline uint16_t crc16(uint16_t crc, uint8_t b) {
   crc ^= (uint16_t)b << 8;
@@ -80,6 +83,9 @@ public:
   uint16_t u16();
   int16_t i16() { return (int16_t)u16(); }
   uint32_t u32();
+  uint16_t left() const { return _n - _i; }
+  // n byte mentah; nullptr (dan ok() = false) jika sisa payload kurang
+  const uint8_t* bytes(uint16_t n);
   // str -> ASCII yang bisa ditampilkan (huruf non-ASCII jadi '?'), dipotong ke cap-1
   void str(char* out, size_t cap, bool keepNewline = false);
 
@@ -97,6 +103,7 @@ public:
   void u16(uint16_t v) { u8(v & 0xFF); u8(v >> 8); }
   void u32(uint32_t v) { u16(v & 0xFFFF); u16(v >> 16); }
   void str(const char* s);
+  void bytes(const uint8_t* p, uint16_t n) { while (n--) u8(*p++); }
   uint16_t len() const { return _i; }
 
 private:

@@ -1,8 +1,8 @@
 # Lokana OS — firmware
 
-Firmware untuk Lokana (ESP32-C3 Super Mini + OLED 0.96" 128×64). Versi **0.3.0**: sistem modul
-dengan modul **Lokana** (wajah), **Jam**, **Dadu**, dan **Teks**, plus **Lokana Link** lewat USB dan
-BLE (pairing passkey 6 digit di OLED).
+Firmware untuk Lokana (ESP32-C3 Super Mini + OLED 0.96" 128×64). Versi **0.4.0**: sistem modul
+dengan modul **Lokana** (wajah), **Jam**, **Dadu**, **Teks**, dan **Gambar**, plus **Lokana Link**
+lewat USB dan BLE (pairing passkey 6 digit di OLED) untuk aplikasi Lokana.
 
 Arsitektur lengkap: [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
 
@@ -52,16 +52,19 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 
 | Gestur | Fungsi |
 |---|---|
-| Tap | Aksi modul: colek Lokana · tampilkan detik · lempar dadu |
-| Double-tap | Pindah modul (Lokana → Jam → Dadu → Teks) |
-| Triple-tap | Menu: kecerahan, suara, layar mati, putar layar, lupakan HP, info |
+| Tap | Aksi modul: colek Lokana · tampilkan detik · lempar dadu · ganti slot teks/gambar |
+| Double-tap | Pindah modul (Lokana → Jam → Dadu → Teks → Gambar) |
+| Triple-tap | Menu: **Cari HP**, kecerahan, suara, layar mati, putar layar, lupakan HP, info |
 | Tahan | Dadu: ganti jenis dadu. Modul lain: layar mati |
+
+Di menu, tap = item berikutnya dan tahan = pilih/ubah. **Cari HP** (item pertama: triple-tap lalu
+tahan) membuat HP yang tersambung berbunyi walau senyap; tap di Lokana untuk berhenti.
 
 ## Perintah serial (115200)
 
 ```
-help  list  go dadu  expr senang  roll  time 14:30
-text Halo|dunia  find 5  find stop  ble  forget
+help  list  go dadu  expr senang  roll  roll d20  time 14:30
+text Halo|dunia  img  find 5  find stop  phone  ble  forget
 tap  double  triple  long  info  scan  oled  reset
 ```
 
@@ -81,6 +84,9 @@ Port USB yang sama membawa console teks dan frame biner (`A5 5A … CRC`). BLE b
 `Lokana-XXXX`; HP baru harus pairing dengan kode 6 digit yang tampil di OLED.
 Uji dari PC: [`protocol/tools/lokana_link.py`](../protocol/tools/lokana_link.py) (`python lokana_link.py test`).
 
+Gambar dari aplikasi (BITMAP) disimpan di partisi **littlefs** (`/bmp/1.bin` … `/bmp/8.bin`);
+partisi baru diformat otomatis saat boot pertama. Teks slot 1–8 dan pengaturan ada di NVS.
+
 ## Struktur kode
 
 ```
@@ -90,9 +96,9 @@ src/
 ├── core/               core (modul, menu, toast, layar), face (mata Lokana),
 │                       events, settings, clock
 ├── services/           console, link (Lokana Link: link_proto, link_usb, link_ble),
-│                       text_store
-└── modules/            face_module, clock_module, dice_module, text_module,
-                        system_modules (Pairing & Cari, tersembunyi)
+│                       text_store (NVS), bitmap_store (littlefs)
+└── modules/            face_module, clock_module, dice_module, text_module, image_module,
+                        system_modules (Pairing, Cari kunci, Cari HP: tersembunyi)
 ```
 
 ## Membuat modul baru

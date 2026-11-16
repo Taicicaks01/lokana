@@ -15,7 +15,13 @@ Contoh:
   python lokana_link.py expr senang --hold 3000
   python lokana_link.py goto jam
   python lokana_link.py find --duration 5        # cari kunci;  find --stop  untuk berhenti
-  python lokana_link.py test                     # uji otomatis semua pesan v0.3
+  python lokana_link.py settings                 # baca pengaturan
+  python lokana_link.py settings --brightness 2 --timeout 60 --name "Lokana Wayan"
+  python lokana_link.py dice d20                 # lempar dadu, tunggu hasilnya
+  python lokana_link.py bitmap --demo senyum     # gambar bawaan: senyum, hati, catur
+  python lokana_link.py bitmap --image logo.png --slot 1   # butuh Pillow: pip install pillow
+  python lokana_link.py listen                   # dengarkan hasil dadu, tombol, cari HP
+  python lokana_link.py test                     # uji otomatis semua pesan v0.3 + v0.4
   python lokana_link.py monitor                  # tampilkan log & frame dari device
 
 Port dipilih otomatis (USB VID 303A = ESP32-C3). Pakai --port COM9 kalau ada beberapa.
@@ -43,6 +49,12 @@ EXPRESSIONS = ["netral", "senang", "sedih", "marah", "ngantuk", "kaget", "cinta"
 CAPS = ["NOTIF", "NAV", "PC_STATS", "PHONE_STATS", "CUSTOM_TEXT", "BITMAP", "OTA", "WIFI",
         "HID", "BUZZER", "DICE", "FIND_PHONE"]
 STYLES = {"diam": 0, "static": 0, "scroll": 1, "jalan": 1, "blink": 2, "kedip": 2}
+DICE = ["1d6", "2d6", "d4", "d8", "d10", "d12", "d20", "koin"]
+GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
+# Key SETTINGS: nama -> (key, format struct; None = string)
+SETTING_KEYS = {"brightness": (0x01, "<B"), "sound": (0x02, "<B"), "screen_timeout": (0x03, "<H"),
+                "flip": (0x04, "<B"), "device_name": (0x05, None), "button_events": (0x06, "<B")}
+SETTING_NAME = {k: n for n, (k, _) in SETTING_KEYS.items()}
 CLIENT_SCRIPT = 4
 ACK_TIMEOUT = 2.0
 RETRIES = 3
@@ -97,6 +109,97 @@ def p_find(on=True, duration=30):
     return bytes([1 if on else 0, duration])
 
 
+def p_settings_get():
+    return bytes([0])
+
+
+def p_settings_set(**items):
+    """SETTINGS SET: item TLV (key u8, len u8, value)."""
+    out = bytearray([1])
+    for name, v in items.items():
+        key, fmt = SETTING_KEYS[name]
+        val = v.encode("utf-8")[:24] if fmt is None else struct.pack(fmt, v)
+        out += bytes([key, len(val)]) + val
+    return bytes(out)
+
+
+def parse_settings(p: bytes) -> dict:
+    d, i = {"op": p[0]}, 1
+    while i + 2 <= len(p):
+        key, n = p[i], p[i + 1]
+        v = p[i + 2:i + 2 + n]
+        i += 2 + n
+        name = SETTING_NAME.get(key, f"0x{key:02X}")
+        if key == 0x05:
+            d[name] = v.decode("utf-8", "replace")
+        elif n == 2:
+            d[name] = struct.unpack("<H", v)[0]
+        elif n == 1:
+            d[name] = v[0]
+        else:
+            d[name] = v.hex()
+    return d
+
+
+def p_dice(dice=255):
+    return bytes([0, dice])
+
+
+def parse_dice(p: bytes) -> dict:
+    return dict(op=p[0], dice=p[1], values=list(p[3:3 + p[2]]))
+
+
+def p_bitmap(op, slot, duration, x, y, w, h, data):
+    return struct.pack("<BBHhhBB", op, slot, duration, x, y, w, h) + bytes(data)
+
+
+def demo_bitmap(name, w=128, h=64):
+    """Gambar uji tanpa Pillow: senyum, hati, catur. Hasil: (w, h, data)."""
+    import math
+    px = [[0] * w for _ in range(h)]
+    cx, cy, k = w / 2, h / 2, min(w, h) / 64     # ukuran mengikuti w x h
+    for y in range(h):
+        for x in range(w):
+            if name == "catur":
+                on = ((x // 8) + (y // 8)) % 2 == 0
+            elif name == "hati":
+                u, v = (x - cx) / (24 * k), -(y - cy + 4 * k) / (22 * k)      # kurva hati (x^2+y^2-1)^3 - x^2 y^3 <= 0
+                on = (u * u + v * v - 1) ** 3 - u * u * v ** 3 <= 0
+            else:  # senyum
+                r = math.hypot(x - cx, y - cy)
+                eye = math.hypot(x - (cx - 11 * k), y - (cy - 8 * k)) < 4 * k or math.hypot(x - (cx + 11 * k), y - (cy - 8 * k)) < 4 * k
+                mouth = 17 * k < r < 21 * k and y > cy + 4 * k
+                on = (27 * k < r < 31 * k) or eye or mouth
+            px[y][x] = 1 if on else 0
+    return w, h, pack_bits(px)
+
+
+def pack_bits(px):
+    """Baris piksel 0/1 -> format bitmap Lokana Link (baris dibulatkan ke byte, MSB = kiri)."""
+    out = bytearray()
+    for row in px:
+        for xb in range(0, len(row), 8):
+            b = 0
+            for k in range(8):
+                if xb + k < len(row) and row[xb + k]:
+                    b |= 0x80 >> k
+            out.append(b)
+    return bytes(out)
+
+
+def image_bitmap(path, max_w=128, max_h=64, invert=False):
+    try:
+        from PIL import Image
+    except ImportError:
+        sys.exit("Pillow belum terpasang: pip install pillow  (atau pakai --demo)")
+    im = Image.open(path).convert("L")
+    im.thumbnail((max_w, max_h))
+    im = im.convert("1")                        # dithering Floyd-Steinberg
+    w, h = im.size
+    px = [[(1 if im.getpixel((x, y)) else 0) ^ (1 if invert else 0) for x in range(w)] for y in range(h)]
+    return w, h, pack_bits(px)
+
+
 def parse_device_info(p: bytes) -> dict:
     i = 0
 
@@ -132,6 +235,20 @@ def describe(type_, seq, payload) -> str:
         bat = "?" if d["battery_pct"] == 255 else f'{d["battery_pct"]}%'
         return (f'DEVICE_INFO: {d["device_name"]} fw {d["fw_version"]} proto {d["proto_ver"]} '
                 f'layar {d["screen_w"]}x{d["screen_h"]} baterai {bat} flags {flags} caps {caps}')
+    if type_ == T["SETTINGS"] and payload:
+        d = parse_settings(payload)
+        d.pop("op")
+        return "SETTINGS REPORT: " + ", ".join(f"{k}={v!r}" for k, v in d.items())
+    if type_ == T["DICE"] and len(payload) >= 3:
+        d = parse_dice(payload)
+        nm = DICE[d["dice"]] if d["dice"] < len(DICE) else d["dice"]
+        vals = ["angka" if v == 0 else "gambar" for v in d["values"]] if nm == "koin" else d["values"]
+        return f"DICE hasil {nm}: {vals}"
+    if type_ == T["BUTTON"] and payload:
+        mod = payload[2:2 + payload[1]].decode("utf-8", "replace") if len(payload) > 1 else "?"
+        return f"BUTTON {GESTURES.get(payload[0], payload[0])} di modul {mod}"
+    if type_ == T["FIND_PHONE"] and payload:
+        return "FIND_PHONE " + ("bunyikan HP!" if payload[0] else "hentikan")
     return f"{name} seq={seq} payload={payload.hex(' ')}"
 
 
@@ -300,6 +417,77 @@ def expr_id(v):
     return EXPRESSIONS.index(v)
 
 
+def dice_id(v):
+    v = v.lower()
+    if v.isdigit():
+        return int(v)
+    if v not in DICE:
+        sys.exit("dadu: " + " ".join(DICE))
+    return DICE.index(v)
+
+
+def onoff(v):
+    return 1 if str(v).lower() in ("1", "on", "nyala", "ya") else 0
+
+
+def cmd_settings(a):
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    items = {}
+    if a.brightness is not None: items["brightness"] = a.brightness
+    if a.sound is not None: items["sound"] = onoff(a.sound)
+    if a.timeout is not None: items["screen_timeout"] = a.timeout
+    if a.flip is not None: items["flip"] = onoff(a.flip)
+    if a.name is not None: items["device_name"] = a.name
+    st = lk.request(T["SETTINGS"], p_settings_set(**items) if items else p_settings_get())
+    lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    lk.close()
+    return 0 if st == 0 else 1
+
+
+def cmd_dice(a):
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    st = lk.request(T["DICE"], p_dice(dice_id(a.dice) if a.dice else 255))
+    if st == 0:
+        lk.wait_frame(lambda f: f[0] == T["DICE"], 3.0)
+    lk.close()
+    return 0 if st == 0 else 1
+
+
+def cmd_bitmap(a):
+    if a.image:
+        w, h, data = image_bitmap(a.image, invert=a.invert)
+    else:
+        w, h, data = demo_bitmap(a.demo)
+    x = (128 - w) // 2 if a.x is None else a.x
+    y = (64 - h) // 2 if a.y is None else a.y
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello())
+    payload = p_bitmap(1 if a.slot else 0, a.slot, a.duration, x, y, w, h, data)
+    print(f"  gambar {w}x{h} di ({x},{y}), {len(data)} byte")
+    st = lk.request(T["BITMAP"], payload)
+    lk.poll(0.3)
+    lk.close()
+    print("Status:", STATUS[st] if st is not None and st < len(STATUS) else st)
+    return 0 if st == 0 else 1
+
+
+def cmd_listen(a):
+    lk = Link(a.port)
+    lk.request(T["HELLO"], p_hello("lokana_link.py listen"))
+    lk.request(T["SETTINGS"], p_settings_set(button_events=1))
+    print("Mendengarkan (Ctrl+C keluar): sentuh Lokana, lempar dadu, atau menu -> Cari HP.")
+    print("Jangan ketik perintah console di sini: itu menghentikan pesan dari device.")
+    try:
+        while True:
+            lk.poll(0.2)
+    except KeyboardInterrupt:
+        pass
+    lk.close()
+    return 0
+
+
 def cmd_monitor(a):
     lk = Link(a.port)
     print("Monitor (Ctrl+C untuk keluar). Ketik di monitor serial biasa untuk perintah console.")
@@ -312,14 +500,98 @@ def cmd_monitor(a):
     return 0
 
 
+def test_v04(lk, expect, a):
+    """Pesan v0.4: SETTINGS, DICE, BUTTON, FIND_PHONE, BITMAP."""
+    # DEVICE_INFO memuat kemampuan baru
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    for c in ("DICE", "FIND_PHONE", "BITMAP"):
+        expect(f"DEVICE_INFO caps {c}", bool(caps >> CAPS.index(c) & 1), True)
+
+    # SETTINGS GET -> ACK + REPORT
+    lk.frames.clear()
+    expect("SETTINGS GET", lk.request(T["SETTINGS"], p_settings_get()), 0)
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    expect("SETTINGS REPORT dikirim", rep_ is not None, True)
+    orig = parse_settings(rep_[2]) if rep_ else {}
+    expect("REPORT berisi 6 key", all(k in orig for k in SETTING_KEYS), True)
+
+    # SET lalu periksa REPORT; nilai asli dikembalikan di akhir
+    lk.frames.clear()
+    st = lk.request(T["SETTINGS"], p_settings_set(screen_timeout=50, device_name="Uji Lokana", button_events=1))
+    expect("SETTINGS SET timeout 50 dtk + nama + button_events", st, 0)
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    d = parse_settings(rep_[2]) if rep_ else {}
+    expect("timeout 50 dibulatkan ke 60", d.get("screen_timeout"), 60, raw=True)
+    expect("nama tersimpan", d.get("device_name"), "Uji Lokana", raw=True)
+    expect("button_events nyala", d.get("button_events"), 1, raw=True)
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    expect("DEVICE_INFO memakai nama baru", parse_device_info(info[2])["device_name"] if info else None, "Uji Lokana", raw=True)
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_get())
+    rep_ = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    expect("HELLO baru mematikan button_events", parse_settings(rep_[2]).get("button_events") if rep_ else None, 0, raw=True)
+    expect("SETTINGS item terpotong", lk.request(T["SETTINGS"], bytes([1, 0x01, 5, 2])), 2)
+    expect("SETTINGS op REPORT dari host", lk.request(T["SETTINGS"], bytes([2])), 2)
+    expect("SETTINGS op 9 (belum ada)", lk.request(T["SETTINGS"], bytes([9])), 4)
+    expect("SETTINGS key 0x7F (tidak dikenal) diabaikan", lk.request(T["SETTINGS"], bytes([1, 0x7F, 1, 1])), 0)
+    if orig:
+        restore = {k: orig[k] for k in ("brightness", "sound", "screen_timeout", "flip", "device_name")}
+        expect("SETTINGS dikembalikan ke nilai awal", lk.request(T["SETTINGS"], p_settings_set(**restore)), 0)
+    lk.poll(0.3)
+
+    # DICE: minta lempar -> ACK, lalu hasil setelah animasi
+    for name, count, lo, hi in (("d20", 1, 1, 20), ("2d6", 2, 1, 6), ("koin", 1, 0, 1)):
+        lk.frames.clear()
+        st = lk.request(T["DICE"], p_dice(DICE.index(name)))
+        f = lk.wait_frame(lambda f: f[0] == T["DICE"], 2.5)
+        d = parse_dice(f[2]) if f else {}
+        good = (st == 0 and d.get("op") == 1 and d.get("dice") == DICE.index(name)
+                and len(d.get("values", [])) == count and all(lo <= v <= hi for v in d["values"]))
+        expect(f"DICE {name} -> hasil {d.get('values')}", good, True)
+    expect("DICE ID 50 (belum ada)", lk.request(T["DICE"], p_dice(50)), 4)
+    expect("DICE op hasil dari host", lk.request(T["DICE"], bytes([1, 0, 1, 3])), 2)
+
+    # FIND_PHONE dari host: hanya op 0 (HP sudah ditemukan)
+    expect("FIND_PHONE op 0 dari host", lk.request(T["FIND_PHONE"], bytes([0])), 0)
+    expect("FIND_PHONE op 1 dari host", lk.request(T["FIND_PHONE"], bytes([1])), 2)
+
+    # BITMAP
+    w, h, data = demo_bitmap("senyum")
+    expect("BITMAP 128x64 tampil 2 dtk (1034 B)", lk.request(T["BITMAP"], p_bitmap(0, 0, 2, 0, 0, w, h, data)), 0)
+    w2, h2, data2 = demo_bitmap("hati", 40, 32)
+    expect("BITMAP 40x32 (baris 5 byte) ke slot 8",
+           lk.request(T["BITMAP"], p_bitmap(1, 8, 0, 44, 16, w2, h2, data2)), 0)
+    expect("BITMAP hapus slot 8 (w=0)", lk.request(T["BITMAP"], p_bitmap(1, 8, 0, 0, 0, 0, 0, b"")), 0)
+    expect("BITMAP slot 9", lk.request(T["BITMAP"], p_bitmap(1, 9, 0, 0, 0, 8, 1, b"\xff")), 2)
+    expect("BITMAP lebar 129", lk.request(T["BITMAP"], p_bitmap(0, 0, 0, 0, 0, 129, 1, bytes(17))), 2)
+    expect("BITMAP data kurang", lk.request(T["BITMAP"], p_bitmap(0, 0, 0, 0, 0, 128, 64, bytes(1000))), 2)
+    expect("BITMAP op 7 (belum ada)", lk.request(T["BITMAP"], p_bitmap(7, 0, 0, 0, 0, 8, 1, b"\xff")), 4)
+    time.sleep(2.2)
+
+    # BUTTON: perlu sentuhan sungguhan (console 'tap' mengakhiri sesi USB)
+    if a.touch:
+        lk.request(T["SETTINGS"], p_settings_set(button_events=1))
+        lk.frames.clear()
+        print("  >> Sentuh Lokana sekali dalam 10 detik...")
+        f = lk.wait_frame(lambda f: f[0] == T["BUTTON"], 10.0)
+        expect("BUTTON terkirim saat disentuh", f is not None, True)
+        lk.request(T["SETTINGS"], p_settings_set(button_events=0))
+
+
 def cmd_test(a):
-    """Uji otomatis semua pesan v0.3 lewat USB."""
+    """Uji otomatis semua pesan v0.3 + v0.4 lewat USB."""
     lk = Link(a.port, verbose=a.verbose)
     results = []
 
-    def expect(label, got, want):
+    def expect(label, got, want, raw=False):
+        """raw=True: bandingkan nilai biasa (bukan status ACK)."""
         good = got == want
         def name(v):
+            if raw or isinstance(v, str):
+                return repr(v)
             if v is None:
                 return "tanpa ACK"
             if isinstance(v, bool):
@@ -354,7 +626,7 @@ def cmd_test(a):
     expect("FIND_KEYS mulai 3 dtk", lk.request(T["FIND_KEYS"], p_find(True, 3)), 0)
     time.sleep(1.0)
     expect("FIND_KEYS berhenti", lk.request(T["FIND_KEYS"], p_find(False)), 0)
-    expect("NOTIF (dikenal, belum didukung v0.3)", lk.request(T["NOTIF"], b"\x00"), 4)
+    expect("NOTIF (dikenal, belum didukung v0.4)", lk.request(T["NOTIF"], b"\x00"), 4)
     expect("type 0x7E (tidak dikenal)", lk.request(0x7E, b"abc"), 1)
     expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["NOTIF"], bytes(1200)), 4)
     big = lk.request(0x30, bytes(1300))
@@ -382,11 +654,24 @@ def cmd_test(a):
     f = lk.wait_frame(lambda f: f[0] == T["ACK"] and f[1] == seq, 2.0)
     expect("frame dikirim per byte", f[2][1] if f else None, 0)
 
+    test_v04(lk, expect, a)
+
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
     lk.write_raw(b"info\r\n")
     lk.poll(1.0)
     expect("console 'info' di antara frame", b"Lokana OS" in lk.text, True)
+
+    # Setelah ada perintah console, pesan tanpa diminta (hasil dadu) tidak dikirim lagi lewat USB
+    lk.frames.clear()
+    expect("DICE setelah console", lk.request(T["DICE"], p_dice(0)), 0)
+    f = lk.wait_frame(lambda f: f[0] == T["DICE"], 2.5)
+    expect("hasil DICE tidak dikirim setelah console dipakai", f is None, True)
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    lk.request(T["DICE"], p_dice(0))
+    f = lk.wait_frame(lambda f: f[0] == T["DICE"], 2.5)
+    expect("hasil DICE kembali dikirim setelah HELLO ulang", f is not None, True)
 
     lk.request(T["GOTO"], s("lokana"))
     lk.close()
@@ -418,8 +703,26 @@ def main():
     t = sub.add_parser("find", help="FIND_KEYS")
     t.add_argument("--duration", type=int, default=30)
     t.add_argument("--stop", action="store_true")
-    t = sub.add_parser("test", help="uji otomatis semua pesan v0.3")
+    t = sub.add_parser("settings", help="SETTINGS: tanpa opsi = baca, dengan opsi = ubah")
+    t.add_argument("--brightness", type=int, choices=[0, 1, 2])
+    t.add_argument("--sound", help="on/off")
+    t.add_argument("--timeout", type=int, help="layar mati (detik), 0 = tidak pernah")
+    t.add_argument("--flip", help="on/off")
+    t.add_argument("--name", help="nama pemilik, maks 24 byte; \"\" = nama bawaan")
+    t = sub.add_parser("dice", help="DICE: " + " ".join(DICE) + " (kosong = jenis aktif)")
+    t.add_argument("dice", nargs="?")
+    t = sub.add_parser("bitmap", help="BITMAP: gambar bawaan atau file gambar")
+    t.add_argument("--demo", default="senyum", choices=["senyum", "hati", "catur"])
+    t.add_argument("--image", help="file gambar (PNG/JPG), diperkecil ke 128x64; butuh Pillow")
+    t.add_argument("--invert", action="store_true", help="balik hitam/putih (untuk --image)")
+    t.add_argument("--slot", type=int, default=0, help="1-8 = simpan ke slot, 0 = tampilkan")
+    t.add_argument("--duration", type=int, default=0, help="detik, 0 = sampai disentuh")
+    t.add_argument("--x", type=int)
+    t.add_argument("--y", type=int)
+    sub.add_parser("listen", help="dengarkan hasil dadu, tombol (BUTTON), cari HP")
+    t = sub.add_parser("test", help="uji otomatis semua pesan v0.3 + v0.4")
     t.add_argument("-v", "--verbose", action="store_true", help="tampilkan semua frame & log")
+    t.add_argument("--touch", action="store_true", help="ikut uji BUTTON (perlu menyentuh Lokana)")
     sub.add_parser("monitor", help="tampilkan log & frame dari device")
 
     a = ap.parse_args()
@@ -431,6 +734,10 @@ def main():
         "expr": simple("EXPRESSION", lambda a: p_expr(expr_id(a.expr), a.hold)),
         "goto": simple("GOTO", lambda a: s(a.module)),
         "find": simple("FIND_KEYS", lambda a: p_find(not a.stop, a.duration)),
+        "settings": cmd_settings,
+        "dice": cmd_dice,
+        "bitmap": cmd_bitmap,
+        "listen": cmd_listen,
         "test": cmd_test,
         "monitor": cmd_monitor,
     }

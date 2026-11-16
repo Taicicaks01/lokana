@@ -19,6 +19,7 @@
 #include "modules/clock_module.h"
 #include "modules/dice_module.h"
 #include "modules/text_module.h"
+#include "modules/image_module.h"
 #include "modules/system_modules.h"
 
 // Daftar modul. Modul pertama = layar utama.
@@ -27,8 +28,10 @@ static FaceModule  faceModule;
 static ClockModule clockModule;
 static DiceModule  diceModule;
 static TextModule  textModule;
+static ImageModule imageModule;
 static PairModule  pairModule;     // sistem (tersembunyi)
 static FindModule  findModule;     // sistem (tersembunyi)
+static PhoneModule phoneModule;    // sistem (tersembunyi)
 
 static void splash() {
   Adafruit_GFX& g = display::gfx();
@@ -100,8 +103,10 @@ void setup() {
   core::addModule(&clockModule);
   core::addModule(&diceModule);
   core::addModule(&textModule);
+  core::addModule(&imageModule);
   core::addModule(&pairModule);
   core::addModule(&findModule);
+  core::addModule(&phoneModule);
   TRACE("core");
   core::begin();
   console::begin();

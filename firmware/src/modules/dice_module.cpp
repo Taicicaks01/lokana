@@ -3,6 +3,7 @@
 #include "core/core.h"
 #include "drivers/buzzer.h"
 #include "drivers/display.h"
+#include "services/link.h"
 #include <esp_random.h>
 
 enum DiceType : uint8_t { D1x6, D2x6, D4, D8, D10, D12, D20, COIN, TYPE_COUNT };
@@ -35,7 +36,10 @@ bool DiceModule::input(Gesture g) {
 }
 
 void DiceModule::event(const Event& e) {
-  if (e.type == EV_ROLL) { core::goTo(name()); roll(); }
+  if (e.type != EV_ROLL) return;
+  core::goTo(name());
+  if (!_rolling && e.value >= 0 && e.value < TYPE_COUNT && e.value != _type) { _type = e.value; _a = _b = 0; }
+  roll();
 }
 
 void DiceModule::roll() {
@@ -56,6 +60,9 @@ void DiceModule::finish() {
   else if (worst) { buzzer::play(MEL_LOSE); core::toast("Yaah...", 800); }
   else buzzer::play(MEL_ROLL_DONE);
   Serial.printf("[dadu] %s -> %d%s\r\n", TYPE_NAME[_type], _a, _b ? (String(" + ") + _b).c_str() : "");
+  // Hasil ke aplikasi. Koin: 0 angka, 1 gambar (di layar: _a 1 = angka)
+  uint8_t v[2] = {(uint8_t)(_type == COIN ? _a - 1 : _a), _b};
+  lklink::reportDice(_type, v, _type == D2x6 ? 2 : 1);
 }
 
 void DiceModule::update(uint32_t now) {
