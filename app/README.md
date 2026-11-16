@@ -69,6 +69,11 @@ foto, maks 16 bingkai layar penuh). Galeri menampilkan isi slot 1–8 langsung d
 
 ## Layar Lokana & tema
 
+- **Layar pembuka लोचन** (`lib/splash.dart`): konsep sama dengan splash boot firmware, digambar vektor dengan
+  font Baloo 2 (SIL OFL, `assets/fonts/`, lisensi terdaftar di halaman lisensi aplikasi). Warna mengikuti
+  "warna layar di pratinjau"; tap untuk melewati; bisa dimatikan di Pengaturan → Tampilan aplikasi.
+  Latar *launch* Android hitam dan ikon splash sistem Android 12+ dikosongkan supaya tidak ada kilatan.
+
 - **Layar Lokana** (dasbor): isi OLED tampil langsung di HP (`SCREEN`, dikirim hanya saat berubah,
   maks 10 fps), tombol remote Tap/Double/Triple/Tahan, dan screenshot PNG 4x ke Galeri (Pictures/Lokana).
 - **Pengaturan → Tampilan aplikasi**: tema Sistem/Terang/Gelap, 7 warna aksen, dan warna piksel pratinjau

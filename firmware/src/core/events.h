@@ -17,6 +17,7 @@ enum EventType : uint8_t {
   EV_FIND_PHONE,   // value = 1 mulai memanggil HP (menu), 0 HP sudah ditemukan (dari HP)
   EV_NOTIF,        // value = 1 notifikasi baru (notifstore::at(0)), 0 diperbarui/dihapus
   EV_CALL,         // value = 0 berdering (penelepon di notifstore::caller()), 1 selesai
+  EV_SPLASH,       // putar ulang splash boot; value > 0 = bekukan di ms tersebut (uji/screenshot)
 };
 
 struct Event {

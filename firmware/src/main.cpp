@@ -22,6 +22,7 @@
 #include "modules/image_module.h"
 #include "modules/notif_module.h"
 #include "modules/system_modules.h"
+#include "modules/splash_module.h"
 
 // Daftar modul. Modul pertama = layar utama.
 // Menambah fitur: buat modul di src/modules/, lalu daftarkan di sini.
@@ -36,26 +37,7 @@ static FindModule  findModule;     // sistem (tersembunyi)
 static PhoneModule phoneModule;    // sistem (tersembunyi)
 static CallModule  callModule;     // sistem (tersembunyi)
 
-static void splash() {
-  Adafruit_GFX& g = display::gfx();
-  display::clear();
-  g.setTextColor(1);
-  // Logo: "L" + mata + "kana"  (huruf o diganti mata Lokana). Ukuran huruf s: 3 (64 px) / 2 (32 px)
-  const int s = SCREEN_H >= 64 ? 3 : 2;
-  const int x0 = (SCREEN_W - (25 * s / 2 + 24 * s)) / 2, y = SCREEN_H >= 64 ? 8 : 6;
-  g.setTextSize(s);
-  g.setCursor(x0, y); g.print('L');
-  g.fillRoundRect(x0 + 13 * s / 2, y + 3 * s / 2, 5 * s, 13 * s / 2, 2 * s, 1);
-  g.setCursor(x0 + 25 * s / 2, y); g.print("kana");
-  g.setTextSize(1);
-#if SCREEN_H >= 64
-  display::centerText("melihat untukmu", 40);
-  display::centerText(LOKANA_OS " v" FW_VERSION, 54);
-#else
-  display::centerText(LOKANA_OS " v" FW_VERSION, 24);
-#endif
-  display::show();
-}
+static SplashModule splashModule(faceModule.face());   // splash boot लोचन (tersembunyi)
 
 static const char* resetReason() {
   switch (esp_reset_reason()) {
@@ -77,9 +59,14 @@ static const char* resetReason() {
 void setup() {
   Serial.setRxBufferSize(2048);   // frame Lokana Link s.d. 1200 B datang sekaligus lewat USB
   Serial.begin(115200);
-  // Tunggu serial monitor (maks 3 dtk) supaya log boot tidak hilang
+  // Tunggu serial monitor (maks 3 dtk) supaya log boot tidak hilang. Hanya kalau USB tersambung ke
+  // komputer: dari baterai / charger tidak menunggu, jadi splash langsung tampil.
   uint32_t w = millis();
+#if ARDUINO_USB_CDC_ON_BOOT && ARDUINO_USB_MODE
+  while (!Serial && HWCDC::isPlugged() && millis() - w < 3000) delay(10);
+#else
   while (!Serial && millis() - w < 3000) delay(10);
+#endif
   delay(100);
   Serial.printf("\r\n[boot] " LOKANA_OS " v" FW_VERSION " | reset: %s\r\n", resetReason());
   randomSeed(esp_random());
@@ -95,13 +82,7 @@ void setup() {
   if (oled) Serial.printf("[init] OLED ok di 0x%02X (SDA=GPIO%d, SCL=GPIO%d)\r\n", OLED_ADDR, PIN_SDA, PIN_SCL);
   else Serial.printf("[err] OLED tidak menjawab di 0x%02X (SDA=GPIO%d, SCL=GPIO%d)\r\n", OLED_ADDR, PIN_SDA, PIN_SCL);
 
-  TRACE("splash");
-  splash();
-  buzzer::play(MEL_BOOT);
   led::pulse(300);
-  uint32_t t0 = millis();
-  while (millis() - t0 < 1200) { buzzer::update(millis()); led::update(millis()); delay(5); }
-
   core::addModule(&faceModule);
   core::addModule(&clockModule);
   core::addModule(&notifModule);
@@ -112,8 +93,10 @@ void setup() {
   core::addModule(&findModule);
   core::addModule(&phoneModule);
   core::addModule(&callModule);
+  core::addModule(&splashModule);
   TRACE("core");
   core::begin();
+  core::goTo(splashModule.name());   // splash berjalan di loop: BLE & console sudah aktif selama animasi
   console::begin();
   TRACE("link");      lklink::begin();
   TRACE("siap. ketik 'help'");

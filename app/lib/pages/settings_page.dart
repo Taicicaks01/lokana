@@ -93,7 +93,15 @@ class _SettingsPageState extends State<SettingsPage> {
             _ColorDot(color: o.color, label: o.label, selected: theme.oled.id == o.id, onTap: () => theme.setOled(o),
                 dark: true),
         ]),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Animasi pembuka लोचन'),
+          subtitle: const Text('Tampil saat aplikasi dibuka. Tap untuk melewati.'),
+          value: theme.splash,
+          onChanged: theme.setSplash,
+        ),
+        const SizedBox(height: 16),
         const Divider(),
 
         // ---------------- Lokana ----------------

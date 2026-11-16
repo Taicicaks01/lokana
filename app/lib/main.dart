@@ -1,23 +1,34 @@
 // Aplikasi Lokana — pendamping robot mini Lokana.
 // UI Flutter; koneksi BLE & Lokana Link di Kotlin (android/.../BleLink.kt).
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'link/link.dart';
 import 'link/proto.dart';
 import 'pages/connect_page.dart';
 import 'pages/dashboard_page.dart';
+import 'splash.dart';
 import 'theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(['Baloo 2'], await rootBundle.loadString('assets/fonts/OFL.txt'));
+  });
   LokanaLink.instance.start();
-  AppTheme.instance.load();
+  await AppTheme.instance.load();      // perlu tahu warna & setelan animasi pembuka sebelum frame pertama
   runApp(const LokanaApp());
 }
 
-
-class LokanaApp extends StatelessWidget {
+class LokanaApp extends StatefulWidget {
   const LokanaApp({super.key});
+
+  @override
+  State<LokanaApp> createState() => _LokanaAppState();
+}
+
+class _LokanaAppState extends State<LokanaApp> {
+  late bool _splash = AppTheme.instance.splash;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +41,12 @@ class LokanaApp extends StatelessWidget {
         theme: t.data(Brightness.light),
         darkTheme: t.data(Brightness.dark),
         themeMode: t.mode,
-        home: const HomePage(),
+        home: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 450),
+          child: _splash
+              ? LokanaSplash(key: const ValueKey('splash'), onDone: () => setState(() => _splash = false))
+              : const HomePage(),
+        ),
       ),
     );
   }

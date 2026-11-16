@@ -9,11 +9,15 @@ dan di meja sebagai asisten kerja. Lokana memantau HP, kunci, dan komputermu,
 lalu memberi kabar lewat sepasang matanya.
 
 ![Status](https://img.shields.io/badge/status-pengembangan%20awal-orange)
-![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.0-blue)
+![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.1-blue)
 ![Platform](https://img.shields.io/badge/MCU-ESP32--C3-red)
 ![Layar](https://img.shields.io/badge/OLED-128%C3%9764-lightgrey)
 ![Lisensi kode](https://img.shields.io/badge/kode-MIT-green)
 ![Lisensi hardware](https://img.shields.io/badge/hardware-CERN--OHL-green)
+
+<img src="docs/img/splash.gif" width="384" alt="Splash boot Lokana: tulisan Sansekerta लोचन (locana, mata)">
+
+*Splash boot: लोचन (locana, "mata") turun dari garis atas yang lalu menjadi mata Lokana.*
 
 [Fitur](#3-fitur) · [Arsitektur](#4-arsitektur-sistem) · [Mulai cepat](#7-mulai-cepat-untuk-developer) ·
 [Roadmap](#9-roadmap) · [Kontribusi](#12-kontribusi)
@@ -22,8 +26,8 @@ lalu memberi kabar lewat sepasang matanya.
 
 ---
 
-> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.5.0**
-> menambahkan **notifikasi HP** dan **panggilan masuk**, di atas pengaturan, dadu, gambar/emoji,
+> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.5.1**
+> menambahkan **notifikasi HP**, **panggilan masuk**, dan splash boot **लोचन**, di atas pengaturan, dadu, gambar/emoji,
 > dan Cari HP lewat **Lokana Link** (USB & BLE). **Aplikasi Lokana** (Android) sudah jalan di HP.
 > Lokana Desktop belum dimulai.
 > Dokumen ini adalah acuan utama proyek: apa yang dibangun, keputusan yang sudah diambil, dan urutan pengerjaannya.

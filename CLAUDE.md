@@ -189,8 +189,6 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
 - **Backlog (dibereskan sekaligus, atas permintaan Wayan):**
   - Dialog pairing Android (Infinix) memakai kolom PIN generik ("Usually 0000 or 1234") meski kodenya
     6 digit dari OLED: dari sistem, tidak bisa diubah; pertimbangkan CompanionDeviceManager.
-  - **Splash/boot keren & profesional ala Dasai Mochi** dengan tulisan Sansekerta **लोचन** (*locana*,
-    "mata"; ejaan pilihan Wayan), di firmware (bitmap) **dan** di aplikasi. Belum dikerjakan.
   - **Redesain UI/UX menyeluruh** (aplikasi & OLED: bahasa desain, ikon 1-bit, status bar, transisi), lalu
     perbaikan bug per modul memakai Layar Lokana + screenshot.
 - **v0.5 ✅** Notifikasi (2026-11-16). Firmware 0.5.0 lulus 107/107 uji USB; aplikasi diuji di HP 2026-11-17. Firmware 0.5.0: `NOTIF` (notif_store RAM maks 8, modul Notif
@@ -209,6 +207,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   Rapikan OLED setelah uji: ikon gagang telepon bitmap 22x22, header Info = nama Lokana, nama modul saat
   berganti jadi label kecil di atas (`core::goTo(name, announce)`; modul yang membuka diri karena event
   memakai `announce = false`, layar tersembunyi tidak pernah diumumkan). Belum diuji: Wokwi.
+- **v0.5.1 ✅** Splash boot **लोचन** (2026-11-17), firmware **dan** aplikasi: garis atas (shirorekha) tumbuh →
+  huruf turun → matra ो → LOKANA → kilau → kembali ke garis → garis terbelah jadi dua mata terpejam di posisi
+  mata Face (open 0.05) → wajah membuka mata. Firmware: `modules/splash_module` (modul tersembunyi, berjalan
+  di loop sehingga BLE/console aktif selama animasi; tap = lewati; console `splash [ms]`), bitmap
+  `modules/splash_art.h` dari `firmware/tools/gen_splash.py`. Font **Baloo 2** (OFL) di `app/assets/fonts/`
+  dipakai bersama. Boot tidak lagi menunggu serial 3 dtk saat USB tidak tersambung ke komputer
+  (`HWCDC::isPlugged()`). Aplikasi 0.5.1: `lib/splash.dart`, setelan di Tampilan aplikasi, latar launch hitam.
+  Lulus 107/107 uji USB; frame splash dicek lewat `splash <ms>` + SCREEN CAPTURE. Disetujui Wayan.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

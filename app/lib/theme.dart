@@ -41,10 +41,13 @@ class AppTheme extends ChangeNotifier {
   ThemeMode mode = ThemeMode.system;
   AccentColor accent = accents.first;
   OledColor oled = oledColors.first;
+  /// Layar pembuka लोचन saat aplikasi dibuka.
+  bool splash = true;
 
   Future<void> load() async {
     try {
       final p = await _m.invokeMapMethod<String, String>('getPrefs') ?? const {};
+      splash = p['app_splash'] != '0';
       mode = ThemeMode.values.firstWhere((m) => m.name == p['theme_mode'], orElse: () => ThemeMode.system);
       accent = accents.firstWhere((a) => a.id == p['theme_accent'], orElse: () => accents.first);
       oled = oledColors.firstWhere((o) => o.id == p['theme_oled'], orElse: () => oledColors.first);
@@ -60,6 +63,7 @@ class AppTheme extends ChangeNotifier {
   void setMode(ThemeMode m) { mode = m; _save('theme_mode', m.name); }
   void setAccent(AccentColor a) { accent = a; _save('theme_accent', a.id); }
   void setOled(OledColor o) { oled = o; _save('theme_oled', o.id); }
+  void setSplash(bool on) { splash = on; _save('app_splash', on ? '1' : '0'); }
 
   ThemeData data(Brightness b) {
     final cs = ColorScheme.fromSeed(seedColor: accent.color, brightness: b);

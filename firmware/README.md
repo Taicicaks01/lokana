@@ -77,8 +77,12 @@ dengan dering; tap membisukan dering Lokana (panggilan di HP tidak ditolak).
 help  list  go dadu  expr senang  roll  roll d20  time 14:30
 text Halo|dunia  img  find 5  find stop  phone  ble  forget
 notif WhatsApp|Ibu|Sudah makan?  notif clear  call Ibu  call stop  name  name Lokana_saya  name -
-tap  double  triple  long  info  scan  oled  reset
+tap  double  triple  long  info  scan  oled  reset  splash  splash 1300
 ```
+
+`splash` memutar ulang splash boot; `splash <ms>` membekukannya di waktu itu (untuk screenshot lewat
+Layar Lokana / `lokana_link.py screen --shot`). Bitmap लोचन dibuat ulang dengan
+`python firmware/tools/gen_splash.py` (Pillow, font Baloo 2 dari `app/assets/fonts/`).
 
 ## Env build
 
