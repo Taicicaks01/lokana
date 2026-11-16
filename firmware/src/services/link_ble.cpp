@@ -31,6 +31,21 @@ static volatile uint32_t passkey = 0;
 static volatile bool passkeyNew = false;       // passkey baru untuk ditampilkan
 static volatile int8_t authResult = -1;         // -1 belum ada, 0 gagal, 1 berhasil
 static volatile bool dropped = false, disconnected = false;
+static volatile bool lostSecure = false;        // koneksi yang baru putus sudah aman
+static volatile uint16_t lostReason = 0;        // alasan putus dari event GAP
+// RSSI koneksi aman, diukur di loop tiap 2 detik (pengingat ketinggalan)
+static int8_t rssi = 0;
+static uint32_t rssiAt = 0;
+static bool lossReady = false;
+static uint16_t lossReason = 0;
+static int8_t lossRssi = 0;
+static uint32_t lossAge = 0;
+
+// Callback server NimBLE 1.4 tidak memberi alasan putus: ambil dari event GAP mentah.
+static int gapEvent(struct ble_gap_event* e, void*) {
+  if (e->type == BLE_GAP_EVENT_DISCONNECT) lostReason = e->disconnect.reason;
+  return 0;
+}
 static bool showingKey = false;                 // hanya dipakai di loop
 
 // Data iklan: nama di paket utama, UUID 128-bit di scan response (tidak muat bersama).
@@ -52,6 +67,7 @@ class ServerCb : public NimBLEServerCallbacks {
     NimBLEDevice::startSecurity(d->conn_handle);  // minta pairing / enkripsi ulang (sudah bonded)
   }
   void onDisconnect(NimBLEServer* s, ble_gap_conn_desc* d) override {
+    lostSecure = isSecure;
     isConn = false; isSecure = false; connHandle = 0xFFFF;
     disconnected = true;                          // iklan dimulai ulang otomatis oleh NimBLE
   }
@@ -89,6 +105,7 @@ void begin(const char* name) {
   NimBLEDevice::setSecurityAuth(true, true, true);           // bonding, MITM, Secure Connections
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);   // passkey tampil di OLED
 
+  NimBLEDevice::setCustomGapHandler(gapEvent);
   server = NimBLEDevice::createServer();
   server->setCallbacks(&serverCb, false);
   NimBLEService* svc = server->createService(SVC_UUID);
@@ -124,10 +141,23 @@ void update(uint32_t now) {
     disconnected = false;
     parser.reset();
     xStreamBufferReset(rxBuf);
-    Serial.println("[ble] terputus");
+    Serial.printf("[ble] terputus (alasan 0x%03X)\r\n", lostReason);
+    if (lostSecure) {
+      lossReady = true;
+      lossReason = lostReason;
+      lossRssi = rssiAt ? rssi : 0;
+      lossAge = rssiAt ? now - rssiAt : UINT32_MAX;
+    }
+    lostSecure = false;
+    rssiAt = 0;
     if (showingKey) { showingKey = false; events::post(EV_PAIR_DONE, 0); }
   }
   if (dropped) { dropped = false; Serial.println("[ble] buffer RX penuh, data dibuang"); }
+  if (isConn && isSecure && (int32_t)(now - rssiAt) >= 2000) {
+    int8_t r;
+    if (ble_gap_conn_rssi(connHandle, &r) == 0 && r != 127) { rssi = r; rssiAt = now ? now : 1; }
+    else rssiAt = now ? now : 1;                  // coba lagi 2 detik lagi (tanpa mengubah nilai terakhir)
+  }
 
   // Aliran byte RX -> frame
   if (parser.stale(now)) parser.reset();
@@ -156,6 +186,13 @@ bool secure() { return isConn && isSecure; }
 bool pairing() { return showingKey; }
 uint8_t bonds() { return (uint8_t)NimBLEDevice::getNumBonds(); }
 uint16_t mtu() { return peerMtu; }
+
+bool takeLoss(uint16_t& reason, int8_t& r, uint32_t& age) {
+  if (!lossReady) return false;
+  lossReady = false;
+  reason = lossReason; r = lossRssi; age = lossAge;
+  return true;
+}
 
 void forget() {
   if (isConn) server->disconnect(connHandle);
@@ -196,6 +233,7 @@ void forget() {}
 void unpairCurrent() {}
 void setName(const char*) {}
 uint16_t mtu() { return 0; }
+bool takeLoss(uint16_t&, int8_t&, uint32_t&) { return false; }
 }
 
 #endif

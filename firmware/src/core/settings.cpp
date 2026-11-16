@@ -22,6 +22,7 @@ void load() {
   prefs.getString("name", s.name, sizeof(s.name));
   s.notifPopupS = clampNotifPopup(prefs.getUChar("npop", 6));
   s.bootGuide  = prefs.getBool("guide", true);
+  s.leaveAlert = prefs.getBool("leave", true);
   prefs.end();
 }
 
@@ -35,6 +36,7 @@ void save() {
   prefs.putString("name", s.name);
   prefs.putUChar("npop", s.notifPopupS);
   prefs.putBool("guide", s.bootGuide);
+  prefs.putBool("leave", s.leaveAlert);
   prefs.end();
 }
 

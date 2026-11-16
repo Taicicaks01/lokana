@@ -181,6 +181,17 @@ class LokanaLink extends ChangeNotifier {
   Future<void> previewRingtone() => _m.invokeMethod('previewRingtone');
   Future<void> stopRingtonePreview() => _m.invokeMethod('stopPreview');
 
+  // ---------------- Pengingat ketinggalan (0.5.4) ----------------
+  /// Contoh pengingat di HP ini selama 4 detik.
+  Future<void> leaveTest() => _m.invokeMethod('leaveTest');
+  /// Jeda pengingat [minutes] menit; 0 = lanjutkan.
+  Future<void> leaveSnooze(int minutes) => _m.invokeMethod('leaveSnooze', {'minutes': minutes});
+  /// Pengingat dijeda sampai kapan (null = tidak dijeda).
+  Future<DateTime?> leaveSnoozeUntil() async {
+    final ms = (await _m.invokeMapMethod<String, dynamic>('leaveInfo'))?['snoozeUntil'] as int? ?? 0;
+    return ms > DateTime.now().millisecondsSinceEpoch ? DateTime.fromMillisecondsSinceEpoch(ms) : null;
+  }
+
   /// Simpan PNG ke galeri HP (Pictures/Lokana).
   Future<bool> saveImage(Uint8List png, String name) async =>
       await _m.invokeMethod<bool>('saveImage', {'bytes': png, 'name': name}) ?? false;

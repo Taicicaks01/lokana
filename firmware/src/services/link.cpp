@@ -35,7 +35,7 @@ static Reply afterAck = nullptr;
 
 enum SettingKey : uint8_t {
   SK_BRIGHTNESS = 0x01, SK_SOUND = 0x02, SK_SCREEN_TIMEOUT = 0x03, SK_FLIP = 0x04,
-  SK_DEVICE_NAME = 0x05, SK_BUTTON_EVENTS = 0x06, SK_NOTIF_POPUP = 0x07, SK_BOOT_GUIDE = 0x08,
+  SK_DEVICE_NAME = 0x05, SK_BUTTON_EVENTS = 0x06, SK_NOTIF_POPUP = 0x07, SK_BOOT_GUIDE = 0x08, SK_LEAVE_ALERT = 0x09,
 };
 enum SettingsOp : uint8_t { SO_GET = 0, SO_SET = 1, SO_REPORT = 2 };
 
@@ -78,6 +78,13 @@ static struct {
   uint8_t next = 1;
   uint32_t at = 0;
 } textOut;
+
+// Pengingat ketinggalan (SETTINGS leave_alert): waktu layar Tertinggal dibuka jika HP belum kembali
+static uint32_t leaveAt = 0;
+static bool leaveShown = false;
+static const uint32_t LEAVE_GRACE_MS = 20000, LEAVE_RSSI_MAX_AGE_MS = 5000;
+static const int8_t LEAVE_RSSI_NEAR = -70;       // lebih kuat dari ini = HP masih dekat (dimatikan di dekat Lokana)
+static const uint16_t REASON_TIMEOUT = 0x208;    // BLE_HS_ERR_HCI_BASE + HCI 0x08 supervision timeout
 
 // UNPAIR lewat BLE: dihapus sesudah ACK terkirim
 static uint32_t unpairAt = 0;
@@ -132,6 +139,7 @@ static uint16_t buildReport(uint8_t* p, uint16_t cap, Transport t) {
   w.u8(SK_BUTTON_EVENTS); w.u8(1); w.u8(btnEvents[t] ? 1 : 0);
   w.u8(SK_NOTIF_POPUP);   w.u8(1); w.u8(s.notifPopupS);
   w.u8(SK_BOOT_GUIDE);    w.u8(1); w.u8(s.bootGuide ? 1 : 0);
+  w.u8(SK_LEAVE_ALERT);   w.u8(1); w.u8(s.leaveAlert ? 1 : 0);
   return w.len();
 }
 
@@ -195,6 +203,7 @@ static uint8_t onSettings(Transport t, Reader& r) {
       case SK_BUTTON_EVENTS:  if (n) btnEvents[t] = v[0] != 0; continue;   // sesi saja, tidak disimpan
       case SK_NOTIF_POPUP:    if (n) s.notifPopupS = settings::clampNotifPopup(v[0]); break;
       case SK_BOOT_GUIDE:     if (n) s.bootGuide = v[0] != 0; break;
+      case SK_LEAVE_ALERT:    if (n) { s.leaveAlert = v[0] != 0; if (!s.leaveAlert) leaveAt = 0; } break;
       default: continue;                          // key dari versi lebih baru: abaikan
     }
     changed = true;
@@ -688,9 +697,27 @@ void update(uint32_t now) {
   link_ble::update(now);
   bool sec = link_ble::secure();
   if (blePrevSecure && !sec) {                    // HP putus: sesi & button_events selesai
+    uint16_t reason; int8_t r; uint32_t age;
+    if (link_ble::takeLoss(reason, r, age) && session[TR_BLE]) {
+      bool far = r != 0 && age <= LEAVE_RSSI_MAX_AGE_MS && r < LEAVE_RSSI_NEAR;
+      bool arm = settings::get().leaveAlert && reason == REASON_TIMEOUT && far;
+      Serial.printf("[link] HP hilang: alasan 0x%03X, RSSI %d dBm (%lu ms lalu) -> %s\r\n", reason, r,
+                    (unsigned long)(age == UINT32_MAX ? 0 : age), arm ? "pengingat 20 dtk" : "tanpa pengingat");
+      if (arm) { leaveAt = now + LEAVE_GRACE_MS; if (!leaveAt) leaveAt = 1; }
+    }
     endSession(TR_BLE);
     if (out.active && out.t == TR_BLE) { out.active = false; out.a.release(); }
     if (textOut.active && textOut.t == TR_BLE) textOut.active = false;
+  }
+  if (sec && !blePrevSecure) {                    // HP tersambung lagi: batalkan / tutup pengingat
+    leaveAt = 0;
+    if (leaveShown) { leaveShown = false; events::post(EV_LEFT, 0); }
+  }
+  if (leaveAt && !sec && (int32_t)(now - leaveAt) >= 0) {
+    leaveAt = 0;
+    leaveShown = true;
+    Serial.println("[link] HP tertinggal: pengingat");
+    events::post(EV_LEFT, 1);
   }
   blePrevSecure = sec;
   if (unpairAt && (int32_t)(now - unpairAt) >= 0) {

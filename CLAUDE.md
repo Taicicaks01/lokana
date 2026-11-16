@@ -154,6 +154,8 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | Teks bertangga di terminal | Hanya `\n` | Pakai `\r\n` |
 | Di Wokwi GPIO20/21 dipakai serial | Pin I2C bentrok | Sejak v0.2 semua env memakai I2C 8/9 |
 | APK ditolak Play Protect saat dipasang dari file manager/WhatsApp | Perlindungan penipuan Google di Indonesia memblokir aplikasi *sideload* yang memakai izin baca notifikasi; APK juga masih bertanda tangan *debug* | Pasang lewat `adb install -r` (USB debugging), atau matikan sementara Play Protect. Jangka panjang: kunci rilis + Google Play |
+| Aplikasi tidak menyambung lagi setelah Bluetooth HP dimatikan-nyalakan | Percobaan `connectGatt` saat adapter mati gagal diam-diam | Sejak 0.5.4 `BleLink` mendengarkan `ACTION_STATE_CHANGED` dan menyambung ulang saat `STATE_ON` |
+| Uji Lokana tanpa BLE (pengingat ketinggalan di HP) | — | `python -m esptool --port COM9 --after no_reset read_mac` menahan Lokana di bootloader; `--after hard_reset` menjalankannya lagi |
 | Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
 | Serial diam setelah upload (port ada, `info` tidak dibalas) | DTR/RTS saat port dibuka | Skrip pyserial: buka dengan `dtr=False, rts=False`, tunggu ±1 dtk, lalu `dtr=True` |
 
@@ -230,6 +232,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   `oled_fonts.dart` dari `firmware/tools/gen_oled_fonts.py`), slot teks di aplikasi, halaman Cara pakai,
   perbaikan thumbnail galeri meluber, setelan Teks/Gambar diingat. Lulus 146/146 uji USB, 32 uji Flutter.
   Diuji di HP 2026-11-17 (dipasang lewat adb): semua berfungsi.
+- **v0.5.4 ✅** Pengingat ketinggalan dua arah (2026-11-17). Firmware: SETTINGS `0x09 leave_alert` (NVS `leave`),
+  alasan putus BLE dari `setCustomGapHandler` + RSSI tiap 2 dtk (`link_ble::takeLoss`), keputusan di `link.cpp`
+  (alasan `0x208`, RSSI < −70, 20 dtk), modul tersembunyi **Tertinggal** (`left_module`, GOTO boleh), console `left`.
+  Aplikasi 0.5.4: `LeaveAlert.kt` (status GATT 8 + RSSI ≥ −70 = dekat → notifikasi saja; wake lock; Matikan/Jeda 1 jam),
+  `Alarm.startLeave/stopLeave`, halaman `leave_page.dart`; perbaikan: sambung ulang saat Bluetooth HP menyala lagi.
+  Lulus 152/152 uji USB, 33 uji Flutter. Diuji di HP lewat adb: Lokana ditahan di bootloader → status 8, RSSI −58
+  → notifikasi "Lokana terputus" tanpa bunyi, hilang saat tersambung lagi; Bluetooth HP dimatikan → Lokana: alasan
+  `0x213` → tanpa pengingat. Uji berjalan menjauh (dua arah) oleh Wayan: berfungsi.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

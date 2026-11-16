@@ -9,7 +9,7 @@ dan di meja sebagai asisten kerja. Lokana memantau HP, kunci, dan komputermu,
 lalu memberi kabar lewat sepasang matanya.
 
 ![Status](https://img.shields.io/badge/status-pengembangan%20awal-orange)
-![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.3-blue)
+![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.4-blue)
 ![Platform](https://img.shields.io/badge/MCU-ESP32--C3-red)
 ![Layar](https://img.shields.io/badge/OLED-128%C3%9764-lightgrey)
 ![Lisensi kode](https://img.shields.io/badge/kode-MIT-green)
@@ -26,8 +26,8 @@ lalu memberi kabar lewat sepasang matanya.
 
 ---
 
-> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.5.3**
-> menambahkan **notifikasi HP**, **panggilan masuk**, splash boot **लोचन**, dan **Panduan cara pakai** di layar, di atas
+> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.5.4**
+> menambahkan **notifikasi HP**, **panggilan masuk**, splash boot **लोचन**, **Panduan cara pakai**, dan **pengingat ketinggalan** dua arah, di atas
 > pengaturan, dadu, teks (5 font), gambar/emoji, dan Cari HP lewat **Lokana Link** (USB & BLE). **Aplikasi Lokana**
 > (Android) sudah jalan di HP, dengan pratinjau teks yang sama persis dengan layar Lokana.
 > Lokana Desktop belum dimulai.
@@ -113,8 +113,8 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 | Sinkron jam (*time sync*) | ✅ | Jam dan zona waktu otomatis dari HP |
 | Teks & emoji custom | ✅ | Teks diam/berjalan/berkedip; emoji dirender HP menjadi bitmap 1-bit; 8 slot teks + 8 slot gambar |
 | Ekspresi dari HP | ✅ | Ubah ekspresi Lokana dan lempar dadu dari aplikasi |
-| Cari kunci ↔ cari HP | ✅ | Lokana berbunyi saat dicari; menu Lokana → Cari HP membuat HP berbunyi walau senyap |
-| Pengingat ketinggalan | 📋 | HP memberi peringatan saat koneksi ke Lokana terputus |
+| Cari kunci ↔ cari HP | ✅ | Lokana berbunyi saat dicari; modul Cari HP di Lokana membuat HP berbunyi walau senyap |
+| Pengingat ketinggalan | ✅ | Dua arah: HP berbunyi jika Lokana tertinggal, Lokana berbunyi jika HP tertinggal (sinyal melemah lalu putus; dimatikan di dekat HP = notifikasi saja) |
 | Notifikasi HP | ✅ | Nama aplikasi + judul + potongan isi, dengan filter per aplikasi |
 | Panggilan masuk | ✅ | Nama penelepon + bunyi |
 | Navigasi Google Maps | 📋 | Panah belok, jarak, dan nama jalan (lihat [4.3](#43-cara-kerja-notifikasi--navigasi)) |

@@ -152,7 +152,7 @@ List<int> bleNameBytes(String name) {
 }
 
 Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool? flip, String? deviceName,
-    bool? buttonEvents, int? notifPopupS, bool? bootGuide}) {
+    bool? buttonEvents, int? notifPopupS, bool? bootGuide, bool? leaveAlert}) {
   final w = Writer()..u8(1);
   void item(int key, List<int> v) { w.u8(key); w.u8(v.length); w.bytes(v); }
   if (brightness != null) item(0x01, [brightness]);
@@ -163,6 +163,7 @@ Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool?
   if (buttonEvents != null) item(0x06, [buttonEvents ? 1 : 0]);
   if (notifPopupS != null) item(0x07, [notifPopupS.clamp(0, 255)]);
   if (bootGuide != null) item(0x08, [bootGuide ? 1 : 0]);
+  if (leaveAlert != null) item(0x09, [leaveAlert ? 1 : 0]);
   return w.done();
 }
 
@@ -328,6 +329,8 @@ class LokanaSettings {
   int? notifPopupS;
   /// Panduan cara pakai setelah splash boot. null = firmware sebelum 0.5.3.
   bool? bootGuide;
+  /// Lokana berbunyi jika HP tertinggal. null = firmware sebelum 0.5.4.
+  bool? leaveAlert;
 
   static LokanaSettings parse(Uint8List p) {
     final s = LokanaSettings();
@@ -346,6 +349,7 @@ class LokanaSettings {
         case 0x06: s.buttonEvents = v[0] != 0;
         case 0x07: s.notifPopupS = v[0];
         case 0x08: s.bootGuide = v[0] != 0;
+        case 0x09: s.leaveAlert = v[0] != 0;
       }
     }
     return s;

@@ -157,6 +157,7 @@ class _GuidePageState extends State<GuidePage> {
           for (final tip in const [
             'Lokana hilang? Di aplikasi, tekan Cari kunci: Lokana berbunyi 30 detik.',
             'HP hilang? Di Lokana buka modul Cari HP lalu tap: HP berbunyi walau sedang senyap.',
+            'Pergi tanpa Lokana? HP berbunyi. Pergi tanpa HP? Lokana berbunyi. Atur di Pengingat ketinggalan.',
             'Teks & gambar di slot tetap tersimpan walau Lokana dimatikan.',
             'Layar Lokana di aplikasi menampilkan isi layar langsung dan bisa dipakai sebagai remote.',
           ])

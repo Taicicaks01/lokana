@@ -24,6 +24,7 @@
 #include "modules/system_modules.h"
 #include "modules/splash_module.h"
 #include "modules/guide_module.h"
+#include "modules/left_module.h"
 
 // Daftar modul. Modul pertama = layar utama.
 // Menambah fitur: buat modul di src/modules/, lalu daftarkan di sini.
@@ -40,6 +41,7 @@ static CallModule  callModule;     // sistem (tersembunyi)
 
 static SplashModule splashModule(faceModule.face());   // splash boot लोचन (tersembunyi)
 static GuideModule guideModule;                         // panduan cara pakai (tersembunyi)
+static LeftModule leftModule;                           // pengingat HP tertinggal (tersembunyi)
 
 static const char* resetReason() {
   switch (esp_reset_reason()) {
@@ -97,6 +99,7 @@ void setup() {
   core::addModule(&callModule);
   core::addModule(&splashModule);
   core::addModule(&guideModule);
+  core::addModule(&leftModule);
   TRACE("core");
   core::begin();
   core::goTo(splashModule.name());   // splash berjalan di loop: BLE & console sudah aktif selama animasi

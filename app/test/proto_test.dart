@@ -155,6 +155,12 @@ void main() {
     expect(LokanaSettings.parse(bytes('02 07 01 06')).bootGuide, isNull);
   });
 
+  test('SETTINGS leave_alert (0.5.4)', () {
+    expect(hex(pSettingsSet(leaveAlert: true)), '01 09 01 01');
+    expect(LokanaSettings.parse(bytes('02 08 01 01 09 01 00')).leaveAlert, isFalse);
+    expect(LokanaSettings.parse(bytes('02 08 01 01')).leaveAlert, isNull);
+  });
+
   test('Teks ke ASCII OLED', () {
     expect(toLokanaAscii('Café “Lokana” – ok'), 'Cafe "Lokana" - ok');
     expect(toLokanaAscii('Hai 👋'), 'Hai ?');

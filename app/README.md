@@ -82,6 +82,18 @@ punya tombol utama yang selalu terlihat di bawah. Setelan terakhir halaman Teks 
   Slot tersimpan dibaca dari Lokana (`TEXT_SLOT`, firmware 0.5.3): tampilkan, ubah, atau kosongkan.
 - **Galeri gambar**: thumbnail selalu pas di bingkai 2:1 (`OledPreview` diskalakan dari sisi tersempit).
 
+## Pengingat ketinggalan (0.5.4)
+
+Halaman `pages/leave_page.dart` (dari beranda dan Pengaturan).
+
+- **Di HP** (`LeaveAlert.kt`): koneksi siap yang putus dengan status GATT 8 (timeout) dan tidak kembali dalam
+  10–60 dtk (bawaan 20) → bunyi alarm 20 dtk (atau getar saja) + notifikasi dengan **Matikan** / **Jeda 1 jam**.
+  RSSI terakhir ≥ −70 dBm (diukur tiap 2,5 dtk di `BleLink`) = Lokana dimatikan di dekat HP → notifikasi tanpa bunyi.
+  Jeda menunggu memakai *wake lock* supaya jalan saat layar mati. Setelan di prefs `leave_on`, `leave_delay`,
+  `leave_mode`, `leave_snooze`.
+- **Di Lokana**: SETTINGS `leave_alert` + tombol coba (`GOTO "Tertinggal"`).
+- `BleLink` menyambung ulang otomatis saat Bluetooth HP dinyalakan lagi (sebelumnya berhenti mencoba).
+
 ## Teks, notifikasi, dan Cari HP (0.5.2)
 
 - **Teks**: pilih font (Piksel, Sans, Sans Tebal, Serif, Mono Tebal; perlu firmware 0.5.2). Enter di keyboard = kirim.

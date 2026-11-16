@@ -63,7 +63,8 @@ GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
 # Key SETTINGS: nama -> (key, format struct; None = string)
 SETTING_KEYS = {"brightness": (0x01, "<B"), "sound": (0x02, "<B"), "screen_timeout": (0x03, "<H"),
                 "flip": (0x04, "<B"), "device_name": (0x05, None), "button_events": (0x06, "<B"),
-                "notif_popup": (0x07, "<B"), "boot_guide": (0x08, "<B")}
+                "notif_popup": (0x07, "<B"), "boot_guide": (0x08, "<B"),
+                "leave_alert": (0x09, "<B")}
 FONTS = {"piksel": 0, "sans": 1, "sans-tebal": 2, "serif": 3, "mono-tebal": 4}
 SETTING_NAME = {k: n for n, (k, _) in SETTING_KEYS.items()}
 CLIENT_SCRIPT = 4
@@ -580,6 +581,7 @@ def cmd_settings(a):
     if a.name is not None: items["device_name"] = a.name
     if a.notif_popup is not None: items["notif_popup"] = a.notif_popup
     if a.boot_guide is not None: items["boot_guide"] = onoff(a.boot_guide)
+    if a.leave_alert is not None: items["leave_alert"] = onoff(a.leave_alert)
     st = lk.request(T["SETTINGS"], p_settings_set(**items) if items else p_settings_get())
     lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
     lk.close()
@@ -970,6 +972,38 @@ def test_v052(lk, expect):
     lk.request(T["GOTO"], s("lokana"))
 
 
+def test_v054(lk, expect):
+    """v0.5.4: SETTINGS leave_alert, layar Tertinggal."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_get())
+    r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    orig = parse_settings(r[2]).get("leave_alert") if r else None
+    expect("REPORT berisi leave_alert", orig is not None, True)
+
+    def leave(v):
+        lk.frames.clear()
+        lk.request(T["SETTINGS"], p_settings_set(leave_alert=v))
+        r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+        return parse_settings(r[2]).get("leave_alert") if r else None
+    expect("leave_alert 0", leave(0), 0, raw=True)
+    expect("leave_alert 1", leave(1), 1, raw=True)
+    leave(orig if orig is not None else 1)
+
+    lk.request(T["GOTO"], s("lokana"))
+    time.sleep(1.2)
+    blank = _capture(lk)
+    expect("GOTO \"Tertinggal\" (uji)", lk.request(T["GOTO"], s("tertinggal")), 0)
+    time.sleep(0.4)
+    d = _capture(lk)
+    # tulisan "tap: diam": x 56..103, y 51..57 (mata wajah Lokana tidak pernah sampai ke sini)
+    def hint(d): return any(b for r in range(51, 58) for b in d[r * 16 + 7:r * 16 + 13])
+    expect("layar Tertinggal tampil", d != blank and hint(d), True)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))     # tap = diam & tutup
+    time.sleep(0.4)
+    expect("tap = layar Tertinggal ditutup", hint(_capture(lk)), False)
+
+
 def test_v053(lk, expect):
     """v0.5.3: TEXT_SLOT, SETTINGS boot_guide, GOTO Panduan."""
     lk.request(T["HELLO"], p_hello("lokana_link.py test"))
@@ -1102,7 +1136,7 @@ def test_v04(lk, expect, a):
     expect("SETTINGS op 9 (belum ada)", lk.request(T["SETTINGS"], bytes([9])), 4)
     expect("SETTINGS key 0x7F (tidak dikenal) diabaikan", lk.request(T["SETTINGS"], bytes([1, 0x7F, 1, 1])), 0)
     if orig:
-        restore = {k: orig[k] for k in ("brightness", "sound", "screen_timeout", "flip", "device_name", "notif_popup", "boot_guide")}
+        restore = {k: orig[k] for k in ("brightness", "sound", "screen_timeout", "flip", "device_name", "notif_popup", "boot_guide", "leave_alert")}
         expect("SETTINGS dikembalikan ke nilai awal", lk.request(T["SETTINGS"], p_settings_set(**restore)), 0)
     lk.poll(0.3)
 
@@ -1224,6 +1258,7 @@ def cmd_test(a):
     test_v05c(lk, expect)
     test_v052(lk, expect)
     test_v053(lk, expect)
+    test_v054(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1281,6 +1316,7 @@ def main():
     t.add_argument("--name", help="nama Bluetooth, maks 26 byte UTF-8; \"\" = nama bawaan")
     t.add_argument("--notif-popup", type=int, help="lama popup notifikasi (detik), 0 = tidak muncul")
     t.add_argument("--boot-guide", help="on/off: Panduan cara pakai setelah splash boot (firmware 0.5.3+)")
+    t.add_argument("--leave-alert", help="on/off: Lokana berbunyi jika HP tertinggal (firmware 0.5.4+)")
     t = sub.add_parser("textslots", help="TEXT_SLOT: daftar slot teks, atau tampilkan satu slot (--show)")
     t.add_argument("--show", type=int, help="slot 1-8 yang ditampilkan sekarang")
     t.add_argument("--duration", type=int, default=0, help="detik, 0 = sampai disentuh")

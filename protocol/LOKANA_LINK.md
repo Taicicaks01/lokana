@@ -236,10 +236,24 @@ Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 | `0x06` | button_events | u8: `1` kirim `BUTTON` ke host ini, `0` tidak (bawaan). **Tidak disimpan**: kembali `0` saat koneksi putus |
 | `0x07` | notif_popup | u8 detik: lama notifikasi baru tampil di layar (bawaan `6`). `0` = tidak muncul otomatis (tetap disimpan di modul Notif dan berbunyi) |
 | `0x08` | boot_guide | u8: `1` tampilkan **Panduan** (cara pakai Lokana) setelah splash boot (bawaan), `0` tidak |
+| `0x09` | leave_alert | u8: `1` Lokana berbunyi jika HP tertinggal (bawaan), `0` tidak. Lihat *Pengingat ketinggalan* di bawah |
 
 Setelah GET atau SET, device mengirim `ACK` (jika `seq ≠ 0`) lalu `REPORT` berisi semua
 pengaturan saat ini ke host yang meminta. Pengaturan yang diubah dari menu Lokana juga
 dikirim sebagai `REPORT` (`seq = 0`) ke host yang sudah `HELLO`.
+
+**Pengingat ketinggalan** (`leave_alert`, firmware 0.5.4). Device menganggap HP tertinggal jika semua terpenuhi:
+
+1. Koneksi BLE yang putus sudah aman (terenkripsi) dan sudah `HELLO`.
+2. Alasan putus adalah *supervision timeout* (HCI `0x08`): sinyal hilang, bukan diputus HP/aplikasi
+   (`0x13`) atau oleh device sendiri.
+3. RSSI terakhir (diukur tiap ±2 detik, maks 5 detik sebelum putus) lebih lemah dari **−70 dBm**.
+   RSSI yang masih kuat berarti HP mati / Bluetooth dimatikan di dekat Lokana: tidak berbunyi.
+4. HP tidak tersambung lagi dalam **20 detik**.
+
+Lalu layar **Tertinggal** tampil dan buzzer berbunyi (walau `sound = 0`) selama 30 detik; tap = diam. HP yang
+tersambung lagi menutup layar itu. `GOTO "Tertinggal"` menampilkan layar ini sebagai uji (firmware 0.5.4+).
+Pengingat sisi HP (HP berbunyi jika Lokana tertinggal) diatur di aplikasi, bukan lewat protokol.
 
 - Key yang tidak dikenal diabaikan. Item yang terpotong (`len` melebihi sisa payload) = `BAD_PAYLOAD`,
   dan tidak ada pengaturan yang berubah.
@@ -447,6 +461,7 @@ Device mengirim hasil setiap kali dadu dilempar, baik dari tombol maupun dari ap
 
 Modul yang tidak ada, atau layar sistem (pairing, cari kunci), dibalas `ERROR`.
 Pengecualian (firmware 0.5.3+): `"Panduan"` memutar panduan cara pakai, lalu kembali ke wajah Lokana.
+Firmware 0.5.4+: `"Tertinggal"` menampilkan layar pengingat ketinggalan (uji).
 
 ### `0x25` BUTTON (D→H)
 
@@ -691,3 +706,4 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-16 | Juga untuk firmware 0.5.0: pesan baru `0x33 SCREEN` (mirror layar, screenshot, gestur jarak jauh; bit `caps` 13) |
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
+| v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |

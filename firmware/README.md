@@ -65,6 +65,11 @@ Di menu, tap = item berikutnya dan tahan = pilih/ubah. **Panduan** (0.5.3) membu
 aplikasi), tiap gestur diperagakan jari di sensor sentuh, ±17 detik. Diputar 1,8 detik setelah splash boot
 (`core::goToLater`, batal jika Lokana disentuh dulu), dari menu, atau `GOTO "Panduan"`. Sentuhan apa pun = lewati.
 
+**Pengingat ketinggalan** (0.5.4, `modules/left_module`, SETTINGS `leave_alert`): koneksi BLE aman yang putus
+karena *supervision timeout* (alasan `0x208`, dibaca lewat `NimBLEDevice::setCustomGapHandler`) dengan RSSI terakhir
+< −70 dBm, dan HP tidak kembali dalam 20 detik → layar "HP-mu tertinggal?" + bunyi 30 detik (tap = diam). Keputusan
+di `services/link.cpp`; log serial `[link] HP hilang: alasan …, RSSI … -> …`. Uji tampilan: console `left` / `left 0`.
+
 Modul **Cari HP** (sejak 0.5.2 modul biasa, bukan
 item menu): tap membuat HP yang tersambung berbunyi walau senyap, tap lagi untuk berhenti. Nadanya
 dipilih di aplikasi (Pengaturan → Cari HP).

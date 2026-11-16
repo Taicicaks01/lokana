@@ -7,6 +7,7 @@ import '../main.dart';
 import '../theme.dart';
 import '../ui.dart';
 import 'guide_page.dart';
+import 'leave_page.dart';
 
 /// Pengaturan: bagian Aplikasi (tema, disimpan di HP) dan bagian Lokana (SETTINGS, perlu tersambung).
 class SettingsPage extends StatefulWidget {
@@ -154,6 +155,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ])),
           ]),
+
+        const SizedBox(height: Gap.s),
+        Panel(padding: const EdgeInsets.symmetric(vertical: 4), children: [
+          NavRow(
+            icon: Icons.social_distance_outlined,
+            title: 'Pengingat ketinggalan',
+            subtitle: 'HP & Lokana saling mengingatkan',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeavePage())),
+          ),
+        ]),
 
         // ---------------- Cari HP (nada di HP ini) ----------------
         const SectionHeader('Nada Cari HP', icon: Icons.ring_volume_outlined, subtitle: 'Disimpan di HP ini'),

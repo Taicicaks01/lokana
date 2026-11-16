@@ -6,6 +6,7 @@ import '../main.dart';
 import '../theme.dart';
 import '../ui.dart';
 import 'guide_page.dart';
+import 'leave_page.dart';
 import 'dice_page.dart';
 import 'expression_page.dart';
 import 'image_page.dart';
@@ -177,6 +178,8 @@ class _DashboardPageState extends State<DashboardPage> {
           if (can(Caps.findPhone))
             NavRow(icon: Icons.phonelink_ring_outlined, title: 'Cari HP',
                 subtitle: 'Atur nada · di Lokana: modul Cari HP lalu tap', onTap: () => _open(const SettingsPage())),
+          NavRow(icon: Icons.social_distance_outlined, title: 'Pengingat ketinggalan',
+              subtitle: 'HP berbunyi jika Lokana tertinggal', onTap: () => _open(const LeavePage())),
           NavRow(icon: Icons.settings_outlined, title: 'Pengaturan',
               subtitle: 'Kecerahan, suara, nama, tema', onTap: () => _open(const SettingsPage())),
           NavRow(icon: Icons.menu_book_outlined, title: 'Cara pakai Lokana',

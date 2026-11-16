@@ -25,4 +25,7 @@ void forget();
 void unpairCurrent();                           // hapus bond HP yang sedang tersambung, lalu putus
 void setName(const char* name);                 // ganti nama iklan (UTF-8)
 uint16_t mtu();
+// Sekali setelah koneksi aman putus: alasan (NimBLE: 0x200 + kode HCI), RSSI terakhir & umurnya (ms).
+// RSSI 0 = belum pernah terukur.
+bool takeLoss(uint16_t& reason, int8_t& rssi, uint32_t& rssiAgeMs);
 }

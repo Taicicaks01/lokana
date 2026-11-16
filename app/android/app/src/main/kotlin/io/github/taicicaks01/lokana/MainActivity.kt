@@ -101,6 +101,11 @@ class MainActivity : FlutterActivity() {
                 "previewRingtone" -> { Alarm.preview(this); result.success(null) }
                 "stopPreview" -> { Alarm.stopPreview(); result.success(null) }
 
+                // ---- Pengingat ketinggalan (v0.5.4) ----
+                "leaveTest" -> { LeaveAlert.test(this); result.success(null) }
+                "leaveSnooze" -> { LeaveAlert.snooze(this, call.argument<Int>("minutes") ?: 60); result.success(null) }
+                "leaveInfo" -> result.success(mapOf("snoozeUntil" to LeaveAlert.snoozeUntil(this)))
+
                 // ---- Notifikasi (v0.5) ----
                 "notifStatus" -> result.success(mapOf(
                     "access" to NotifPrefs.hasAccess(this),

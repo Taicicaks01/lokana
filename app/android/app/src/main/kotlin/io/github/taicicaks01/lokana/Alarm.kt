@@ -98,26 +98,18 @@ object Alarm {
         preview = null
     }
 
-    fun start(ctx: Context) {
-        if (ringing) return
-        ringing = true
-        val app = ctx.applicationContext
+    // Bunyi keras + getar (dipakai Cari HP dan pengingat ketinggalan)
+    private fun beginSound(app: Context) {
         val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        savedVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        if (savedVolume < 0) savedVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
         am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
         stopPreview()
+        player?.let { try { it.stop(); it.release() } catch (_: Exception) {} }
         player = play(app, true)
         vibrator(app)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 400), 0))
-        showNotification(app)
-        main.removeCallbacksAndMessages(null)
-        main.postDelayed({ stop(app) }, MAX_MS)
     }
 
-    fun stop(ctx: Context) {
-        if (!ringing) return
-        ringing = false
-        val app = ctx.applicationContext
-        main.removeCallbacksAndMessages(null)
+    private fun endSound(app: Context) {
         player?.let { try { it.stop(); it.release() } catch (_: Exception) {} }
         player = null
         vibrator(app)?.cancel()
@@ -126,7 +118,55 @@ object Alarm {
                 .setStreamVolume(AudioManager.STREAM_ALARM, savedVolume, 0)
             savedVolume = -1
         }
+    }
+
+    private val findTimeout = Runnable { stop(appCtx ?: return@Runnable) }
+    private val leaveTimeout = Runnable { stopLeave(appCtx ?: return@Runnable) }
+    private var appCtx: Context? = null
+    private var leaveRinging = false
+
+    fun start(ctx: Context) {
+        if (ringing) return
+        val app = ctx.applicationContext
+        appCtx = app
+        if (leaveRinging) { leaveRinging = false; main.removeCallbacks(leaveTimeout) }   // Cari HP lebih penting
+        ringing = true
+        beginSound(app)
+        showNotification(app)
+        main.removeCallbacks(findTimeout)
+        main.postDelayed(findTimeout, MAX_MS)
+    }
+
+    fun stop(ctx: Context) {
+        if (!ringing) return
+        ringing = false
+        val app = ctx.applicationContext
+        main.removeCallbacks(findTimeout)
+        endSound(app)
         (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTIF_ID)
+    }
+
+    /** Pengingat ketinggalan: bunyi [ms] milidetik (notifikasinya diatur [LeaveAlert]). */
+    fun startLeave(ctx: Context, ms: Long) {
+        if (ringing) return
+        val app = ctx.applicationContext
+        appCtx = app
+        leaveRinging = true
+        beginSound(app)
+        main.removeCallbacks(leaveTimeout)
+        main.postDelayed(leaveTimeout, ms)
+    }
+
+    fun stopLeave(ctx: Context) {
+        main.removeCallbacks(leaveTimeout)
+        if (!leaveRinging) return
+        leaveRinging = false
+        endSound(ctx.applicationContext)
+    }
+
+    /** Getar singkat (pengingat tanpa bunyi). */
+    fun buzz(ctx: Context) {
+        vibrator(ctx.applicationContext)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 300, 200, 300), -1))
     }
 
     private fun vibrator(app: Context): Vibrator? =

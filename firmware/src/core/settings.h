@@ -11,6 +11,7 @@ struct Settings {
   char    name[27]   = "";              // nama Bluetooth UTF-8 (SETTINGS device_name), kosong = bawaan
   uint8_t notifPopupS = 6;             // lama popup notifikasi (detik), 0 = tidak muncul
   bool    bootGuide  = true;           // putar Panduan cara pakai setelah splash boot
+  bool    leaveAlert = true;           // berbunyi jika HP tertinggal (SETTINGS leave_alert)
 };
 
 constexpr uint8_t SCREEN_TIMEOUT_COUNT = 5;

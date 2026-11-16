@@ -40,7 +40,7 @@ object BleLink {
     private const val ACK_TIMEOUT_MS = 2000L
     private const val RETRIES = 3
     private const val PREFS = "lokana"
-    const val CLIENT_NAME = "Lokana Android 0.5.3"
+    const val CLIENT_NAME = "Lokana Android 0.5.4"
 
     enum class State(val id: String) {
         IDLE("idle"), SCANNING("scanning"), CONNECTING("connecting"), PAIRING("pairing"),
@@ -71,6 +71,16 @@ object BleLink {
     private var userDisconnect = false
     private var connectedAt = 0L                 // elapsedRealtime saat link fisik tersambung
     private var staleRetries = 0                 // percobaan perbaikan bond lama
+    // RSSI koneksi siap, diukur tiap 2,5 detik (pengingat ketinggalan: dekat = dimatikan, jauh = tertinggal)
+    private var rssi: Int? = null
+    private var rssiAt = 0L
+    private val rssiTick = object : Runnable {
+        override fun run() {
+            if (state != State.READY) return
+            if (!writing) try { gatt?.readRemoteRssi() } catch (e: SecurityException) { Log.w(TAG, "rssi", e) }
+            main.postDelayed(this, 2500)
+        }
+    }
     private var bondReceiver: BroadcastReceiver? = null
     private val parser = FrameParser()
 
@@ -86,7 +96,26 @@ object BleLink {
     private var seq = 0
 
     fun init(context: Context) {
-        if (!::app.isInitialized) app = context.applicationContext
+        if (::app.isInitialized) return
+        app = context.applicationContext
+        ContextCompat.registerReceiver(app, btState, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    // Bluetooth HP dinyalakan lagi: percobaan sambung saat Bluetooth mati sudah gagal, jadi mulai lagi
+    private val btState = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) {
+            if (i.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) != BluetoothAdapter.STATE_ON) return
+            main.postDelayed({
+                if (userDisconnect || state == State.READY) return@postDelayed
+                Log.i(TAG, "Bluetooth menyala lagi, menyambung ulang")
+                if (state == State.IDLE) { resume(); return@postDelayed }
+                val addr = address ?: savedDevice()?.first ?: return@postDelayed
+                val a = adapter() ?: return@postDelayed
+                closeGatt()
+                open(a.getRemoteDevice(addr), autoConnect = true)
+            }, 1500)
+        }
     }
 
     fun setListener(l: Listener?) { listener = l }
@@ -194,6 +223,7 @@ object BleLink {
         setState(State.IDLE)
         LinkService.stop(app)
         Alarm.stop(app)
+        LeaveAlert.cancel(app)
     }
 
     /**
@@ -256,6 +286,13 @@ object BleLink {
                     closeGatt()
                     failAllPending()
                     if (userDisconnect) { setState(State.IDLE); return@post }
+                    main.removeCallbacks(rssiTick)
+                    if (wasReady) {
+                        val age = if (rssiAt > 0) SystemClock.elapsedRealtime() - rssiAt else Long.MAX_VALUE
+                        LeaveAlert.lost(app, status, rssi, age)
+                    }
+                    rssi = null
+                    rssiAt = 0
                     // HP masih menyimpan bond, tapi Lokana sudah melupakannya (menu "Lupakan HP"):
                     // Lokana menolak enkripsi lalu memutus. Hapus bond lama di HP, pairing ulang.
                     if (!wasReady && quick && device.bondState == BluetoothDevice.BOND_BONDED) {
@@ -275,6 +312,12 @@ object BleLink {
                     setState(State.RECONNECTING, if (wasReady) "Lokana terputus" else "Gagal tersambung ($status)")
                     scheduleReconnect()
                 }
+            }
+        }
+
+        override fun onReadRemoteRssi(g: BluetoothGatt, r: Int, status: Int) {
+            main.post {
+                if (g == gatt && status == BluetoothGatt.GATT_SUCCESS) { rssi = r; rssiAt = SystemClock.elapsedRealtime() }
             }
         }
 
@@ -372,6 +415,9 @@ object BleLink {
         staleRetries = 0
         action = null
         setState(State.READY)
+        LeaveAlert.back(app)
+        main.removeCallbacks(rssiTick)
+        main.postDelayed(rssiTick, 1000)
         send(Proto.T_HELLO, Proto.hello(CLIENT_NAME), true) { st ->
             if (st != 0) Log.w(TAG, "HELLO status=$st")
             send(Proto.T_TIME_SYNC, Proto.timeSync(), true) {}

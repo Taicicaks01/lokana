@@ -26,6 +26,9 @@ class LinkService : Service() {
         const val CH_ALARM = "find_phone"
         const val ACTION_PHONE_FOUND = "lokana.PHONE_FOUND"
         const val ACTION_DISCONNECT = "lokana.DISCONNECT"
+        const val CH_LEAVE = "leave_alert"
+        const val ACTION_LEAVE_STOP = "lokana.LEAVE_STOP"
+        const val ACTION_LEAVE_SNOOZE = "lokana.LEAVE_SNOOZE"
         private const val NOTIF_ID = 1
 
         fun start(ctx: Context) {
@@ -47,6 +50,9 @@ class LinkService : Service() {
                 NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
             nm.createNotificationChannel(NotificationChannel(CH_ALARM, "Cari HP",
                 NotificationManager.IMPORTANCE_HIGH).apply { setSound(null, null) })
+            // Bunyi & getar diatur aplikasi (Alarm), saluran ini hanya untuk tampilan
+            nm.createNotificationChannel(NotificationChannel(CH_LEAVE, "Pengingat ketinggalan",
+                NotificationManager.IMPORTANCE_HIGH).apply { setSound(null, null); enableVibration(false) })
         }
     }
 
@@ -57,6 +63,8 @@ class LinkService : Service() {
         when (intent?.action) {
             ACTION_PHONE_FOUND -> { BleLink.phoneFound(); return START_STICKY }
             ACTION_DISCONNECT -> { BleLink.disconnect(forget = false); return START_NOT_STICKY }
+            ACTION_LEAVE_STOP -> { LeaveAlert.cancel(this); return START_STICKY }
+            ACTION_LEAVE_SNOOZE -> { LeaveAlert.snooze(this, 60); return START_STICKY }
         }
         // Dihidupkan ulang sistem setelah proses dimatikan (START_STICKY): sambung lagi ke Lokana terakhir
         if (intent == null) BleLink.resume()
