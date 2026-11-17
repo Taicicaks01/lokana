@@ -2,6 +2,9 @@
 // Disimpan di HP lewat SharedPreferences (sisi Kotlin), tanpa paket tambahan.
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+import 'tokens.dart';
+
+export 'tokens.dart';
 
 class AccentColor {
   final String id, label;
@@ -83,55 +86,135 @@ class AppTheme extends ChangeNotifier {
   static TextStyle? _brand(TextStyle? s, double weight) => s?.copyWith(
       fontFamily: 'Baloo2', fontVariations: [FontVariation('wght', weight)], height: 1.2, letterSpacing: 0);
 
+  /// Tema dari token docs/DESIGN.md §2. Permukaan, teks, dan garis selalu dari token Lokana; warna aksen
+  /// pilihan pengguna menjadi seed ColorScheme. Aksen "Lokana" memakai pink brand persis:
+  /// `primary` = pink sebagai teks (kontras ≥ 4.5:1), tombol utama = pink brand #F478AA dengan teks gelap.
   ThemeData data(Brightness b) {
-    final cs = ColorScheme.fromSeed(seedColor: accent.color, brightness: b);
-    final base = ThemeData(colorScheme: cs, useMaterial3: true);
+    final dark = b == Brightness.dark;
+    final lk = dark ? LokanaTokens.dark : LokanaTokens.light;
+    final brand = accent.id == 'lokana';
+    var cs = ColorScheme.fromSeed(seedColor: accent.color, brightness: b).copyWith(
+      surface: lk.bg,
+      onSurface: lk.text,
+      onSurfaceVariant: lk.muted,
+      surfaceContainerLowest: lk.bg,
+      surfaceContainerLow: lk.surface,
+      surfaceContainer: lk.surface,
+      surfaceContainerHigh: lk.surface2,
+      surfaceContainerHighest: lk.surface2,
+      outlineVariant: lk.line,
+      // Aksi kedua = permukaan netral (§1.4: hanya aksi utama yang berwarna penuh)
+      secondaryContainer: lk.surface2,
+      onSecondaryContainer: lk.text,
+    );
+    if (brand) {
+      cs = cs.copyWith(
+        primary: lk.pinkText,
+        onPrimary: dark ? lk.onPink : Colors.white,
+        primaryContainer: lk.pinkSoft,
+        onPrimaryContainer: lk.pinkText,
+      );
+    }
+    final soft = brand ? lk.pinkSoft : cs.primaryContainer;        // latar ikon, tab & pilihan aktif
+    final activeText = brand ? lk.pinkText : cs.onPrimaryContainer;
+
+    final base = ThemeData(colorScheme: cs, useMaterial3: true, brightness: b);
     final tt = base.textTheme;
+    // Ukuran §2: judul layar 28, nama perangkat 24, judul seksi 18, isi 15, keterangan 13, label kecil 12
     final text = tt.copyWith(
       displaySmall: _brand(tt.displaySmall, 700),
       headlineLarge: _brand(tt.headlineLarge, 700),
-      headlineMedium: _brand(tt.headlineMedium, 700),
-      headlineSmall: _brand(tt.headlineSmall, 700),
-      titleLarge: _brand(tt.titleLarge, 650),
-      titleMedium: _brand(tt.titleMedium?.copyWith(fontSize: 17), 650),
-    );
-    final radius = BorderRadius.circular(14);
+      headlineMedium: _brand(tt.headlineMedium?.copyWith(fontSize: 28), 700),
+      headlineSmall: _brand(tt.headlineSmall?.copyWith(fontSize: 24), 700),
+      titleLarge: _brand(tt.titleLarge?.copyWith(fontSize: 24), 650),
+      titleMedium: _brand(tt.titleMedium?.copyWith(fontSize: 18), 650),
+      bodyLarge: tt.bodyLarge?.copyWith(fontSize: 15),
+      bodyMedium: tt.bodyMedium?.copyWith(fontSize: 15),
+      bodySmall: tt.bodySmall?.copyWith(fontSize: 13, color: lk.muted),
+      labelSmall: tt.labelSmall?.copyWith(fontSize: 12),
+    ).apply(bodyColor: lk.text, displayColor: lk.text);
+    final chipRadius = BorderRadius.circular(LokanaTokens.rChip);
+    const pill = StadiumBorder();
     return base.copyWith(
       textTheme: text,
-      scaffoldBackgroundColor: cs.surface,
+      scaffoldBackgroundColor: lk.bg,
+      canvasColor: lk.bg,
+      extensions: [lk],
       cardTheme: CardThemeData(
         margin: EdgeInsets.zero,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: lk.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LokanaTokens.rCard), side: BorderSide(color: lk.line)),
       ),
       appBarTheme: AppBarTheme(
         centerTitle: false,
-        backgroundColor: cs.surface,
+        toolbarHeight: 64,
+        backgroundColor: lk.bg,
+        foregroundColor: lk.text,
         surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 1,
-        titleTextStyle: _brand(tt.titleLarge?.copyWith(color: cs.onSurface, fontSize: 22), 700),
+        scrolledUnderElevation: 0,
+        titleTextStyle: text.headlineMedium,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 72,
+        backgroundColor: lk.surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: soft,
+        iconTheme: WidgetStateProperty.resolveWith((s) =>
+            IconThemeData(color: s.contains(WidgetState.selected) ? activeText : lk.muted)),
+        labelTextStyle: WidgetStateProperty.resolveWith((s) => text.labelSmall?.copyWith(
+            fontSize: 12,
+            fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+            color: s.contains(WidgetState.selected) ? activeText : lk.muted)),
       ),
       snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: radius)),
+          behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: chipRadius)),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: radius),
-            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          shape: pill,
+          minimumSize: const Size(64, 52),
+          textStyle: text.labelLarge?.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+          backgroundColor: brand ? lk.pink : null,
+          foregroundColor: brand ? lk.onPink : null,
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: radius)),
+        style: OutlinedButton.styleFrom(
+            shape: pill, minimumSize: const Size(64, 48), side: BorderSide(color: lk.line, width: 1.5)),
       ),
-      chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(minimumSize: const Size(48, 48))),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          foregroundColor: lk.text,                  // tanpa ini segmen biasa ikut berwarna aktif
+          selectedBackgroundColor: soft,
+          selectedForegroundColor: activeText,
+          side: BorderSide(color: lk.line, width: 1.5),
+          minimumSize: const Size(48, 48),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(borderRadius: chipRadius),
+        side: BorderSide(color: lk.line),
+        backgroundColor: lk.surface,
+        selectedColor: soft,
+        checkmarkColor: activeText,
+        labelStyle: text.labelLarge?.copyWith(color: lk.text, fontSize: 14),
+        secondaryLabelStyle: text.labelLarge?.copyWith(color: activeText, fontSize: 14, fontWeight: FontWeight.w600),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-        border: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide(color: cs.primary, width: 2)),
+        fillColor: lk.surface2,
+        border: OutlineInputBorder(borderRadius: chipRadius, borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: chipRadius, borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: chipRadius, borderSide: BorderSide(color: cs.primary, width: 2)),
       ),
-      listTileTheme: ListTileThemeData(shape: RoundedRectangleBorder(borderRadius: radius)),
-      dividerTheme: DividerThemeData(color: cs.outlineVariant.withValues(alpha: 0.5), space: 1),
-      switchTheme: const SwitchThemeData(),
+      listTileTheme: ListTileThemeData(
+          shape: RoundedRectangleBorder(borderRadius: chipRadius), iconColor: lk.muted, textColor: lk.text),
+      dividerTheme: DividerThemeData(color: lk.line, space: 1),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: lk.surface, surfaceTintColor: Colors.transparent),
+      dialogTheme: DialogThemeData(backgroundColor: lk.surface, surfaceTintColor: Colors.transparent),
+      popupMenuTheme: PopupMenuThemeData(color: lk.surface2, surfaceTintColor: Colors.transparent),
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
       }),
