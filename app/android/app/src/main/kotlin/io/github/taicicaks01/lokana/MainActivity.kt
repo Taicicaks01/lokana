@@ -102,6 +102,7 @@ class MainActivity : FlutterActivity() {
                 "stopPreview" -> { Alarm.stopPreview(); result.success(null) }
 
                 // ---- Pengingat ketinggalan (v0.5.4) ----
+                "rssi" -> result.success(BleLink.lastRssi())
                 "leaveTest" -> { LeaveAlert.test(this); result.success(null) }
                 "leaveSnooze" -> { LeaveAlert.snooze(this, call.argument<Int>("minutes") ?: 60); result.success(null) }
                 "leaveInfo" -> result.success(mapOf("snoozeUntil" to LeaveAlert.snoozeUntil(this)))

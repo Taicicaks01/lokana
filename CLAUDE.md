@@ -267,7 +267,10 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      Progres (`DESIGN.md` §7): 🧪 1 token & tema (`lib/tokens.dart`, `context.lk`; pink brand hanya lewat
      `AppTheme.primaryButton` karena tema FilledButton ikut berlaku untuk tonal), 🧪 2 `lib/cube.dart` `LokanaCube`
      + `paintLokanaEyes` (pratinjau: Pengaturan → Tentang → Lokana Cube), 🧪 3 `lib/shell.dart` 4 tab (halaman lama
-     dengan `embedded: true`; Cari HP masih di Pengaturan sampai langkah 6). **Langkah 4 menunggu OK Wayan.**
+     dengan `embedded: true`; Cari HP masih di Pengaturan sampai langkah 6), 🧪 4 Beranda (hero `LokanaCube` + chip
+     Tersambung/sinyal RSSI dari `BleLink.lastRssi()`/baterai hanya jika persen asli, `QuickAction` 88 dp, Remote
+     Tap/2×/Tahan, kisi `StudioTile` dengan thumbnail OLED asli → `ShellNav.go(Tabs.studio, segment:)`; berhasil =
+     haptic ringan + mood senang). **Langkah 5 (Studio) menunggu OK Wayan.**
   2. Lanjut **Backlog hasil audit** di bawah (v0.5.5 Daya, OTA, Play Store, CI, Desktop, kerapian), lalu v0.6 dst.
   - 🟡 **Slot teks: kelola dari Lokana** (ide Wayan). Slot 1–8 + `TEXT_SLOT` **sudah ada sejak v0.5.3**,
     jangan dibuat ulang. Sisanya: cek modul Teks di Lokana, lalu tambah yang belum ada: pilih/putar slot,

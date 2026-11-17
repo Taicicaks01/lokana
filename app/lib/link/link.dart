@@ -181,6 +181,11 @@ class LokanaLink extends ChangeNotifier {
   Future<void> previewRingtone() => _m.invokeMethod('previewRingtone');
   Future<void> stopRingtonePreview() => _m.invokeMethod('stopPreview');
 
+  /// Kekuatan sinyal Lokana (dBm) yang diukur HP tiap 2,5 dtk. null = belum ada / tidak tersambung.
+  Future<int?> rssi() async {
+    try { return await _m.invokeMethod<int>('rssi'); } catch (_) { return null; }
+  }
+
   // ---------------- Pengingat ketinggalan (0.5.4) ----------------
   /// Contoh pengingat di HP ini selama 4 detik.
   Future<void> leaveTest() => _m.invokeMethod('leaveTest');

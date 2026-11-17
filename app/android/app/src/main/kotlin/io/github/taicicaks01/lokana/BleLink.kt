@@ -74,6 +74,10 @@ object BleLink {
     // RSSI koneksi siap, diukur tiap 2,5 detik (pengingat ketinggalan: dekat = dimatikan, jauh = tertinggal)
     private var rssi: Int? = null
     private var rssiAt = 0L
+    /** RSSI terakhir (dBm) selama tersambung, null jika belum terukur / sudah basi (> 10 dtk). Untuk chip sinyal. */
+    fun lastRssi(): Int? =
+        if (state == State.READY && rssiAt > 0 && SystemClock.elapsedRealtime() - rssiAt < 10_000) rssi else null
+
     private val rssiTick = object : Runnable {
         override fun run() {
             if (state != State.READY) return

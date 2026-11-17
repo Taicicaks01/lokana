@@ -362,3 +362,113 @@ class _EyesPainter extends CustomPainter {
 void showSnack(BuildContext context, String msg) => ScaffoldMessenger.of(context)
   ..hideCurrentSnackBar()
   ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+
+/// Ubin aksi cepat Beranda (DESIGN.md §4), tinggi 88. [primary] = pink brand penuh (satu per layar).
+/// [active] (misalnya "Hentikan" saat Cari kunci berbunyi): ubin gelap, ikon pink bergetar.
+class QuickAction extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool primary, active;
+  const QuickAction(
+      {super.key, required this.icon, required this.label, required this.onTap, this.primary = false, this.active = false});
+
+  @override
+  State<QuickAction> createState() => _QuickActionState();
+}
+
+class _QuickActionState extends State<QuickAction> with SingleTickerProviderStateMixin {
+  late final _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+
+  @override
+  void dispose() {
+    _shake.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lk = context.lk;
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (widget.active && !still) {
+      if (!_shake.isAnimating) _shake.repeat();
+    } else if (_shake.isAnimating) {
+      _shake.stop();
+      _shake.value = 0;
+    }
+    final brand = AppTheme.instance.accent.id == 'lokana';
+    final cs = Theme.of(context).colorScheme;
+    final (bg, fg, iconColor) = widget.active
+        ? (lk.hero, Colors.white, lk.pink)
+        : widget.primary
+            ? (brand ? lk.pink : cs.primary, brand ? lk.onPink : cs.onPrimary, brand ? lk.onPink : cs.onPrimary)
+            : (lk.surface, lk.text, cs.primary);
+    return Material(
+      color: bg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: widget.primary || widget.active ? BorderSide.none : BorderSide(color: lk.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: widget.onTap,
+        child: SizedBox(
+          height: 88,
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            AnimatedBuilder(
+              animation: _shake,
+              builder: (_, child) => Transform.rotate(angle: sin(_shake.value * 2 * pi * 2) * 0.22, child: child),
+              child: Icon(widget.icon, size: 28, color: iconColor),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kartu Studio di Beranda: thumbnail OLED mini (dirender asli), ikon, judul, keterangan.
+class StudioTile extends StatelessWidget {
+  final Widget thumb;
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback onTap;
+  const StudioTile(
+      {super.key, required this.thumb, required this.icon, required this.title, required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            AspectRatio(aspectRatio: 2, child: thumb),
+            const SizedBox(height: 10),
+            Row(children: [
+              Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(title,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              ),
+            ]),
+            const SizedBox(height: 2),
+            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodySmall),
+          ]),
+        ),
+      ),
+    );
+  }
+}
