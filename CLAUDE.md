@@ -47,7 +47,7 @@ firmware/   Lokana OS (PlatformIO, Arduino framework)
 protocol/   spesifikasi Lokana Link + skrip uji Python (protocol/tools/lokana_link.py)
 app/        Aplikasi Lokana Android (Flutter UI + Kotlin BLE), lihat app/README.md
 desktop/    Lokana Desktop — belum dimulai
-hardware/   skema, PCB, casing — belum dimulai
+hardware/   casing Lokana Cube v1.1 (hardware/case/); skema & PCB belum dimulai
 docs/       arsitektur, quick start (GitHub Pages)
 brand/      ikon & aset merek (Android, iOS, Play Store, web) + generator brand/tools/gen_icons.py
 ```
@@ -346,10 +346,10 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     yang lebih baik — sekaligus menutup backlog dialog PIN generik).
   - 🟡 **CI GitHub Actions**: `pio run -e supermini -e supermini-091 -e wokwi` + `flutter test` di setiap push/PR.
   - 🟡 **Lokana Desktop** masih 0% (`desktop/` kosong): mulai dari `protocol/tools/lokana_link.py` → monitor PC lewat USB (v0.7).
-  - 🟢 **Kerapian repo**: commit `hardware/case/`; `web/` placeholder bertentangan dengan keputusan "tanpa web flasher"
-    → jadikan quick start GitHub Pages (`docs/`) atau hapus; `app/README.md` masih menulis versi 0.5.0; tambah
-    lisensi hardware (CERN-OHL) di `hardware/`, `CHANGELOG.md`, `CONTRIBUTING.md`, rilis GitHub (firmware .bin + APK);
-    cek tampilan Wokwi (belum sejak v0.2).
+  - 🟢 **Kerapian repo**: ✅ `hardware/case/` di-commit (tanpa `_render/`), ✅ `CHANGELOG.md` (v0.3.0 → sekarang;
+    perbarui setiap rilis), ✅ versi di `app/README.md`. Sisa: `web/` placeholder bertentangan dengan keputusan
+    "tanpa web flasher" → jadikan quick start GitHub Pages (`docs/`) atau hapus; lisensi hardware (CERN-OHL) di
+    `hardware/`, `CONTRIBUTING.md`, rilis GitHub (firmware .bin + APK); cek tampilan Wokwi (belum sejak v0.2).
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek
