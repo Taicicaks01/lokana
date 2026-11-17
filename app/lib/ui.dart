@@ -296,66 +296,16 @@ class Pill extends StatelessWidget {
   }
 }
 
-/// Wajah Lokana (dua mata OLED) yang berkedip pelan. Dipakai di beranda & halaman sambung.
-class LokanaEyes extends StatefulWidget {
-  final Color color;
+/// Kerangka abu-abu berbentuk kartu selama data dibaca (DESIGN.md §5), bukan spinner.
+class SkeletonCard extends StatelessWidget {
   final double height;
-  final bool sleepy;
-  const LokanaEyes({super.key, required this.color, this.height = 56, this.sleepy = false});
+  const SkeletonCard({super.key, this.height = 72});
 
   @override
-  State<LokanaEyes> createState() => _LokanaEyesState();
-}
-
-class _LokanaEyesState extends State<LokanaEyes> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 4200))
-    ..repeat();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final reduce = MediaQuery.of(context).disableAnimations;
-    return SizedBox(
-      height: widget.height,
-      child: AspectRatio(
-        aspectRatio: 2.2,
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (_, _) {
-            // kedip singkat di akhir putaran
-            final t = _c.value;
-            var open = widget.sleepy ? 0.12 : 1.0;
-            if (!reduce && !widget.sleepy && t > 0.93) open = (cos((t - 0.93) / 0.07 * 2 * pi) + 1) / 2 * 0.9 + 0.1;
-            return CustomPaint(painter: _EyesPainter(widget.color, open));
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _EyesPainter extends CustomPainter {
-  final Color color;
-  final double open;
-  _EyesPainter(this.color, this.open);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = color;
-    final ew = size.width * 0.34, eh = size.height * 0.9 * open, gap = size.width * 0.12;
-    final x0 = (size.width - ew * 2 - gap) / 2, y = (size.height - eh) / 2;
-    final r = Radius.circular(min(ew, size.height * 0.9) * 0.28);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x0, y, ew, eh), r), p);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x0 + ew + gap, y, ew, eh), r), p);
-  }
-
-  @override
-  bool shouldRepaint(_EyesPainter old) => old.open != open || old.color != color;
+  Widget build(BuildContext context) => Container(
+        height: height,
+        decoration: BoxDecoration(color: context.lk.surface2, borderRadius: BorderRadius.circular(LokanaTokens.rCard)),
+      );
 }
 
 /// Tampilkan pesan singkat di bawah layar.
@@ -454,7 +404,8 @@ class StudioTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            AspectRatio(aspectRatio: 2, child: thumb),
+            // Thumbnail mengisi sisa tinggi (mengecil kalau huruf diperbesar); OledPreview tetap 2:1 di dalamnya
+            Expanded(child: thumb),
             const SizedBox(height: 10),
             Row(children: [
               Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),

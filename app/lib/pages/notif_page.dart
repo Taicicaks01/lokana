@@ -78,7 +78,8 @@ class _NotifPageState extends State<NotifPage> with WidgetsBindingObserver {
     if (s == null) {
       return Scaffold(
         appBar: widget.embedded ? null : AppBar(title: const Text('Notifikasi')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const PageBody(children: [SkeletonCard(height: 64), SizedBox(height: 12), SkeletonCard(height: 150),
+            SizedBox(height: 12), SkeletonCard(height: 120)]),
       );
     }
     final q = query.toLowerCase();
@@ -178,10 +179,7 @@ class _NotifPageState extends State<NotifPage> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 8),
           if (apps == null)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            for (var i = 0; i < 4; i++) const Padding(padding: EdgeInsets.only(bottom: 8), child: SkeletonCard(height: 52))
           else
             for (final a in shown)
               CheckboxListTile(

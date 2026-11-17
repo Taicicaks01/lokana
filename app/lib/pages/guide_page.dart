@@ -1,8 +1,8 @@
 import 'package:material_ui/material_ui.dart';
+import '../cube.dart';
 import '../link/link.dart';
 import '../link/proto.dart';
 import '../main.dart';
-import '../theme.dart';
 import '../ui.dart';
 
 /// Cara pakai Lokana: gerakan, modul, menu, plus setelan Panduan di layar Lokana (SETTINGS boot_guide).
@@ -74,7 +74,7 @@ class _GuidePageState extends State<GuidePage> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Column(children: [
-              LokanaEyes(color: AppTheme.instance.oled.color, height: 48),
+              const LokanaCube(scale: 0.6),
               const SizedBox(height: Gap.l),
               Text('Satu sensor, empat gerakan', style: t.titleLarge?.copyWith(color: Colors.white)),
               const SizedBox(height: Gap.xs),

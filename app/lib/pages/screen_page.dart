@@ -95,7 +95,8 @@ class _ScreenPageState extends State<ScreenPage> {
         Stack(children: [
           OledPreview(anim: frame),
           if (frame == null)
-            const Positioned.fill(child: Center(child: CircularProgressIndicator())),
+            const Positioned.fill(
+                child: Center(child: Text('Menunggu layar Lokana...', style: TextStyle(color: Colors.white54)))),
           if (frame != null && !screenOn)
             Positioned.fill(
               child: Center(

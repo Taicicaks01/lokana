@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:material_ui/material_ui.dart';
 import '../link/link.dart';
 import '../link/proto.dart';
+import '../main.dart';
 import '../render.dart';
 import '../theme.dart';
 import '../ui.dart';
@@ -131,6 +132,7 @@ class _ImagePageState extends State<ImagePage> {
       st = await link.send(T.bitmap, pBitmap(a.frames.first, op: slot == 0 ? 0 : 1, slot: slot,
           durationS: slot == 0 ? duration : 0));
     }
+    sendReaction(st == Status.ok);
     if (!mounted) return;
     setState(() => busy = false);
     _snack(st == Status.ok ? (slot == 0 ? 'Tampil di Lokana' : 'Disimpan ke slot $slot') : Status.describe(st));
@@ -322,10 +324,8 @@ class _ImagePageState extends State<ImagePage> {
             'Galeri di Lokana',
             icon: Icons.photo_library_outlined,
             subtitle: 'Di Lokana: double-tap sampai modul Gambar, tap untuk berganti slot',
-            trailing: loadingGallery
-                ? const Padding(padding: EdgeInsets.all(12),
-                    child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
-                : IconButton(onPressed: _loadGallery, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'),
+            trailing: IconButton(
+                onPressed: loadingGallery ? null : _loadGallery, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'),
           ),
           SlotGrid(
             previews: _galleryPreviews(),
@@ -376,7 +376,18 @@ class _SlotDialogState extends State<_SlotDialog> {
       content: SizedBox(
         width: 320,
         child: loading
-            ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
+            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                AspectRatio(
+                  aspectRatio: 2,
+                  child: DecoratedBox(
+                      decoration: BoxDecoration(color: context.lk.surface2, borderRadius: BorderRadius.circular(12))),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                    width: 140,
+                    height: 12,
+                    decoration: BoxDecoration(color: context.lk.surface2, borderRadius: BorderRadius.circular(6))),
+              ])
             : Column(mainAxisSize: MainAxisSize.min, children: [
                 OledPreview(anim: a),
                 const SizedBox(height: 8),

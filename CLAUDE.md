@@ -280,7 +280,11 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      Panduan, nama BT lewat lembar bawah; kerangka abu-abu saat REPORT dibaca; Aplikasi; Lainnya: Cara pakai, pratinjau
      Cube, lisensi, versi), 🧪 8 Sambungkan (hero `LokanaCube`: mengantuk saat diam/menyambung ulang, melirik saat
      mencari, siaga saat menyambung/pairing; satu aksi utama "Sambungkan ke <nama>" atau "Cari Lokana"; kartu
-     perangkat dengan Cube kecil + bar sinyal; kerangka saat mencari). **Langkah 9 (Poles) menunggu OK Wayan.**
+     perangkat dengan Cube kecil + bar sinyal; kerangka saat mencari), 🧪 9 Poles (`sendReaction`: haptic + `CubeCheer`
+     di semua kirim; Ekspresi tanpa emoji lewat `lib/face_preview.dart` = port geometri `face.cpp`, dicek berdampingan
+     dengan tangkapan firmware; `SkeletonCard` ganti spinner; `OledPreview` diam saat "kurangi animasi"; mode terang
+     + huruf 130% tanpa overflow, Ukuran huruf Teks jadi chip). Semua langkah `DESIGN.md` §7 selesai; **menunggu uji
+     Wayan di HP**, lalu tandai ✅ dan push.
   2. Lanjut **Backlog hasil audit** di bawah (v0.5.5 Daya, OTA, Play Store, CI, Desktop, kerapian), lalu v0.6 dst.
   - 🟡 **Slot teks: kelola dari Lokana** (ide Wayan). Slot 1–8 + `TEXT_SLOT` **sudah ada sejak v0.5.3**,
     jangan dibuat ulang. Sisanya: cek modul Teks di Lokana, lalu tambah yang belum ada: pilih/putar slot,

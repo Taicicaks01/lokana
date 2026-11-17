@@ -27,6 +27,13 @@ const double _totalH = _lugAbove + _bodyH;
 // Mata relatif terhadap jendela (dari ikon brand: 118×170 di jendela 500×280, jarak 80)
 const double _eyeW = 0.236, _eyeH = 0.607, _eyeGap = 0.16, _eyeR = 0.39;
 
+/// Sinyal "perintah berhasil" (ACK OK): semua Lokana Cube yang sedang tampil tersenyum ±650 ms (DESIGN.md §5).
+/// Dipanggil [sendWithFeedback] dan [sendReaction] di main.dart.
+class CubeCheer {
+  static final tick = ValueNotifier<int>(0);
+  static void now() => tick.value++;
+}
+
 class LokanaCube extends StatefulWidget {
   /// 1 = lebar 140 dp (4 dp per mm).
   final double scale;
@@ -49,6 +56,17 @@ class _LokanaCubeState extends State<LokanaCube> with SingleTickerProviderStateM
   double _nextBlink = 0, _blinkAt = -1000;
   CubeMood _prev = CubeMood.idle;
   double _changedAt = -1000;
+  double _cheerUntil = 0;                        // > 0 = sedang tersenyum karena CubeCheer
+
+  CubeMood get _mood => _cheerUntil > 0 ? CubeMood.senang : widget.mood;
+
+  void _onCheer() {
+    if (_cheerUntil == 0 && widget.mood != CubeMood.senang) {
+      _prev = widget.mood;
+      _changedAt = _clock.value;
+    }
+    _cheerUntil = _clock.value + 650;
+  }
 
   @override
   void initState() {
@@ -56,12 +74,13 @@ class _LokanaCubeState extends State<LokanaCube> with SingleTickerProviderStateM
     _prev = widget.mood;
     _nextBlink = 1500 + _rnd.nextDouble() * 2500;
     _ticker.start();
+    CubeCheer.tick.addListener(_onCheer);
   }
 
   @override
   void didUpdateWidget(LokanaCube old) {
     super.didUpdateWidget(old);
-    if (old.mood != widget.mood) {
+    if (old.mood != widget.mood && _cheerUntil == 0) {
       _prev = old.mood;
       _changedAt = _clock.value;
     }
@@ -69,6 +88,11 @@ class _LokanaCubeState extends State<LokanaCube> with SingleTickerProviderStateM
 
   void _tick(Duration d) {
     final t = d.inMicroseconds / 1000.0;
+    if (_cheerUntil > 0 && t >= _cheerUntil) {    // selesai tersenyum: kembali ke mood biasa dengan transisi
+      _cheerUntil = 0;
+      _prev = CubeMood.senang;
+      _changedAt = t;
+    }
     if (t >= _nextBlink) {
       _blinkAt = t;
       _nextBlink = t + 3000 + _rnd.nextDouble() * 3000;   // 3–6 dtk, tidak serempak dengan detik jam
@@ -78,6 +102,7 @@ class _LokanaCubeState extends State<LokanaCube> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    CubeCheer.tick.removeListener(_onCheer);
     _ticker.dispose();
     _clock.dispose();
     super.dispose();
@@ -155,7 +180,7 @@ class _CubePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final t = clock.value;
     final s = size.width / _bodyW;                 // dp per mm
-    final m = state.widget.mood;
+    final m = state._mood;
 
     // Mata: transisi halus antar-mood (220 ms) + kedip
     final k = Curves.easeOutCubic.transform(((t - state._changedAt) / 220).clamp(0.0, 1.0));

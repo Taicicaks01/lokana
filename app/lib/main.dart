@@ -3,13 +3,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+import 'cube.dart';
 import 'link/link.dart';
 import 'link/proto.dart';
 import 'pages/connect_page.dart';
 import 'shell.dart';
 import 'splash.dart';
 import 'theme.dart';
-import 'ui.dart';
 
 /// Versi aplikasi (samakan dengan pubspec.yaml dan CLIENT_NAME di BleLink.kt).
 const appVersion = '0.5.4';
@@ -86,7 +86,7 @@ class _FindPhoneOverlay extends StatelessWidget {
           padding: const EdgeInsets.all(32),
           child: Column(children: [
             const Spacer(),
-            LokanaEyes(color: AppTheme.instance.oled.color, height: 80),
+            const LokanaCube(scale: 1.1, mood: CubeMood.mencari),
             const SizedBox(height: 40),
             Text('Ini HP-mu!', style: t.displaySmall?.copyWith(color: Colors.white)),
             const SizedBox(height: 8),
@@ -105,9 +105,20 @@ class _FindPhoneOverlay extends StatelessWidget {
   }
 }
 
+/// Reaksi hasil kirim (DESIGN.md §5): berhasil = getar ringan + Lokana Cube tersenyum; gagal = getar kuat.
+void sendReaction(bool ok) {
+  if (ok) {
+    HapticFeedback.lightImpact();
+    CubeCheer.now();
+  } else {
+    HapticFeedback.heavyImpact();
+  }
+}
+
 /// Kirim pesan lalu tampilkan hasilnya singkat di bawah layar.
 Future<bool> sendWithFeedback(BuildContext context, int type, Uint8List payload, {String? ok}) async {
   final st = await LokanaLink.instance.send(type, payload);
+  sendReaction(st == Status.ok);
   if (!context.mounted) return st == Status.ok;
   final msg = st == Status.ok ? ok : Status.describe(st);
   if (msg != null) {

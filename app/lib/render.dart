@@ -193,11 +193,16 @@ class OledPreview extends StatefulWidget {
 class _OledPreviewState extends State<OledPreview> {
   Timer? _timer;
   int _f = 0;
+  bool _still = false;                            // "kurangi animasi" sistem: bingkai pertama saja
 
   @override
-  void initState() {
-    super.initState();
-    _start();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still != _still || _timer == null) {
+      _still = still;
+      _start();
+    }
   }
 
   @override
@@ -210,7 +215,7 @@ class _OledPreviewState extends State<OledPreview> {
     _timer?.cancel();
     _f = 0;
     final a = widget.anim;
-    if (a != null && a.frames.length > 1) {
+    if (a != null && a.frames.length > 1 && !_still) {
       _timer = Timer.periodic(Duration(milliseconds: max(40, a.frameMs)), (_) {
         if (mounted) setState(() => _f = (_f + 1) % a.frames.length);
       });

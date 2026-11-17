@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import '../cube.dart';
+import '../face_preview.dart';
 import '../link/link.dart';
 import '../link/proto.dart';
 import '../main.dart';
@@ -23,8 +24,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final link = LokanaLink.instance;
-  CubeMood mood = CubeMood.idle;
-  Timer? _moodTimer, _rssiTimer;
+  Timer? _rssiTimer;
   int? rssi;
   Map<String, Anim1>? thumbs;
 
@@ -42,7 +42,6 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void dispose() {
     link.removeListener(_changed);
-    _moodTimer?.cancel();
     _rssiTimer?.cancel();
     super.dispose();
   }
@@ -52,26 +51,15 @@ class _DashboardPageState extends State<DashboardPage> {
     if (mounted && r != rssi) setState(() => rssi = r);
   }
 
-  /// Perintah berhasil: getar ringan + Lokana tersenyum sebentar. Gagal: getar kuat.
-  void _react(bool ok) {
-    if (!ok) { HapticFeedback.heavyImpact(); return; }
-    HapticFeedback.lightImpact();
-    _moodTimer?.cancel();
-    setState(() => mood = CubeMood.senang);
-    _moodTimer = Timer(const Duration(milliseconds: 820), () { if (mounted) setState(() => mood = CubeMood.idle); });
-  }
-
   Future<void> _findKeys() async {
     final on = !link.findingKeys;
     final ok = await sendWithFeedback(context, T.findKeys, pFindKeys(on, seconds: 30),
         ok: on ? 'Lokana berbunyi 30 detik' : 'Bunyi dihentikan');
-    _react(ok);
     if (!ok || !mounted) return;
     link.setFindingKeys(on);                      // Lokana juga melapor saat bunyi berhenti
   }
 
-  Future<void> _syncClock() async =>
-      _react(await sendWithFeedback(context, T.timeSync, pTimeSync(DateTime.now()), ok: 'Jam Lokana disinkronkan'));
+  Future<void> _syncClock() => sendWithFeedback(context, T.timeSync, pTimeSync(DateTime.now()), ok: 'Jam Lokana disinkronkan');
 
   Future<void> _remote(int gesture) async {
     HapticFeedback.selectionClick();
@@ -158,7 +146,7 @@ class _DashboardPageState extends State<DashboardPage> {
           name: _name,
           info: info,
           rssi: rssi,
-          mood: mood,
+          mood: CubeMood.idle,
           onTap: can(Caps.screen) ? () => _open(const ScreenPage()) : null,
         ),
         const SizedBox(height: Gap.m),
@@ -327,8 +315,7 @@ Future<Map<String, Anim1>>? _thumbCache;
 
 Future<Map<String, Anim1>> _studioThumbs() => _thumbCache ??= () async {
       Anim1 one(Bitmap1 b) => Anim1(128, 64, [b]);
-      final face = await rasterize(128, 64, (c) => paintLokanaEyes(c, const Rect.fromLTWH(6, 4, 116, 58), Colors.white,
-          open: 0.55, happy: 1, bg: Colors.black));
+      final face = await expressionFace(1);          // senang, sama persis dengan wajah Lokana
       return {
         'teks': one(OledTextLayout('Halo!', font: 2).draw(0)),
         'gambar': one(_heart()),

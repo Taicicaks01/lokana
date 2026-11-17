@@ -119,11 +119,13 @@ class _TextPageState extends State<TextPage> {
     switch (action) {
       case 'show':
         final st = await link.showTextSlot(s.slot, durationS: 10);
+        sendReaction(st == Status.ok);
         if (mounted) showSnack(context, st == Status.ok ? 'Slot ${s.slot} tampil 10 detik' : Status.describe(st));
       case 'edit':
         _edit(s);
       case 'delete':
         final st = await link.deleteTextSlot(s.slot);
+        sendReaction(st == Status.ok);
         if (!mounted) return;
         showSnack(context, st == Status.ok ? 'Slot ${s.slot} dikosongkan' : Status.describe(st));
         _loadSlots();
@@ -217,13 +219,8 @@ class _TextPageState extends State<TextPage> {
                 },
                 onChanged: (v) => setState(() => font = v),
               )),
-          Field('Ukuran huruf',
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: [for (final e in sizes.entries) ButtonSegment(value: e.key, label: Text(e.value))],
-                selected: {size},
-                onSelectionChanged: (s) => setState(() => size = s.first),
-              )),
+          // Chip (bukan segmen): 4 pilihan tetap utuh di ukuran huruf sistem besar
+          Field('Ukuran huruf', child: Choices<int>(options: sizes, value: size, onChanged: (v) => setState(() => size = v))),
           Field('Gaya',
               child: SegmentedButton<int>(
                 showSelectedIcon: false,
@@ -271,10 +268,8 @@ class _TextPageState extends State<TextPage> {
           icon: Icons.bookmarks_outlined,
           subtitle: 'Font, ukuran, dan gaya ikut tersimpan',
           trailing: link.hasTextSlots
-              ? (loadingSlots
-                  ? const Padding(padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
-                  : IconButton(onPressed: _loadSlots, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'))
+              ? IconButton(
+                  onPressed: loadingSlots ? null : _loadSlots, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang')
               : null,
         ),
         if (!link.hasTextSlots)

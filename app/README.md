@@ -67,6 +67,19 @@ Emoji/teks digambar HP lalu **dipotong rapat** ke piksel yang terisi (tidak terp
 (Diam, Denyut, Memantul, Goyang, Putar, Kedip, Geser), atau ambil **gambar/GIF** dari HP (dithering untuk
 foto, maks 16 bingkai layar penuh). Galeri menampilkan isi slot 1–8 langsung dari Lokana.
 
+## Desain "robot hidup" (docs/DESIGN.md, 2026-11-17)
+
+- **4 tab** (`lib/shell.dart`): Beranda · Studio (Teks/Gambar/Ekspresi/Dadu) · Terhubung (Ketinggalan/Notifikasi/Cari HP)
+  · Pengaturan. Belum tersambung = `ConnectPage` tanpa tab. `ShellNav.go(tab, segment:)` untuk pindah tab.
+- **Token** `lib/tokens.dart` (`context.lk`), tema `AppTheme.data()`; aksi utama pink brand lewat `AppTheme.primaryButton`.
+- **Lokana Cube** `lib/cube.dart` (mood idle/mencari/mengantuk/senang); `CubeCheer.now()` = semua Cube tersenyum
+  (dipanggil `sendReaction` di `main.dart` setiap kirim berhasil, bersama haptic).
+- **Pratinjau jujur**: `OledPreview` (glow, grid piksel, label 128×64), teks `oled_text.dart`, ekspresi
+  `face_preview.dart` (geometri `face.cpp`, dicek terhadap tangkapan firmware), `SlotGrid` 4×2.
+- **Radar ketinggalan** `lib/radar.dart` (RSSI dari `BleLink.lastRssi()` lewat MethodChannel `rssi`).
+- Memuat = kerangka abu-abu (`SkeletonCard`), bukan spinner. Animasi berhenti bila "kurangi animasi" sistem aktif.
+- Diuji di mode terang + ukuran huruf 130% tanpa tata letak meluber.
+
 ## Tampilan (0.5.3)
 
 Komponen bersama di `lib/ui.dart` (`PageBody`, `SectionHeader`, `Panel`, `Field`, `Choices`, `ActionBar`, `FeatureCard`,

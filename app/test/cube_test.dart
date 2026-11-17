@@ -39,4 +39,17 @@ void main() {
       }
     });
   }
+
+  testWidgets('CubeCheer: tersenyum sebentar lalu kembali', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.instance.data(Brightness.dark),
+      home: const Center(child: LokanaCube(mood: CubeMood.mengantuk)),
+    ));
+    await tester.pump(const Duration(milliseconds: 300));
+    CubeCheer.now();
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));   // 650 ms senang + transisi kembali
+    }
+    expect(tester.takeException(), isNull);
+  });
 }
