@@ -6,6 +6,7 @@ import '../link/proto.dart';
 import '../main.dart';
 import '../theme.dart';
 import '../ui.dart';
+import 'cube_page.dart';
 import 'guide_page.dart';
 import 'leave_page.dart';
 
@@ -246,6 +247,12 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('Lokana OS'),
               trailing: Text(link.info!.fwVersion, style: t.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
             ),
+          ListTile(
+            title: const Text('Lokana Cube'),
+            subtitle: const Text('Pratinjau gambar & mood Lokana'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CubePage())),
+          ),
           ListTile(
             title: const Text('Lisensi'),
             subtitle: const Text('Kode MIT · font Baloo 2 (OFL)'),
