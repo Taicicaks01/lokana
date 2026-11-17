@@ -262,29 +262,28 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      Aksen "Lokana" di `theme.dart` sudah diganti pink `#F478AA` (toska lama jadi pilihan "Toska", "Merah muda"
      dihapus karena kembar). Cari sisa warna toska `0xFF2BB3C0`/`#2BB3C0` di Kotlin (warna notifikasi
      `setColor`) dan `res/` (launch_background, styles) lalu samakan ke pink; latar splash pakai `#1A161E`.
-  1. ⬜ **Desain ulang aplikasi Android** sesuai `docs/DESIGN.md` (mockup di artifact "Lokana App — desain"),
+  1. ✅ **Desain ulang aplikasi Android** (2026-11-17, diuji Wayan di HP) sesuai `docs/DESIGN.md` (mockup di artifact "Lokana App — desain"),
      bisa jalan paralel selama Lokana Cube belum dirakit. Kerjakan per layar, jangan sekaligus; uji di HP tiap layar.
-     Progres (`DESIGN.md` §7): 🧪 1 token & tema (`lib/tokens.dart`, `context.lk`; pink brand hanya lewat
-     `AppTheme.primaryButton` karena tema FilledButton ikut berlaku untuk tonal), 🧪 2 `lib/cube.dart` `LokanaCube`
-     + `paintLokanaEyes` (pratinjau: Pengaturan → Tentang → Lokana Cube), 🧪 3 `lib/shell.dart` 4 tab (halaman lama
-     dengan `embedded: true`; Cari HP masih di Pengaturan sampai langkah 6), 🧪 4 Beranda (hero `LokanaCube` + chip
+     Progres (`DESIGN.md` §7): ✅ 1 token & tema (`lib/tokens.dart`, `context.lk`; pink brand hanya lewat
+     `AppTheme.primaryButton` karena tema FilledButton ikut berlaku untuk tonal), ✅ 2 `lib/cube.dart` `LokanaCube`
+     + `paintLokanaEyes` (pratinjau: Pengaturan → Tentang → Lokana Cube), ✅ 3 `lib/shell.dart` 4 tab (halaman lama
+     dengan `embedded: true`; Cari HP masih di Pengaturan sampai langkah 6), ✅ 4 Beranda (hero `LokanaCube` + chip
      Tersambung/sinyal RSSI dari `BleLink.lastRssi()`/baterai hanya jika persen asli, `QuickAction` 88 dp, Remote
      Tap/2×/Tahan, kisi `StudioTile` dengan thumbnail OLED asli → `ShellNav.go(Tabs.studio, segment:)`; berhasil =
-     haptic ringan + mood senang), 🧪 5 Studio (`OledPreview` glow + grid piksel saat ≥ 2,5 dp/piksel + label
+     haptic ringan + mood senang), ✅ 5 Studio (`OledPreview` glow + grid piksel saat ≥ 2,5 dp/piksel + label
      `label: true`; `SlotGrid` 4×2 di `ui.dart`: cuplikan teks font piksel ukuran 2 / thumbnail galeri, kosong =
      garis putus-putus, memuat = kerangka; Teks & Gambar: "Kirim ke" = Tampilkan sekarang / Simpan ke slot + pilih
-     slot dari grid), 🧪 6 Terhubung (segmen Ketinggalan · Notifikasi · Cari HP; `lib/radar.dart` `LeaveRadar`: dua cincin,
+     slot dari grid), ✅ 6 Terhubung (segmen Ketinggalan · Notifikasi · Cari HP; `lib/radar.dart` `LeaveRadar`: dua cincin,
      jarak = `(−rssi − 50) / 40`, dekat 2,8 dtk rapat, jauh 1,2 dtk lebar, null = diam & redup, Cube melirik saat jauh;
      `pages/find_phone_page.dart` berisi cara memanggil + nada yang dipindah dari Pengaturan).
-     🧪 7 Pengaturan (kartu perangkat dengan `LokanaCube` + status; Lokana: kecerahan, layar mati, suara, putar 180°,
+     ✅ 7 Pengaturan (kartu perangkat dengan `LokanaCube` + status; Lokana: kecerahan, layar mati, suara, putar 180°,
      Panduan, nama BT lewat lembar bawah; kerangka abu-abu saat REPORT dibaca; Aplikasi; Lainnya: Cara pakai, pratinjau
-     Cube, lisensi, versi), 🧪 8 Sambungkan (hero `LokanaCube`: mengantuk saat diam/menyambung ulang, melirik saat
+     Cube, lisensi, versi), ✅ 8 Sambungkan (hero `LokanaCube`: mengantuk saat diam/menyambung ulang, melirik saat
      mencari, siaga saat menyambung/pairing; satu aksi utama "Sambungkan ke <nama>" atau "Cari Lokana"; kartu
-     perangkat dengan Cube kecil + bar sinyal; kerangka saat mencari), 🧪 9 Poles (`sendReaction`: haptic + `CubeCheer`
+     perangkat dengan Cube kecil + bar sinyal; kerangka saat mencari), ✅ 9 Poles (`sendReaction`: haptic + `CubeCheer`
      di semua kirim; Ekspresi tanpa emoji lewat `lib/face_preview.dart` = port geometri `face.cpp`, dicek berdampingan
      dengan tangkapan firmware; `SkeletonCard` ganti spinner; `OledPreview` diam saat "kurangi animasi"; mode terang
-     + huruf 130% tanpa overflow, Ukuran huruf Teks jadi chip). Semua langkah `DESIGN.md` §7 selesai; **menunggu uji
-     Wayan di HP**, lalu tandai ✅ dan push.
+     + huruf 130% tanpa overflow, Ukuran huruf Teks jadi chip). Semua langkah `DESIGN.md` §7 selesai dan disetujui Wayan.
   2. Lanjut **Backlog hasil audit** di bawah (v0.5.5 Daya, OTA, Play Store, CI, Desktop, kerapian), lalu v0.6 dst.
   - 🟡 **Slot teks: kelola dari Lokana** (ide Wayan). Slot 1–8 + `TEXT_SLOT` **sudah ada sejak v0.5.3**,
     jangan dibuat ulang. Sisanya: cek modul Teks di Lokana, lalu tambah yang belum ada: pilih/putar slot,
