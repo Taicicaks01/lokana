@@ -25,6 +25,10 @@ Jangan diubah tanpa persetujuan pemilik proyek (Wayan):
 
 - **Tidak memakai Chronos** atau aplikasi pihak ketiga. Aplikasi sendiri: **Aplikasi Lokana**.
 - **Android dulu**: semua fitur wajib jalan di Android. iPhone tetap didukung, dikerjakan belakangan.
+  *Keputusan 2026-11-17:* **selesaikan Android dulu sesuai rencana awal**, baru masuk iPhone (rencananya sudah
+  ada di "Fase iPhone" bawah, jangan dikerjakan sebelum Wayan bilang mulai). Wayan **tidak punya Mac**.
+- **Kualitas aplikasi**: targetnya lebih bagus dari aplikasi wearable di pasaran. Ikuti `docs/DESIGN.md`.
+- Ikon aplikasi: **konsep E, kubus + gantungan**. Sumber ada di `brand/` (jangan gambar ulang manual).
 - Aplikasi HP: **Flutter + Kotlin** (Kotlin untuk *foreground service* dan *NotificationListener*).
 - Layar utama **128×64**. Varian 128×32 boleh tetap bisa di-build, tapi bukan prioritas tata letak.
 - HP ↔ Lokana lewat **BLE**. PC ↔ Lokana lewat **USB serial dulu**, WiFi UDP menyusul. BLE tidak dipakai untuk data PC.
@@ -45,6 +49,7 @@ app/        Aplikasi Lokana Android (Flutter UI + Kotlin BLE), lihat app/README.
 desktop/    Lokana Desktop — belum dimulai
 hardware/   skema, PCB, casing — belum dimulai
 docs/       arsitektur, quick start (GitHub Pages)
+brand/      ikon & aset merek (Android, iOS, Play Store, web) + generator brand/tools/gen_icons.py
 ```
 
 ## Build, upload, monitor (Windows)
@@ -94,7 +99,15 @@ flutter build apk --release --split-per-abi   # HP modern: app-arm64-v8a-release
 | Tombol | Sensor sentuh TTP223 di GPIO3 (aktif HIGH) | Wokwi: tombol mekanis ke GND (`-DBTN_ACTIVE_LOW=1`). Tombol BOOT (GPIO9) tidak dipakai karena jadi SCL; jangan ditekan saat jalan |
 | Buzzer pasif | GPIO10 | |
 | LED bawaan | GPIO8 (= SDA) | Tidak dipakai firmware (`PIN_LED -1`); berkedip redup mengikuti lalu lintas I2C |
-| Baterai | GPIO1 (pembagi tegangan 1:2) | Belum terpasang di prototipe (`PIN_BATT=-1`) |
+| Baterai | GPIO1 (R1 100k / R2 100k + 100 nF ke GND) | Dipasang **setelah saklar, sebelum D1** (tegangan sel asli). Firmware: `-DPIN_BATT=1` di env `supermini` (belum diaktifkan) |
+| Deteksi charge (opsional) | GPIO4 (100k/100k dari IN+ TP4056) | Baca dengan **ADC**: > 2.1 V = charger dicolok. Jangan sebagai input digital (bisa 1.6–1.8 V saat D2 terpasang) |
+
+**Jalur daya (case v1.1):** LiPo 102530 → TP4056 Type-C + DW01A (Rprog **4.7 kΩ** ≈ 255 mA) → OUT+ → saklar
+SS12D00 → **D1 Schottky** → pin 5V Super Mini. GND sistem dari **OUT−**. Opsional **D2**: 5V Super Mini → IN+ TP4056
+(port program ikut mengisi). Karena D1 (±0.3 V), regulator 3.3 V mulai kurang tegangan saat sel ±3.5 V.
+Port: USB-C **kanan** = Super Mini (program/data), USB-C **bawah** = TP4056 (charge), saklar di **kiri**.
+Detail, gambar wiring, dan urutan rakit: `hardware/case/README.md`, `lokana_wiring.png`, `lokana_urutan_rakit.png`.
+Case parametrik Fusion: `hardware/case/lokana_case_v1.py` (dokumen Fusion "Lokana Cube v1", project RnD).
 
 Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimpa lewat
 `build_flags` di `platformio.ini`.
@@ -240,6 +253,83 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   Lulus 152/152 uji USB, 33 uji Flutter. Diuji di HP lewat adb: Lokana ditahan di bootloader → status 8, RSSI −58
   → notifikasi "Lokana terputus" tanpa bunyi, hilang saat tersambung lagi; Bluetooth HP dimatikan → Lokana: alasan
   `0x213` → tanpa pengingat. Uji berjalan menjauh (dua arah) oleh Wayan: berfungsi.
+- **Urutan kerja (keputusan Wayan 2026-11-17): Android dulu sampai selesai, baru iPhone.**
+  0. ✅ **Pasang ikon baru** (2026-11-17; `res/values/colors.xml` `lokana_pink` + `splash_background`, notifikasi
+     `setColor` pink, latar launch & splash Flutter `#1A161E`): salin `brand/android/res/*` → `app/android/app/src/main/res/` (timpa ikon
+     Flutter bawaan dan `ic_stat_lokana.xml` lama), tambah `android:roundIcon="@mipmap/ic_launcher_round"` di
+     `<application>`. Cek pemanggil `R.drawable.ic_stat_lokana` di Kotlin tetap jalan. Build, uninstall, pasang,
+     lalu cek ikon di launcher, themed icon (Android 13+), dan status bar. Detail: `brand/README.md`.
+     Aksen "Lokana" di `theme.dart` sudah diganti pink `#F478AA` (toska lama jadi pilihan "Toska", "Merah muda"
+     dihapus karena kembar). Cari sisa warna toska `0xFF2BB3C0`/`#2BB3C0` di Kotlin (warna notifikasi
+     `setColor`) dan `res/` (launch_background, styles) lalu samakan ke pink; latar splash pakai `#1A161E`.
+  1. ⬜ **Desain ulang aplikasi Android** sesuai `docs/DESIGN.md` (mockup di artifact "Lokana App — desain"),
+     bisa jalan paralel selama Lokana Cube belum dirakit. Kerjakan per layar, jangan sekaligus; uji di HP tiap layar.
+  2. Lanjut **Backlog hasil audit** di bawah (v0.5.5 Daya, OTA, Play Store, CI, Desktop, kerapian), lalu v0.6 dst.
+  - 🟡 **Slot teks: kelola dari Lokana** (ide Wayan). Slot 1–8 + `TEXT_SLOT` **sudah ada sejak v0.5.3**,
+    jangan dibuat ulang. Sisanya: cek modul Teks di Lokana, lalu tambah yang belum ada: pilih/putar slot,
+    hapus, atur lama tampil, putar bergiliran otomatis (semua dengan satu tombol sentuh), dan beberapa slot
+    contoh bawaan untuk unit baru. Menulis teks tetap dari aplikasi.
+  - 🟡 **Menu Developer pin** (setelah desain baru + OTA): menu tersembunyi (Pengaturan → Tentang → ketuk Versi 7×).
+    Pin SDA/SCL/tombol (aktif HIGH/LOW)/buzzer/baterai ADC/deteksi charge + slot fitur baru; pin pindah dari
+    compile-time ke NVS; pesan baru `HW_CONFIG`; firmware memvalidasi ulang; mode uji auto-kembali 60 dtk kalau
+    OLED tidak terdeteksi/tidak dikonfirmasi; console `pins reset`. Peringatan: ⛔ GPIO18/19 (USB) dan pin
+    bentrok; ⚠️ strapping GPIO2/8/9 (aman untuk I2C ber-pull-up, bukan untuk tombol yang menarik LOW saat boot;
+    GPIO9 = tombol BOOT, GPIO8 = LED onboard); ℹ️ GPIO20/21 = UART0 (log boot); baterai/charge wajib ADC1 GPIO0–4.
+- **Fase iPhone (JANGAN dikerjakan sebelum Android selesai dan Wayan bilang mulai):** pengguna iPhone 11 sudah
+  menunggu. Tidak ada Mac, jadi pilih jalur tanpa Xcode lokal.
+  1. **Mode iPhone tanpa aplikasi (ANCS + CTS)** (firmware): firmware jadi GATT *client* di koneksi yang sama
+     (iPhone = central). Iklankan *solicitation* ANCS (`7905F431-B5CE-4E99-A40F-4B1E122D00D0`), bonding lewat
+     Settings → Bluetooth iPhone (passkey di OLED, sama dengan alur sekarang). Isi:
+     - ANCS: notifikasi (judul + aplikasi + isi pendek) → modul Notifikasi; panggilan masuk (kategori IncomingCall)
+       → modul Panggilan; *Positive/Negative Action* untuk terima/tolak bila didukung.
+     - CTS (`0x1805`): sinkron jam otomatis saat tersambung.
+     - Pengingat ketinggalan tetap jalan dari sisi Lokana (RSSI). Cari HP tidak tersedia tanpa aplikasi.
+     - **Sambung ulang** ke iPhone dikenal rewel: iklan cepat sebentar setelah putus, simpan bond, *keep-alive*,
+       uji di iPhone 11 sungguhan (kunci layar, Bluetooth mati-nyala, jauh-dekat, semalaman).
+     - Aplikasi Android dan Lokana Link tidak boleh rusak: deteksi jenis HP dari ada/tidaknya layanan ANCS.
+     - Rujukan: proyek IlluminANCS (ESP32-C3 + NimBLE). Tulis ringkasan di `docs/ARCHITECTURE.md`.
+  2. **Lokana Web: aplikasi yang sama untuk iPhone tanpa Mac** (⏳ *usulan, tunggu OK Wayan*, karena
+     menyentuh keputusan "konfigurasi hanya lewat aplikasi"; ini bukan web portal di perangkat).
+     Build **Flutter Web** dari kode `app/` yang sama, dihosting di GitHub Pages, memakai **Web Bluetooth**.
+     iPhone membukanya lewat browser gratis **Bluefy** (Safari belum mendukung Web Bluetooth). Chrome di
+     Android/PC juga bisa, jadi sekaligus jadi pengganti Desktop sederhana.
+     - Mulai dengan **spike**: satu halaman HTML/JS kecil → konek, pairing passkey (karakteristik terenkripsi),
+       kirim 1 frame, terima ACK di Bluefy + iPhone 11. Kalau gagal, berhenti dan laporkan.
+     - Abstraksi `LinkBackend`: `ChannelBackend` (Android, MethodChannel ke Kotlin, perilaku sekarang) dan
+       `WebBleBackend` (pakai `dart:js_interop`, **tanpa paket pihak ketiga**). Framing/`seq`/ACK/potong per MTU
+       diport dari `BleLink.kt` ke Dart khusus web, dan diuji byte-nya di `test/`.
+     - Halaman khusus Android (akses notifikasi, ketinggalan di HP, Cari HP, nada dering, baterai) disembunyikan
+       di web. Notifikasi dan jam di iPhone datang lewat ANCS/CTS (poin 1).
+     - Pengaturan disimpan di `localStorage` (web), bukan SharedPreferences.
+  3. **Aplikasi iOS native (kalau pembeli iPhone bertambah)**: build lewat GitHub Actions runner
+     macOS (gratis untuk repo publik): `flutter build ios --release --no-codesign` → .ipa. Untuk uji, pasang dengan
+     Sideloadly di Windows memakai Apple ID gratis (kedaluwarsa 7 hari). Untuk pembeli, perlu Apple Developer
+     Program (berbayar tahunan) → TestFlight/App Store. Lapisan BLE iOS ditulis Swift (CoreBluetooth). Ikon:
+     `brand/ios/AppIcon.appiconset/`.
+- **Backlog hasil audit 2026-11-17 (urut prioritas; setelah tugas 0–1 di atas kecuali Wayan bilang lain):**
+  - 🔴 **v0.5.5 Daya & baterai** (pengukuran arus menunggu Lokana Cube dirakit)
+    1. Ukur arus (USB tester / multimeter seri baterai): layar nyala, layar mati, BLE terhubung vs iklan. Catat di
+       `docs/ARCHITECTURE.md` §2.5 + perkiraan umur baterai 700 mAh.
+    2. Manajemen daya: `esp_pm_configure` (DFS 80–160 MHz + `light_sleep_enable`, butuh `CONFIG_PM_ENABLE` — cek
+       apakah Arduino 2.0.17 prebuilt mendukung; kalau tidak, kurangi CPU ke 80 MHz + `delay()` di loop saat layar
+       mati), interval koneksi BLE lebih panjang saat layar mati (`updateConnParams`), interval iklan lebih jarang
+       setelah 1 menit tanpa koneksi. Jangan sampai merusak pengingat ketinggalan (RSSI tiap 2 dtk).
+    3. Baterai: aktifkan `-DPIN_BATT=1` di env `supermini` (wokwi sudah), ikon baterai di status bar/Info, kirim
+       persen asli di `DEVICE_INFO`, peringatan < 3.55 V, layar mati paksa + deep sleep < 3.40 V (ingat drop D1),
+       opsional GPIO4 deteksi charge (ADC > 2.1 V) → ikon mengisi.
+  - 🔴 **OTA + rollback** (sebelum ada unit dijual): `OTA` sesuai spesifikasi (BEGIN/CHUNK/END/ABORT/PROGRESS,
+    SHA-256), hanya BLE terenkripsi/USB; timpa `verifyRollbackLater()` lalu `esp_ota_mark_app_valid_cancel_rollback()`
+    setelah boot sehat (OLED + BLE siap); uji rollback dengan firmware yang sengaja crash. Aplikasi: halaman update
+    (ambil rilis GitHub, tombol "Lihat perubahan & kode di GitHub"). Mode Update (WiFi AP / USB) masih menunggu keputusan Wayan.
+  - 🟡 **Kesiapan Play Store**: kunci rilis (bukan debug key), kebijakan privasi, deklarasi akses notifikasi &
+    `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`; pertimbangkan **CompanionDeviceManager** (izin latar + dialog pairing
+    yang lebih baik — sekaligus menutup backlog dialog PIN generik).
+  - 🟡 **CI GitHub Actions**: `pio run -e supermini -e supermini-091 -e wokwi` + `flutter test` di setiap push/PR.
+  - 🟡 **Lokana Desktop** masih 0% (`desktop/` kosong): mulai dari `protocol/tools/lokana_link.py` → monitor PC lewat USB (v0.7).
+  - 🟢 **Kerapian repo**: commit `hardware/case/`; `web/` placeholder bertentangan dengan keputusan "tanpa web flasher"
+    → jadikan quick start GitHub Pages (`docs/`) atau hapus; `app/README.md` masih menulis versi 0.5.0; tambah
+    lisensi hardware (CERN-OHL) di `hardware/`, `CHANGELOG.md`, `CONTRIBUTING.md`, rilis GitHub (firmware .bin + APK);
+    cek tampilan Wokwi (belum sejak v0.2).
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

@@ -21,12 +21,13 @@ class AppTheme extends ChangeNotifier {
   static const _m = MethodChannel('lokana/link');
 
   static const accents = [
-    AccentColor('lokana', 'Lokana', Color(0xFF2BB3C0)),
+    // Pink PETG casing & ikon (brand/README.md). Toska = warna bawaan lama.
+    AccentColor('lokana', 'Lokana', Color(0xFFF478AA)),
+    AccentColor('toska', 'Toska', Color(0xFF2BB3C0)),
     AccentColor('biru', 'Biru', Color(0xFF3D7BF7)),
     AccentColor('ungu', 'Ungu', Color(0xFF7C5CE0)),
     AccentColor('hijau', 'Hijau', Color(0xFF2E9E5B)),
     AccentColor('jingga', 'Jingga', Color(0xFFE8792B)),
-    AccentColor('merah', 'Merah muda', Color(0xFFD94F7C)),
     AccentColor('emas', 'Emas', Color(0xFFC9A227)),
   ];
 

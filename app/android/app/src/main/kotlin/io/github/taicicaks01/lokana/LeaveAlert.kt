@@ -9,6 +9,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -113,6 +114,7 @@ object LeaveAlert {
         }
         val b = NotificationCompat.Builder(app, LinkService.CH_LEAVE)
             .setSmallIcon(R.drawable.ic_stat_lokana)
+            .setColor(ContextCompat.getColor(app, R.color.lokana_pink))
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

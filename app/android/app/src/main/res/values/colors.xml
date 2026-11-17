@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warna merek (brand/README.md) -->
+    <color name="lokana_pink">#F478AA</color>
+    <!-- Latar layar pembuka = latar ikon, supaya ikon & splash menyatu -->
+    <color name="splash_background">#1A161E</color>
+</resources>

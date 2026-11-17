@@ -146,7 +146,7 @@ class _LokanaSplashState extends State<LokanaSplash> with SingleTickerProviderSt
       behavior: HitTestBehavior.opaque,
       onTap: _skip,
       child: ColoredBox(
-        color: Colors.black,
+        color: const Color(0xFF1A161E),             // = latar ikon & layar launch Android (brand/)
         child: SizedBox.expand(
           child: _art == null
               ? null

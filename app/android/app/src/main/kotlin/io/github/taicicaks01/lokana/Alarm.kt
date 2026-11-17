@@ -18,6 +18,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 /**
  * Cari HP (FIND_PHONE): bunyi alarm keras + getar + notifikasi dengan tombol "Ketemu".
@@ -183,6 +184,7 @@ object Alarm {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(app, LinkService.CH_ALARM)
             .setSmallIcon(R.drawable.ic_stat_lokana)
+            .setColor(ContextCompat.getColor(app, R.color.lokana_pink))
             .setContentTitle("Lokana memanggil HP ini")
             .setContentText("Ketuk \"Ketemu\" untuk menghentikan bunyi")
             .setPriority(NotificationCompat.PRIORITY_MAX)

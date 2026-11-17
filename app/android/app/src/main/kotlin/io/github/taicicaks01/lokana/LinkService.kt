@@ -75,6 +75,7 @@ class LinkService : Service() {
             Intent(this, LinkService::class.java).setAction(ACTION_DISCONNECT), PendingIntent.FLAG_IMMUTABLE)
         val n = NotificationCompat.Builder(this, CH_LINK)
             .setSmallIcon(R.drawable.ic_stat_lokana)
+            .setColor(ContextCompat.getColor(this, R.color.lokana_pink))
             .setContentTitle("Lokana")
             .setContentText("Menjaga koneksi dengan Lokana")
             .setContentIntent(open)
