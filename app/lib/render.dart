@@ -173,11 +173,18 @@ Future<Anim1?> decodeImageFile(Uint8List bytes,
   return Anim1(screenW, screenH, frames, frameMs: ms);
 }
 
-/// Pratinjau layar OLED: piksel menyala biru muda di atas hitam. Animasi diputar sesuai frameMs.
+/// Pratinjau layar OLED 1:1 piksel (DESIGN.md §1.2, §4): piksel menyala warna OLED pilihan pengguna di atas
+/// hitam, glow tipis, grid piksel tipis saat satu piksel ≥ 2,5 dp, dan label "128×64" di bibir bingkai.
+/// Animasi diputar sesuai frameMs. Bingkai selalu 2:1 dan pas di kotak mana pun (tidak meluber).
 class OledPreview extends StatefulWidget {
   final Anim1? anim;
   final int screenW, screenH;
-  const OledPreview({super.key, this.anim, this.screenW = 128, this.screenH = 64});
+  /// Tampilkan label ukuran layar di bibir bawah bingkai (pratinjau utama).
+  final bool label;
+  /// Glow tipis di sekitar piksel menyala. Matikan untuk thumbnail kecil.
+  final bool glow;
+  const OledPreview(
+      {super.key, this.anim, this.screenW = 128, this.screenH = 64, this.label = false, this.glow = true});
 
   @override
   State<OledPreview> createState() => _OledPreviewState();
@@ -220,19 +227,45 @@ class _OledPreviewState extends State<OledPreview> {
   Widget build(BuildContext context) {
     final a = widget.anim;
     final b = a == null || a.frames.isEmpty ? null : a.frames[_f % a.frames.length];
-    // Center: di dalam kotak yang ukurannya dipaksa (misal sel grid), layar tetap 2:1 dan tidak meluber
-    return Center(child: AspectRatio(
-      aspectRatio: widget.screenW / widget.screenH,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white24, width: 2),
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2;
+    const pad = 6.0;
+    final lab = widget.label ? 16.0 : 0.0;
+    return LayoutBuilder(builder: (context, c) {
+      // Area piksel 2:1 terbesar yang muat, ditambah bingkai (dan label)
+      final maxW = c.maxWidth.isFinite ? c.maxWidth : 360.0;
+      var w = maxW - pad * 2;
+      if (c.maxHeight.isFinite) w = min(w, (c.maxHeight - pad * 2 - lab) * widget.screenW / widget.screenH);
+      w = max(0, w);
+      final h = w * widget.screenH / widget.screenW;
+      return Center(
+        child: Container(
+          width: w + pad * 2,
+          height: h + pad * 2 + lab,
+          padding: EdgeInsets.fromLTRB(pad, pad, pad, pad + lab),
+          decoration: BoxDecoration(
+            color: const Color(0xFF060508),
+            borderRadius: BorderRadius.circular(w > 200 ? 12 : 8),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: w > 200 ? 1.5 : 1),
+          ),
+          child: Stack(clipBehavior: Clip.none, children: [
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                    painter: _OledPainter(b, widget.screenW, widget.screenH, AppTheme.instance.oled.color, dpr,
+                        widget.glow)),
+              ),
+            ),
+            if (widget.label)
+              Positioned(
+                right: 0,
+                bottom: -lab + 2,
+                child: Text('${widget.screenW}×${widget.screenH}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 0.5)),
+              ),
+          ]),
         ),
-        padding: const EdgeInsets.all(6),
-        child: CustomPaint(painter: _OledPainter(b, widget.screenW, widget.screenH, AppTheme.instance.oled.color)),
-      ),
-    ));
+      );
+    });
   }
 }
 
@@ -240,26 +273,51 @@ class _OledPainter extends CustomPainter {
   final Bitmap1? b;
   final int sw, sh;
   final Color color;
-  _OledPainter(this.b, this.sw, this.sh, this.color);
+  final double dpr;
+  final bool glow;
+  _OledPainter(this.b, this.sw, this.sh, this.color, this.dpr, this.glow);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bm = b;
-    if (bm == null) return;
     // Skala dari sisi yang lebih sempit, lalu dipusatkan: gambar tidak pernah keluar dari bingkai
     final px = min(size.width / sw, size.height / sh);
     final dx = (size.width - sw * px) / 2, dy = (size.height - sh * px) / 2;
-    final p = Paint()..color = color;
-    final ox = (sw - bm.w) ~/ 2, oy = (sh - bm.h) ~/ 2;
-    for (var y = 0; y < bm.h; y++) {
-      for (var x = 0; x < bm.w; x++) {
-        if (bm.get(x, y)) {
-          canvas.drawRect(Rect.fromLTWH(dx + (ox + x) * px, dy + (oy + y) * px, px * 0.9, px * 0.9), p);
-        }
+    final area = Rect.fromLTWH(dx, dy, sw * px, sh * px);
+    final grid = px >= 2.5;
+    if (grid) {
+      // Tekstur sel OLED: sel mati sangat redup, dipisah garis gelap 1 piksel fisik
+      canvas.drawRect(area, Paint()..color = color.withValues(alpha: 0.05));
+      final line = Paint()
+        ..color = Colors.black
+        ..strokeWidth = 1 / dpr;
+      for (var x = 1; x < sw; x++) {
+        canvas.drawLine(Offset(dx + x * px, dy), Offset(dx + x * px, dy + sh * px), line);
+      }
+      for (var y = 1; y < sh; y++) {
+        canvas.drawLine(Offset(dx, dy + y * px), Offset(dx + sw * px, dy + y * px), line);
       }
     }
+    final bm = b;
+    if (bm == null) return;
+    final gap = grid ? 1 / dpr : 0.0;
+    final ox = (sw - bm.w) ~/ 2, oy = (sh - bm.h) ~/ 2;
+    final path = Path();
+    for (var y = 0; y < bm.h; y++) {
+      for (var x = 0; x < bm.w; x++) {
+        if (bm.get(x, y)) path.addRect(Rect.fromLTWH(dx + (ox + x) * px, dy + (oy + y) * px, px - gap, px - gap));
+      }
+    }
+    if (glow) {
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = color.withValues(alpha: 0.45)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, max(1.0, px * 0.8)));
+    }
+    canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(_OledPainter old) => old.b != b || old.color != color;
+  bool shouldRepaint(_OledPainter old) =>
+      old.b != b || old.color != color || old.dpr != dpr || old.glow != glow || old.sw != sw || old.sh != sh;
 }

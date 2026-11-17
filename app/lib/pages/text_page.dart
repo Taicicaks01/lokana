@@ -27,6 +27,7 @@ class _TextPageState extends State<TextPage> {
       font = prefs.prefInt('text_font', 0),
       duration = prefs.prefInt('text_duration', 0);
   int slot = 0;
+  int _slotPick = 1;                                // slot tujuan terakhir (mode Simpan ke slot)
   bool busy = false;
 
   List<TextSlot>? slots;
@@ -129,6 +130,24 @@ class _TextPageState extends State<TextPage> {
     }
   }
 
+  // Cuplikan slot: teks dalam font piksel (ukuran 2) di layar mini, dirender seperti di Lokana
+  List<Widget?>? _slotCache;
+  List<TextSlot>? _slotCacheOf;
+  List<Widget?>? _slotPreviews() {
+    final list = slots;
+    if (list == null) return loadingSlots ? null : List.filled(8, null);   // gagal dibaca: tetap bisa memilih slot
+    if (!identical(list, _slotCacheOf)) {
+      _slotCacheOf = list;
+      _slotCache = [
+        for (final s in list)
+          s.isEmpty
+              ? null
+              : OledPreview(anim: Anim1(128, 64, [OledTextLayout(s.text, size: 2).draw(0)]), glow: false),
+      ];
+    }
+    return _slotCache;
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -148,8 +167,9 @@ class _TextPageState extends State<TextPage> {
       body: PageBody(children: [
         // ---------- Pratinjau ----------
         _preview == null
-            ? _EmptyPreview(text: 'Ketik sesuatu, pratinjaunya muncul di sini')
-            : OledPreview(anim: _preview, screenW: link.info?.screenW ?? 128, screenH: link.info?.screenH ?? 64),
+            ? const _EmptyPreview(text: 'Ketik sesuatu, pratinjaunya muncul di sini')
+            : OledPreview(
+                anim: _preview, screenW: link.info?.screenW ?? 128, screenH: link.info?.screenH ?? 64, label: true),
         const SizedBox(height: Gap.s),
         Text(
           _layout == null
@@ -216,24 +236,33 @@ class _TextPageState extends State<TextPage> {
         // ---------- Tujuan ----------
         const SectionHeader('Kirim ke', icon: Icons.outbox_outlined),
         Panel(children: [
-          Choices<int>(
-            options: {0: 'Tampilkan sekarang', for (var s = 1; s <= 8; s++) s: used.contains(s) ? 'Slot $s •' : 'Slot $s'},
-            value: slot,
-            onChanged: (v) => setState(() => slot = v),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text('Tampilkan sekarang')),
+              ButtonSegment(value: true, label: Text('Simpan ke slot')),
+            ],
+            showSelectedIcon: false,
+            selected: {slot != 0},
+            onSelectionChanged: (v) => setState(() => slot = v.first ? _slotPick : 0),
           ),
           if (slot == 0)
             Field('Lama tampil',
                 child: Choices<int>(options: durations, value: duration, onChanged: (v) => setState(() => duration = v)))
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: Gap.m),
-              child: Text(
-                  used.contains(slot)
-                      ? 'Slot $slot sudah berisi. Menyimpan akan mengganti isinya.'
-                      : 'Teks di slot tersimpan di Lokana walau dimatikan. Lihat di Lokana: double-tap sampai '
-                          'modul Teks, lalu tap untuk berganti slot.',
-                  style: t.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+          else ...[
+            const SizedBox(height: Gap.m),
+            SlotGrid(
+              previews: _slotPreviews(),
+              selected: slot,
+              onTap: (s) => setState(() => slot = _slotPick = s),
             ),
+            const SizedBox(height: Gap.s),
+            Text(
+                used.contains(slot)
+                    ? 'Slot $slot sudah berisi. Menyimpan akan mengganti isinya.'
+                    : 'Teks di slot tersimpan di Lokana walau dimatikan. Di Lokana: double-tap sampai modul Teks, '
+                        'lalu tap untuk berganti slot.',
+                style: t.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+          ],
         ]),
 
         // ---------- Slot tersimpan ----------
@@ -252,24 +281,22 @@ class _TextPageState extends State<TextPage> {
           const Notice('Perbarui firmware Lokana ke 0.5.3 untuk melihat isi slot di sini.', icon: Icons.system_update_alt)
         else if (slots == null && !loadingSlots)
           const Notice('Isi slot belum terbaca. Tekan muat ulang.', icon: Icons.sync_problem)
-        else
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: Gap.s,
-            crossAxisSpacing: Gap.s,
-            childAspectRatio: 1.25,
-            children: [
-              for (var i = 1; i <= 8; i++)
-                _TextSlotTile(
-                  slot: slots == null || slots!.length < i ? null : slots![i - 1],
-                  number: i,
-                  onTap: slots == null ? null : () => _openSlot(slots![i - 1]),
-                  onEmptyTap: () => setState(() => slot = i),
-                ),
-            ],
+        else ...[
+          SlotGrid(
+            previews: _slotPreviews(),
+            onTap: (i) {
+              final s = slots![i - 1];
+              if (s.isEmpty) {
+                setState(() => slot = _slotPick = i);       // slot kosong = pilih sebagai tujuan simpan
+              } else {
+                _openSlot(s);
+              }
+            },
           ),
+          const SizedBox(height: Gap.s),
+          Text('Ketuk slot terisi untuk menampilkan, mengubah, atau mengosongkannya.',
+              style: t.bodySmall, textAlign: TextAlign.center),
+        ],
       ]),
     );
   }
@@ -280,19 +307,13 @@ class _EmptyPreview extends StatelessWidget {
   const _EmptyPreview({required this.text});
 
   @override
-  Widget build(BuildContext context) => AspectRatio(
-        aspectRatio: 2,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white24, width: 2),
-          ),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) => Stack(alignment: Alignment.center, children: [
+        const OledPreview(label: true),
+        Padding(
+          padding: const EdgeInsets.all(24),
           child: Text(text, style: const TextStyle(color: Colors.white54), textAlign: TextAlign.center),
         ),
-      );
+      ]);
 }
 
 String _describe(TextSlot s) {
@@ -300,56 +321,6 @@ String _describe(TextSlot s) {
   const st = ['Diam', 'Berjalan', 'Berkedip'];
   const sz = ['Otomatis', 'Kecil', 'Sedang', 'Besar'];
   return '$f · ${sz[s.size.clamp(0, 3)]} · ${st[s.style.clamp(0, 2)]}';
-}
-
-class _TextSlotTile extends StatelessWidget {
-  final TextSlot? slot;
-  final int number;
-  final VoidCallback? onTap, onEmptyTap;
-  const _TextSlotTile({required this.slot, required this.number, this.onTap, this.onEmptyTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    final s = slot;
-    final empty = s == null || s.isEmpty;
-    return Card(
-      color: empty ? cs.surfaceContainerLowest : cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: empty ? BorderSide(color: cs.outlineVariant) : BorderSide.none,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: s == null ? null : (empty ? onEmptyTap : onTap),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Expanded(
-              child: s == null
-                  ? const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
-                  : empty
-                      ? Center(
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.add, color: cs.outline),
-                          Text('Kosong', style: t.bodySmall?.copyWith(color: cs.outline)),
-                        ]))
-                      : OledPreview(anim: Anim1(128, 64, [
-                          // teks berjalan: bingkai saat awal teks tepat di tepi kiri layar
-                          OledTextLayout(s.text, style: s.style == 1 ? 1 : 0, size: s.size, font: s.font)
-                              .draw(s.style == 1 ? 128 * 12 : 0),
-                        ])),
-            ),
-            const SizedBox(height: 6),
-            Text('Slot $number', style: t.labelMedium?.copyWith(fontWeight: FontWeight.w600)),
-            Text(empty ? 'Ketuk untuk memilih' : _describe(s), style: t.labelSmall?.copyWith(color: cs.onSurfaceVariant),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-          ]),
-        ),
-      ),
-    );
-  }
 }
 
 class _SlotSheet extends StatelessWidget {

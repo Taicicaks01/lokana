@@ -33,6 +33,7 @@ class _ImagePageState extends State<ImagePage> {
   late bool invert = prefs.prefBool('img_invert', false), dither = prefs.prefBool('img_dither', true);
   bool busy = false;
   int slot = 0;
+  int _slotPick = 1;                                // slot tujuan terakhir (mode Simpan ke slot)
   late int duration = prefs.prefInt('img_duration', 10);
   double progress = 0;
 
@@ -158,6 +159,21 @@ class _ImagePageState extends State<ImagePage> {
     if (full == true) _loadGallery();
   }
 
+  // Isi galeri untuk SlotGrid: thumbnail bingkai pertama; yang masih dibaca = kerangka abu-abu
+  List<Widget?>? _galleryPreviews() {
+    final list = slots;
+    if (list == null) return loadingGallery ? null : List.filled(8, null);   // firmware lama / gagal: tetap bisa memilih
+    return [
+      for (var i = 0; i < list.length; i++)
+        list[i].$1 == 0
+            ? null
+            : thumbs[i + 1] == null
+                ? DecoratedBox(
+                    decoration: BoxDecoration(color: context.lk.surface2, borderRadius: BorderRadius.circular(8)))
+                : OledPreview(anim: thumbs[i + 1], glow: false),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -173,7 +189,7 @@ class _ImagePageState extends State<ImagePage> {
         progress: busy ? progress : null,
       ),
       body: PageBody(children: [
-        OledPreview(anim: a, screenW: _w, screenH: _h),
+        OledPreview(anim: a, screenW: _w, screenH: _h, label: true),
         const SizedBox(height: Gap.s),
         Text(a == null ? 'Belum ada gambar'
             : '${a.frames.length} bingkai · ${a.w}x${a.h} · ${(a.totalBytes / 1024).toStringAsFixed(1)} KB'
@@ -271,11 +287,19 @@ class _ImagePageState extends State<ImagePage> {
         // ---------- Tujuan ----------
         const SectionHeader('Kirim ke', icon: Icons.outbox_outlined),
         Panel(children: [
-          Choices<int>(
-            options: {0: 'Tampilkan sekarang', for (var s = 1; s <= 8; s++) s: used.contains(s) ? 'Slot $s •' : 'Slot $s'},
-            value: slot,
-            onChanged: (v) => setState(() => slot = v),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text('Tampilkan sekarang')),
+              ButtonSegment(value: true, label: Text('Simpan ke slot')),
+            ],
+            showSelectedIcon: false,
+            selected: {slot != 0},
+            onSelectionChanged: (v) => setState(() => slot = v.first ? _slotPick : 0),
           ),
+          if (slot != 0) ...[
+            const SizedBox(height: Gap.m),
+            SlotGrid(previews: _galleryPreviews(), selected: slot, onTap: (s) => setState(() => slot = _slotPick = s)),
+          ],
           if (slot == 0)
             Field('Lama tampil',
                 child: Choices<int>(
@@ -285,7 +309,7 @@ class _ImagePageState extends State<ImagePage> {
                 ))
           else
             Padding(
-              padding: const EdgeInsets.only(top: Gap.m),
+              padding: const EdgeInsets.only(top: Gap.s),
               child: Text('Yang disimpan adalah hasil gambar seperti di pratinjau (termasuk ketajaman, warna, '
                   'dan kecepatan animasi).${used.contains(slot) ? ' Isi slot $slot akan diganti.' : ''}',
                   style: t.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -303,74 +327,21 @@ class _ImagePageState extends State<ImagePage> {
                     child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
                 : IconButton(onPressed: _loadGallery, icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'),
           ),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: Gap.s,
-            crossAxisSpacing: Gap.s,
-            childAspectRatio: 1.25,
-            children: [
-              for (var s = 1; s <= 8; s++)
-                _SlotTile(
-                  slot: s,
-                  info: slots == null || slots!.length < s ? null : slots![s - 1],
-                  thumb: thumbs[s],
-                  onTap: () => _openSlot(s),
-                  onEmptyTap: () => setState(() => slot = s),
-                ),
-            ],
+          SlotGrid(
+            previews: _galleryPreviews(),
+            onTap: (s) {
+              if (slots![s - 1].$1 == 0) {
+                setState(() => slot = _slotPick = s);       // slot kosong = pilih sebagai tujuan simpan
+              } else {
+                _openSlot(s);
+              }
+            },
           ),
+          const SizedBox(height: Gap.s),
+          Text('Ketuk slot terisi untuk melihat animasinya, menampilkan, atau menghapusnya.',
+              style: t.bodySmall, textAlign: TextAlign.center),
         ],
       ]),
-    );
-  }
-}
-
-class _SlotTile extends StatelessWidget {
-  final int slot;
-  final (int, int, int)? info;
-  final Anim1? thumb;
-  final VoidCallback onTap, onEmptyTap;
-  const _SlotTile({required this.slot, this.info, this.thumb, required this.onTap, required this.onEmptyTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    final loading = info == null;
-    final empty = !loading && info!.$1 == 0;
-    return Card(
-      color: empty ? cs.surfaceContainerLowest : cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: empty ? BorderSide(color: cs.outlineVariant) : BorderSide.none,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: loading ? null : (empty ? onEmptyTap : onTap),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Expanded(
-              child: empty
-                  ? Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.add, color: cs.outline),
-                      Text('Kosong', style: t.bodySmall?.copyWith(color: cs.outline)),
-                    ]))
-                  : thumb == null
-                      ? const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
-                      : OledPreview(anim: thumb),
-            ),
-            const SizedBox(height: 6),
-            Text('Slot $slot', style: t.labelMedium?.copyWith(fontWeight: FontWeight.w600)),
-            Text(
-                loading ? '...' : empty ? 'Ketuk untuk memilih' : (info!.$1 > 1 ? 'Animasi · ${info!.$1} bingkai' : 'Gambar'),
-                style: t.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-          ]),
-        ),
-      ),
     );
   }
 }

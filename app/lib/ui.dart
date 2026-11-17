@@ -472,3 +472,108 @@ class StudioTile extends StatelessWidget {
     );
   }
 }
+
+/// Kisi slot 1–8 di Lokana (DESIGN.md §4), 4 kolom × 2 baris.
+/// [previews]: null = sedang memuat (kerangka abu-abu); item null = slot kosong (garis putus-putus + tanda +).
+/// [selected]: slot tujuan simpan yang sedang dipilih (bingkai pink).
+class SlotGrid extends StatelessWidget {
+  final List<Widget?>? previews;
+  final int? selected;
+  final void Function(int slot) onTap;
+  final void Function(int slot)? onLongPress;
+  const SlotGrid({super.key, required this.previews, required this.onTap, this.selected, this.onLongPress});
+
+  static const slots = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final lk = context.lk;
+    final t = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 0.92,
+      children: [
+        for (var i = 1; i <= slots; i++)
+          Builder(builder: (context) {
+            final loading = previews == null;
+            final p = loading || previews!.length < i ? null : previews![i - 1];
+            final empty = !loading && p == null;
+            final sel = selected == i;
+            final r = BorderRadius.circular(LokanaTokens.rChip);
+            Widget box;
+            if (loading) {
+              box = DecoratedBox(decoration: BoxDecoration(color: lk.surface2, borderRadius: r));
+            } else if (empty) {
+              box = CustomPaint(
+                painter: _DashedRRect(color: sel ? cs.primary : lk.muted.withValues(alpha: 0.6), radius: LokanaTokens.rChip),
+                child: Center(child: Icon(Icons.add_rounded, color: sel ? cs.primary : lk.muted)),
+              );
+            } else {
+              box = Container(
+                decoration: BoxDecoration(
+                  color: lk.surface,
+                  borderRadius: r,
+                  border: Border.all(color: sel ? cs.primary : lk.line, width: sel ? 2 : 1),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: p,
+              );
+            }
+            return Semantics(
+              button: !loading,
+              label: 'Slot $i${empty ? ', kosong' : ''}${sel ? ', dipilih' : ''}',
+              child: InkWell(
+                borderRadius: r,
+                onTap: loading ? null : () => onTap(i),
+                onLongPress: loading || onLongPress == null ? null : () => onLongPress!(i),
+                child: Column(children: [
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: BoxDecoration(
+                        color: sel ? lk.pinkSoft : Colors.transparent,
+                        borderRadius: r,
+                      ),
+                      child: box,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('$i',
+                      style: t.labelSmall?.copyWith(
+                          color: sel ? cs.primary : lk.muted, fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+                ]),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class _DashedRRect extends CustomPainter {
+  final Color color;
+  final double radius;
+  _DashedRRect({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rr = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)).deflate(0.75);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final m in (Path()..addRRect(rr)).computeMetrics()) {
+      for (var d = 0.0; d < m.length; d += 9) {
+        canvas.drawPath(m.extractPath(d, min(d + 5, m.length)), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedRRect old) => old.color != color || old.radius != radius;
+}
