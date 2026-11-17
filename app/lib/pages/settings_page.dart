@@ -9,6 +9,7 @@ import '../ui.dart';
 import '../cube.dart';
 import 'cube_page.dart';
 import 'guide_page.dart';
+import 'update_page.dart';
 
 /// Pengaturan (DESIGN.md §3): kartu perangkat, Lokana (SETTINGS, perlu tersambung), Aplikasi (disimpan di HP),
 /// dan Lainnya (cara pakai, pratinjau Cube, lisensi, versi).
@@ -191,6 +192,14 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: s.bootGuide == null ? null : (v) => _set(() => pSettingsSet(bootGuide: v)),
             ),
             const Divider(),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.system_update_alt),
+              title: const Text('Pembaruan firmware'),
+              subtitle: Text('Lokana OS ${info?.fwVersion ?? '?'}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _open(const UpdatePage()),
+            ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.bluetooth_outlined),

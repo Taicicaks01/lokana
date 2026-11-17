@@ -1,4 +1,5 @@
 #include "console.h"
+#include "ota.h"
 #include "config.h"
 #include "core/core.h"
 #include "core/face.h"
@@ -35,6 +36,7 @@ static void help() {
     "left [0]             uji pengingat HP tertinggal (0 = HP kembali)\r\n"
     "name [nama]          nama Bluetooth (kosong = bawaan)\r\n"
     "ble                  status BLE & pairing\r\n"
+    "ota                  status slot firmware & masa uji OTA\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
     "tap|double|triple|long   simulasi tombol\r\n"
@@ -115,6 +117,7 @@ static void handle(char* line) {
   } else if (!strcasecmp(line, "find")) {
     events::post(EV_FIND_KEYS, !strcasecmp(arg, "stop") ? 0 : (atoi(arg) > 0 ? atoi(arg) : 10));
   } else if (!strcasecmp(line, "ble")) lklink::printStatus();
+  else if (!strcasecmp(line, "ota")) ota::printStatus();
   else if (!strcasecmp(line, "forget")) lklink::forgetBonds();
   else if (!strcasecmp(line, "time")) {
     int h, m;

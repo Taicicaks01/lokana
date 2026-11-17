@@ -2,6 +2,7 @@
 #include "link_proto.h"
 #include "text_store.h"
 #include "image_store.h"
+#include "ota.h"
 #include "notif_store.h"
 #include "config.h"
 #include "core/core.h"
@@ -110,7 +111,7 @@ static void sendDeviceInfo(Transport t) {
   if (lklink::bondCount() > 0) flags |= 1 << 2;
   uint32_t caps = CAP_NOTIF | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
-  caps |= CAP_SCREEN | CAP_TEXT_SLOT;
+  caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA;
 #if PIN_BUZZER >= 0
   caps |= CAP_BUZZER;
 #endif
@@ -316,6 +317,49 @@ static uint8_t onCustomText(Reader& r) {
   snprintf(msg, sizeof(msg), m.text[0] ? "Disimpan: slot %u" : "Slot %u dihapus", slot);
   events::post(EV_TOAST, 0, msg);
   return ST_OK;
+}
+
+// ---------------- OTA ----------------
+enum OtaOp : uint8_t { OO_BEGIN = 0, OO_CHUNK = 1, OO_END = 2, OO_ABORT = 3, OO_PROGRESS = 4 };
+
+static uint8_t onOta(Transport t, Reader& r) {
+  uint8_t op = r.u8();
+  if (!r.ok()) return ST_BAD_PAYLOAD;
+  switch (op) {
+    case OO_BEGIN: {
+      uint32_t size = r.u32();
+      const uint8_t* sha = r.bytes(32);
+      char ver[32] = "";
+      if (r.has()) r.str(ver, sizeof(ver));
+      if (!r.ok() || !sha) return ST_BAD_PAYLOAD;
+      return ota::begin(t, size, sha, ver);
+    }
+    case OO_CHUNK: {
+      uint32_t off = r.u32();
+      uint16_t n = r.left();
+      const uint8_t* d = r.bytes(n);
+      if (!r.ok() || !d) return ST_BAD_PAYLOAD;
+      return ota::chunk(t, off, d, n);
+    }
+    case OO_END: return ota::end(t);
+    case OO_ABORT: ota::hostAbort(t); return ST_OK;
+    case OO_PROGRESS: return ST_BAD_PAYLOAD;       // hanya D->H
+    default: return ST_NOT_SUPPORTED;
+  }
+}
+
+static void pumpOta() {
+  uint32_t got;
+  uint8_t p[5];
+  if (ota::takeProgress(got)) {
+    Writer w(p, sizeof(p));
+    w.u8(OO_PROGRESS); w.u32(got);
+    lklink::send((Transport)ota::transport(), T_OTA, 0, p, w.len());
+  }
+  if (uint8_t why = ota::takeAbort()) {
+    uint8_t a[2] = {OO_ABORT, why};
+    lklink::send((Transport)ota::transport(), T_OTA, 0, a, sizeof(a));
+  }
 }
 
 // ---------------- TEXT_SLOT ----------------
@@ -613,15 +657,16 @@ void dispatch(Transport t, uint8_t type, uint8_t seq, const uint8_t* p, uint16_t
       case T_UNPAIR:      st = onUnpair(t); break;
       case T_SCREEN:      st = onScreen(t, r); break;
       case T_TEXT_SLOT:   st = onTextSlot(t, r); break;
+      case T_OTA:         st = onOta(t, r); break;
       // Dikenal, tapi belum ada di firmware ini / arahnya hanya D->H
-      case T_DEVICE_INFO: case T_OTA: case T_BUTTON:
+      case T_DEVICE_INFO: case T_BUTTON:
       case T_NAV: case T_PC_STATS: case T_MEETING: case T_PHONE_STATS:
       case T_WIFI_PROV: case T_WIFI_STATUS:
         st = ST_NOT_SUPPORTED; break;
       default: st = ST_UNKNOWN_TYPE; break;
     }
   }
-  if ((type != T_HELLO && type != T_ANIM && type != T_SCREEN) || st != ST_OK)
+  if ((type != T_HELLO && type != T_ANIM && type != T_SCREEN && type != T_OTA) || st != ST_OK)
     Serial.printf("[link] %s: %s seq=%u len=%u -> %u\r\n", TR_NAME[t], typeName(type), seq, n, st);
   if (seq) ack(t, seq, type, st);
   if (st == ST_OK && afterAck) afterAck(t);
@@ -708,6 +753,7 @@ void update(uint32_t now) {
     endSession(TR_BLE);
     if (out.active && out.t == TR_BLE) { out.active = false; out.a.release(); }
     if (textOut.active && textOut.t == TR_BLE) textOut.active = false;
+    ota::transportLost(TR_BLE);
   }
   if (sec && !blePrevSecure) {                    // HP tersambung lagi: batalkan / tutup pengingat
     leaveAt = 0;
@@ -728,6 +774,8 @@ void update(uint32_t now) {
 #endif
   pumpOutbox(now);
   pumpTextOut(now);
+  pumpOta();
+  ota::update(now);
   pumpMirror(now);
 }
 

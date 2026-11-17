@@ -12,7 +12,7 @@ import 'splash.dart';
 import 'theme.dart';
 
 /// Versi aplikasi (samakan dengan pubspec.yaml dan CLIENT_NAME di BleLink.kt).
-const appVersion = '0.5.4';
+const appVersion = '0.5.5';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

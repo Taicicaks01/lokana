@@ -84,6 +84,28 @@ class MainActivity : FlutterActivity() {
                 "forget" -> BleLink.forget { ok -> result.success(ok) }
                 "openBluetooth" -> { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)); result.success(null) }
                 "pickImage" -> pickImage(result)
+
+                // ---- Pembaruan firmware (OTA, v0.5.5) ----
+                "pickFile" -> pickFile(result)
+                "sha256" -> {
+                    val b = call.argument<ByteArray>("bytes") ?: ByteArray(0)
+                    Executors.newSingleThreadExecutor().execute {
+                        val h = java.security.MessageDigest.getInstance("SHA-256").digest(b)
+                        Handler(Looper.getMainLooper()).post { result.success(h) }
+                    }
+                }
+                "openUrl" -> {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(call.argument<String>("url"))))
+                        result.success(true)
+                    } catch (_: Exception) { result.success(false) }
+                }
+                "keepScreenOn" -> {
+                    if (call.argument<Boolean>("on") == true) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    result.success(null)
+                }
+                "otaRestartExpected" -> { LeaveAlert.quietFor(this, 90_000); result.success(null) }
                 "getPrefs" -> result.success(getSharedPreferences("lokana_app", MODE_PRIVATE).all
                     .mapValues { it.value.toString() })
                 "setPref" -> {
@@ -160,6 +182,14 @@ class MainActivity : FlutterActivity() {
         @Suppress("DEPRECATION") startActivityForResult(Intent.createChooser(i, "Pilih gambar atau GIF"), 77)
     }
 
+    /** File apa saja (firmware .bin). Hasil: {name, bytes}, null = batal. Maks 4 MB. */
+    private fun pickFile(result: MethodChannel.Result) {
+        pickResult?.success(null)
+        pickResult = result
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
+        @Suppress("DEPRECATION") startActivityForResult(i, 80)
+    }
+
     // ---------------- Nada Cari HP ----------------
     private var ringResult: MethodChannel.Result? = null
 
@@ -204,11 +234,26 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 78 || requestCode == 79) { onRingtoneResult(requestCode, resultCode, data); return }
-        if (requestCode != 77) return
+        if (requestCode != 77 && requestCode != 80) return
         val r = pickResult ?: return
         pickResult = null
         val uri = data?.data
         if (resultCode != RESULT_OK || uri == null) { r.success(null); return }
+        if (requestCode == 80) {
+            Executors.newSingleThreadExecutor().execute {
+                val name = try {
+                    contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                } catch (_: Exception) { null } ?: "firmware.bin"
+                val bytes = try {
+                    contentResolver.openInputStream(uri)?.use { s -> s.readBytes().takeIf { it.size <= 4 * 1024 * 1024 } }
+                } catch (_: Exception) { null }
+                Handler(Looper.getMainLooper()).post {
+                    r.success(if (bytes == null) null else mapOf("name" to name, "bytes" to bytes))
+                }
+            }
+            return
+        }
         Executors.newSingleThreadExecutor().execute {
             val bytes = try {
                 contentResolver.openInputStream(uri)?.use { s ->

@@ -169,6 +169,8 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | APK ditolak Play Protect saat dipasang dari file manager/WhatsApp | Perlindungan penipuan Google di Indonesia memblokir aplikasi *sideload* yang memakai izin baca notifikasi; APK juga masih bertanda tangan *debug* | Pasang lewat `adb install -r` (USB debugging), atau matikan sementara Play Protect. Jangka panjang: kunci rilis + Google Play |
 | Aplikasi tidak menyambung lagi setelah Bluetooth HP dimatikan-nyalakan | Percobaan `connectGatt` saat adapter mati gagal diam-diam | Sejak 0.5.4 `BleLink` mendengarkan `ACTION_STATE_CHANGED` dan menyambung ulang saat `STATE_ON` |
 | Uji Lokana tanpa BLE (pengingat ketinggalan di HP) | — | `python -m esptool --port COM9 --after no_reset read_mac` menahan Lokana di bootloader; `--after hard_reset` menjalankannya lagi |
+| Versi di header firmware = "esp-idf: v4.4.7…", bukan versi Lokana | Pustaka Arduino prebuilt mengisi `esp_app_desc_t.version` | Pakai penanda `LOKANA_OS_VERSION:` (`services/ota.cpp`); simbol harus **dipakai** kode (linker `--gc-sections` membuang simbol tak terpakai walau `used`) |
+| OTA: data acak ditolak di CHUNK pertama, bukan di END | `esp_ota_write` memeriksa byte `0xE9` di tulisan pertama | Sudah dipetakan ke ABORT alasan 6; data uji harus diawali `0xE9` untuk menguji pemeriksaan di END |
 | Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
 | Serial diam setelah upload (port ada, `info` tidak dibalas) | DTR/RTS saat port dibuka | Skrip pyserial: buka dengan `dtr=False, rts=False`, tunggu ±1 dtk, lalu `dtr=True` |
 
@@ -337,7 +339,7 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     3. Baterai: aktifkan `-DPIN_BATT=1` di env `supermini` (wokwi sudah), ikon baterai di status bar/Info, kirim
        persen asli di `DEVICE_INFO`, peringatan < 3.55 V, layar mati paksa + deep sleep < 3.40 V (ingat drop D1),
        opsional GPIO4 deteksi charge (ADC > 2.1 V) → ikon mengisi.
-  - 🔴 **OTA + rollback** (sebelum ada unit dijual): `OTA` sesuai spesifikasi (BEGIN/CHUNK/END/ABORT/PROGRESS,
+  - ✅ (lihat v0.5.5 di atas) **OTA + rollback** (sebelum ada unit dijual): `OTA` sesuai spesifikasi (BEGIN/CHUNK/END/ABORT/PROGRESS,
     SHA-256), hanya BLE terenkripsi/USB; timpa `verifyRollbackLater()` lalu `esp_ota_mark_app_valid_cancel_rollback()`
     setelah boot sehat (OLED + BLE siap); uji rollback dengan firmware yang sengaja crash. Aplikasi: halaman update
     (ambil rilis GitHub, tombol "Lihat perubahan & kode di GitHub"). Mode Update (WiFi AP / USB) masih menunggu keputusan Wayan.
@@ -350,6 +352,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     perbarui setiap rilis), ✅ versi di `app/README.md`. Sisa: `web/` placeholder bertentangan dengan keputusan
     "tanpa web flasher" → jadikan quick start GitHub Pages (`docs/`) atau hapus; lisensi hardware (CERN-OHL) di
     `hardware/`, `CONTRIBUTING.md`, rilis GitHub (firmware .bin + APK); cek tampilan Wokwi (belum sejak v0.2).
+- **v0.5.5 🧪 OTA + rollback** (2026-11-18, poin 2 permintaan Wayan): `services/ota` (BEGIN/CHUNK berurutan +
+  kiriman ulang/END dengan SHA-256/ABORT/PROGRESS 64 KB, batas 30 dtk), `verifyRollbackLater()` = true, masa uji 10 dtk
+  + loop watchdog, valid lewat `esp_ota_mark_app_valid_cancel_rollback()`, NVS `ota/try` untuk pesan rollback,
+  penanda `LOKANA_OS_VERSION:` di image, modul tersembunyi **Update** (bar progres), console `ota`, env
+  `supermini-otacrash`. Aplikasi 0.5.5: `update_page.dart` (GitHub Releases `lokana-os-<versi>.bin` / file .bin),
+  `LokanaLink.sendFirmware`, Kotlin `sha256`/`pickFile`/`openUrl`/`keepScreenOn`/`LeaveAlert.quietFor`, izin INTERNET.
+  Lulus 175/175 uji USB (termasuk `test_v055`), uji OTA USB: update sukses + firmware rusak rollback.
+  **Belum diuji:** OTA lewat BLE dari HP; macet di loop (watchdog) di hardware.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

@@ -12,7 +12,9 @@
 #ifndef BLE_NAME_DEFAULT
 #define BLE_NAME_DEFAULT "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01"   // Lokana_लोचन-01
 #endif
-#define FW_VERSION "0.5.4"
+#ifndef FW_VERSION                 // bisa ditimpa build_flags (env uji OTA)
+#define FW_VERSION "0.5.5"
+#endif
 
 // ---------- Layar ----------
 #define SCREEN_W 128

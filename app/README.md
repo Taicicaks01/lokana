@@ -96,6 +96,15 @@ punya tombol utama yang selalu terlihat di bawah. Setelan terakhir halaman Teks 
   Slot tersimpan dibaca dari Lokana (`TEXT_SLOT`, firmware 0.5.3): tampilkan, ubah, atau kosongkan.
 - **Galeri gambar**: thumbnail selalu pas di bingkai 2:1 (`OledPreview` diskalakan dari sisi tersempit).
 
+## Pembaruan firmware (0.5.5)
+
+Pengaturan → **Pembaruan firmware** (`pages/update_page.dart`): cek rilis terbaru di GitHub Releases
+(`Taicicaks01/lokana`, aset `lokana-os-<versi>.bin`, lewat `dart:io` HttpClient + izin `INTERNET`) atau pilih file
+`.bin` di HP. `LokanaLink.sendFirmware` mengirim BEGIN/CHUNK (1195 B, ber-ACK)/END; SHA-256 dihitung Kotlin
+(`MessageDigest`). Selama mengirim layar HP tetap menyala; setelah END aplikasi menunggu Lokana tersambung lagi,
+lalu menunggu masa uji ±12 dtk sebelum menyatakan berhasil, atau melapor bahwa Lokana kembali ke versi lama.
+`LeaveAlert.quietFor` mencegah restart ini dianggap "Lokana tertinggal".
+
 ## Pengingat ketinggalan (0.5.4)
 
 Halaman `pages/leave_page.dart` (dari beranda dan Pengaturan).

@@ -7,6 +7,14 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Firmware & aplikasi: pembaruan firmware lewat aplikasi (OTA) — Lokana OS 0.5.5
+- Pesan `OTA` diaktifkan (bit `caps` 6): firmware dikirim lewat BLE dari aplikasi atau USB dari PC, diperiksa SHA-256,
+  lalu dipasang ke slot cadangan.
+- **Rollback otomatis**: firmware baru diuji ±10 detik setelah restart; kalau crash, macet, atau layar tidak menyala,
+  Lokana kembali sendiri ke versi lama dan memberi tahu di layar.
+- Aplikasi: Pengaturan → **Pembaruan firmware** (rilis GitHub atau file `.bin`, progres, hasil berhasil/rollback).
+- Alat PC: `lokana_link.py ota FILE`; uji `test_v055`.
+
 ### Aplikasi: desain baru "robot hidup" (`docs/DESIGN.md`)
 - **Ikon baru** konsep kubus + gantungan dari `brand/` (adaptive icon, themed icon Android 13+, ikon notifikasi);
   warna bawaan jadi pink `#F478AA`, latar pembuka `#1A161E`.

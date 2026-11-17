@@ -36,6 +36,7 @@ Contoh:
 Port dipilih otomatis (USB VID 303A = ESP32-C3). Pakai --port COM9 kalau ada beberapa.
 """
 import argparse
+import hashlib
 import struct
 import sys
 import time
@@ -588,6 +589,99 @@ def cmd_settings(a):
     return 0 if st == 0 else 1
 
 
+OTA_REASON = {1: "SHA-256 tidak cocok", 2: "gagal menulis flash", 3: "waktu habis", 4: "ukuran tidak valid",
+              5: "dibatalkan host", 6: "image ditolak"}
+
+
+def app_version(img: bytes) -> str:
+    """Versi Lokana OS di image: penanda "LOKANA_OS_VERSION:<versi>" (services/ota.cpp)."""
+    i = img.find(b"LOKANA_OS_VERSION:")
+    if i < 0:
+        return ""
+    return img[i + 18:i + 50].split(b"\0")[0].decode("ascii", "replace")
+
+
+def ota_send(lk, img: bytes, version: str, chunk=1024, log=print):
+    """OTA lewat Lokana Link. Hasil: (status END, detik). Status None = tidak ada balasan."""
+    sha = hashlib.sha256(img).digest()
+    t0 = time.time()
+    st = lk.request(T["OTA"], struct.pack("<BI", 0, len(img)) + sha + s(version))
+    if st != 0:
+        return st, 0
+    off = 0
+    last = -1
+    while off < len(img):
+        part = img[off:off + chunk]
+        st = lk.request(T["OTA"], struct.pack("<BI", 1, off) + part)
+        if st != 0:
+            log(f"  CHUNK di {off} ditolak: {STATUS[st] if st is not None and st < len(STATUS) else st}")
+            lk.request(T["OTA"], bytes([3, 5]), ack=False)
+            return st, time.time() - t0
+        off += len(part)
+        pct = off * 100 // len(img)
+        if pct // 10 != last:
+            last = pct // 10
+            log(f"  {pct:3d}%  {off}/{len(img)} byte  {off / max(0.001, time.time() - t0) / 1024:.1f} KB/dtk")
+    st = lk.request(T["OTA"], bytes([2]))
+    return st, time.time() - t0
+
+
+def reopen(port, timeout=25):
+    """Tunggu USB CDC muncul lagi setelah restart, lalu buka."""
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            return Link(port, verbose=False)
+        except Exception:
+            time.sleep(0.5)
+    return None
+
+
+def device_version(lk):
+    lk.frames.clear()
+    lk.request(T["HELLO"], p_hello("lokana_link.py ota"))
+    f = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 2.0)
+    return parse_device_info(f[2])["fw_version"] if f else None
+
+
+def cmd_ota(a):
+    img = open(a.file, "rb").read()
+    ver = a.version or app_version(img) or "?"
+    lk = Link(a.port, verbose=False)
+    port = lk.ser.port
+    before = device_version(lk)
+    print(f"Lokana sekarang v{before}; kirim v{ver} ({len(img)} byte, SHA-256 {hashlib.sha256(img).hexdigest()[:16]}...)")
+    st, secs = ota_send(lk, img, ver, a.chunk)
+    aborts = [f for f in lk.frames if f[0] == T["OTA"] and f[2][:1] == b"\x03"]
+    if st != 0:
+        why = OTA_REASON.get(aborts[0][2][1], "?") if aborts else ""
+        print(f"GAGAL: END dibalas {STATUS[st] if st is not None and st < len(STATUS) else st} {why}")
+        lk.close()
+        return 1
+    print(f"Terkirim dalam {secs:.1f} dtk, Lokana restart...")
+    lk.close()
+    time.sleep(2.5)
+    # Firmware baru menjalani masa uji 10 dtk; firmware rusak bisa restart beberapa kali sebelum rollback
+    lk = None
+    for _ in range(3):
+        lk = reopen(port)
+        if lk:
+            break
+    if not lk:
+        print("Lokana tidak muncul lagi di USB")
+        return 1
+    time.sleep(a.wait)
+    after = device_version(lk)
+    lk.text.clear()
+    lk.write_raw(b"ota\r\n")
+    lk.poll(0.8)
+    print(lk.text.decode("utf-8", "replace").strip())
+    lk.close()
+    print(f"Setelah update: v{after}  ->  " + ("BERHASIL" if after == ver else
+          ("KEMBALI KE VERSI LAMA (rollback)" if after == before else "versi tak terduga")))
+    return 0 if after == ver else 2
+
+
 def cmd_textslots(a):
     lk = Link(a.port, verbose=False)
     lk.request(T["HELLO"], p_hello())
@@ -942,9 +1036,13 @@ def test_v052(lk, expect):
     expect("notif_popup 0: layar tidak berpindah ke Notif", d[0:16] == b"\xff" * 16, False)
     popup(5)
     lk.request(T["NOTIF"], p_notif(0x53, "Uji", "Popup nyala", "harus muncul", silent=True))
-    time.sleep(0.4)
-    d = _capture(lk)
-    expect("notif_popup 5: popup Notif muncul", d[0:16] == b"\xff" * 16, True)
+    seen = False
+    for _ in range(5):                                   # popup bisa muncul sedikit terlambat (loop sibuk)
+        time.sleep(0.3)
+        if _capture(lk)[0:16] == b"\xff" * 16:
+            seen = True
+            break
+    expect("notif_popup 5: popup Notif muncul", seen, True)
     lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))      # tap = tutup popup
     for i in (0x52, 0x53):
         lk.request(T["NOTIF"], p_notif_delete(i))
@@ -972,6 +1070,73 @@ def test_v052(lk, expect):
     lk.request(T["GOTO"], s("lokana"))
 
 
+def test_v055(lk, expect):
+    """v0.5.5: OTA (tanpa restart): penolakan SHA salah, image rusak, aturan CHUNK, ABORT, batas waktu."""
+    import os
+    T_ = T["OTA"]
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    d = parse_device_info(info[2]) if info else {}
+    expect("DEVICE_INFO caps OTA", bool(d.get("caps", 0) >> CAPS.index("OTA") & 1), True, raw=True)
+    before = d.get("fw_version")
+
+    def send_all(img, chunk=1024):
+        for off in range(0, len(img), chunk):
+            st = lk.request(T_, struct.pack("<BI", 1, off) + img[off:off + chunk])
+            if st != 0:
+                return st
+        return 0
+
+    def abort_reason():
+        lk.poll(0.3)
+        ab = [f[2] for f in lk.frames if f[0] == T_ and f[2][:1] == b"\x03"]
+        return ab[-1][1] if ab else None
+
+    # Bentuknya seperti image ESP32 (byte awal 0xE9) tapi isinya acak
+    img = b"\xE9" + os.urandom(70000 - 1)
+    expect("OTA BEGIN", lk.request(T_, struct.pack("<BI", 0, len(img)) + b"\x11" * 32 + s("uji")), 0)
+    expect("OTA semua CHUNK", send_all(img), 0)
+    lk.frames.clear()
+    expect("OTA END SHA-256 salah = ERROR", lk.request(T_, bytes([2])), 6)
+    expect("OTA ABORT alasan 1 (SHA)", abort_reason(), 1, raw=True)
+
+    lk.request(T_, struct.pack("<BI", 0, len(img)) + hashlib.sha256(img).digest() + s("uji"))
+    send_all(img)
+    lk.frames.clear()
+    expect("OTA END image rusak (SHA benar) = ERROR", lk.request(T_, bytes([2])), 6)
+    expect("OTA ABORT alasan 6 (image)", abort_reason(), 6, raw=True)
+
+    junk = os.urandom(4000).replace(b"\xE9", b"\x00")
+    lk.request(T_, struct.pack("<BI", 0, len(junk)) + hashlib.sha256(junk).digest() + s("uji"))
+    lk.frames.clear()
+    expect("OTA CHUNK pertama bukan image ESP32 = ERROR", lk.request(T_, struct.pack("<BI", 1, 0) + junk[:1000]), 6)
+    expect("OTA ABORT alasan 6 di CHUNK pertama", abort_reason(), 6, raw=True)
+
+    lk.request(T_, struct.pack("<BI", 0, 1500) + b"\0" * 32 + s("uji"))
+    expect("OTA CHUNK offset 0", lk.request(T_, struct.pack("<BI", 1, 0) + img[:1000]), 0)
+    expect("OTA CHUNK kiriman ulang = OK", lk.request(T_, struct.pack("<BI", 1, 0) + img[:1000]), 0)
+    expect("OTA CHUNK lompat offset", lk.request(T_, struct.pack("<BI", 1, 1300) + img[:100]), 2)
+    expect("OTA CHUNK melewati size", lk.request(T_, struct.pack("<BI", 1, 1000) + img[:1000]), 2)
+    expect("OTA END sebelum lengkap", lk.request(T_, bytes([2])), 2)
+    expect("OTA ABORT dari host", lk.request(T_, bytes([3, 5])), 0)
+    expect("OTA CHUNK setelah ABORT", lk.request(T_, struct.pack("<BI", 1, 1000) + img[:10]), 2)
+    expect("OTA BEGIN ukuran 0", lk.request(T_, struct.pack("<BI", 0, 0) + b"\0" * 32), 2)
+    expect("OTA BEGIN lebih besar dari slot", lk.request(T_, struct.pack("<BI", 0, 0x1C0001) + b"\0" * 32), 2)
+    expect("OTA BEGIN tanpa sha256", lk.request(T_, struct.pack("<BI", 0, 100)), 2)
+    expect("OTA PROGRESS dari host", lk.request(T_, struct.pack("<BI", 4, 0)), 2)
+    expect("OTA op 9 (belum ada)", lk.request(T_, bytes([9])), 4)
+
+    # Tanpa CHUNK 30 dtk = batal sendiri
+    lk.request(T_, struct.pack("<BI", 0, 5000) + b"\0" * 32 + s("uji"))
+    lk.request(T_, struct.pack("<BI", 1, 0) + img[:100])
+    lk.frames.clear()
+    t0 = time.time()
+    f = lk.wait_frame(lambda f: f[0] == T_ and f[2][:1] == b"\x03", 40)
+    dt = time.time() - t0
+    expect("OTA batal sendiri setelah ±30 dtk (alasan 3)", (f[2][1] if f else None, 28 < dt < 36), (3, True), raw=True)
+    expect("OTA: versi firmware tidak berubah", device_version(lk), before, raw=True)
+
+
 def test_v054(lk, expect):
     """v0.5.4: SETTINGS leave_alert, layar Tertinggal."""
     lk.request(T["HELLO"], p_hello("lokana_link.py test"))
@@ -996,12 +1161,14 @@ def test_v054(lk, expect):
     expect("GOTO \"Tertinggal\" (uji)", lk.request(T["GOTO"], s("tertinggal")), 0)
     time.sleep(0.4)
     d = _capture(lk)
-    # tulisan "tap: diam": x 56..103, y 51..57 (mata wajah Lokana tidak pernah sampai ke sini)
-    def hint(d): return any(b for r in range(51, 58) for b in d[r * 16 + 7:r * 16 + 13])
-    expect("layar Tertinggal tampil", d != blank and hint(d), True)
+    # Area tulisan "tap: diam" (x 56..103, y 51..57). Setelah tap area ini harus berubah; tidak dicek "kosong"
+    # karena ekspresi acak wajah Lokana (mis. kaget, mata tinggi) kadang sampai ke sini.
+    def hint(d): return bytes(b for r in range(51, 58) for b in d[r * 16 + 7:r * 16 + 13])
+    alert = hint(d)
+    expect("layar Tertinggal tampil", d != blank and any(alert), True)
     lk.request(T["SCREEN"], bytes([SC["INPUT"], 1]))     # tap = diam & tutup
     time.sleep(0.4)
-    expect("tap = layar Tertinggal ditutup", hint(_capture(lk)), False)
+    expect("tap = layar Tertinggal ditutup", hint(_capture(lk)) != alert, True)
 
 
 def test_v053(lk, expect):
@@ -1259,6 +1426,7 @@ def cmd_test(a):
     test_v052(lk, expect)
     test_v053(lk, expect)
     test_v054(lk, expect)
+    test_v055(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1317,6 +1485,11 @@ def main():
     t.add_argument("--notif-popup", type=int, help="lama popup notifikasi (detik), 0 = tidak muncul")
     t.add_argument("--boot-guide", help="on/off: Panduan cara pakai setelah splash boot (firmware 0.5.3+)")
     t.add_argument("--leave-alert", help="on/off: Lokana berbunyi jika HP tertinggal (firmware 0.5.4+)")
+    t = sub.add_parser("ota", help="OTA: kirim firmware .bin lewat USB, lalu cek versi setelah restart")
+    t.add_argument("file", help="firmware.bin (mis. .pio/build/supermini/firmware.bin)")
+    t.add_argument("--version", help="versi untuk BEGIN (bawaan: dibaca dari image)")
+    t.add_argument("--chunk", type=int, default=1024, help="byte per CHUNK (maks 1195)")
+    t.add_argument("--wait", type=float, default=14, help="detik menunggu masa uji sebelum cek versi")
     t = sub.add_parser("textslots", help="TEXT_SLOT: daftar slot teks, atau tampilkan satu slot (--show)")
     t.add_argument("--show", type=int, help="slot 1-8 yang ditampilkan sekarang")
     t.add_argument("--duration", type=int, default=0, help="detik, 0 = sampai disentuh")
@@ -1373,6 +1546,7 @@ def main():
         "find": simple("FIND_KEYS", lambda a: p_find(not a.stop, a.duration)),
         "settings": cmd_settings,
         "textslots": cmd_textslots,
+        "ota": cmd_ota,
         "dice": cmd_dice,
         "bitmap": cmd_bitmap,
         "listen": cmd_listen,

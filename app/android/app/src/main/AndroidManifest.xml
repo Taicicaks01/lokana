@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Pembaruan firmware: cek & unduh rilis dari GitHub Releases -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Pengingat ketinggalan: jeda tunggu tetap berjalan saat layar HP mati -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Tombol "Izinkan berjalan di latar" (koneksi & notifikasi tidak dihentikan penghemat baterai) -->

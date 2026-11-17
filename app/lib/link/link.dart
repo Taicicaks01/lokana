@@ -255,6 +255,56 @@ class LokanaLink extends ChangeNotifier {
   Future<int> deleteSlot(int slot) => send(T.anim, pAnimOp(AnimOp.delete, [slot]));
   Future<int> showSlot(int slot, {int durationS = 0}) => send(T.anim, pAnimShow(slot, durationS: durationS));
 
+  // ---------------- Pembaruan firmware (OTA, firmware 0.5.5) ----------------
+  bool get hasOta => info?.has(Caps.ota) ?? false;
+
+  Future<Uint8List> sha256(Uint8List bytes) async =>
+      await _m.invokeMethod<Uint8List>('sha256', {'bytes': bytes}) ?? Uint8List(0);
+  /// Pilih file firmware dari HP. null = batal / terlalu besar.
+  Future<({String name, Uint8List bytes})?> pickFile() async {
+    final m = await _m.invokeMapMethod<String, dynamic>('pickFile');
+    if (m == null) return null;
+    return (name: m['name'] as String, bytes: m['bytes'] as Uint8List);
+  }
+  Future<bool> openUrl(String url) async => await _m.invokeMethod<bool>('openUrl', {'url': url}) ?? false;
+  Future<void> keepScreenOn(bool on) => _m.invokeMethod('keepScreenOn', {'on': on});
+
+  bool _otaCancel = false;
+  void cancelOta() => _otaCancel = true;
+
+  /// Kirim firmware: BEGIN, CHUNK berurutan (masing-masing ber-ACK), END. [onProgress] 0..1.
+  /// Hasil: null = terpasang (Lokana restart), selain itu pesan kesalahan untuk pengguna.
+  Future<String?> sendFirmware(Uint8List bin, String version, {void Function(double)? onProgress}) async {
+    _otaCancel = false;
+    final hash = await sha256(bin);
+    int? abortReason;
+    final sub = frames.where((f) => f.$1 == T.ota && f.$2.length >= 2 && f.$2[0] == OtaOp.abort)
+        .listen((f) => abortReason = f.$2[1]);
+    String? fail(int st) => abortReason != null ? otaReason(abortReason!) : Status.describe(st);
+    try {
+      var st = await send(T.ota, pOtaBegin(bin.length, hash, version));
+      if (st != Status.ok) return fail(st);
+      for (var off = 0; off < bin.length; off += otaMaxChunk) {
+        if (_otaCancel) {
+          await send(T.ota, pOtaAbort(), ack: false);
+          return 'Dibatalkan';
+        }
+        final end = off + otaMaxChunk < bin.length ? off + otaMaxChunk : bin.length;
+        st = await send(T.ota, pOtaChunk(off, bin.sublist(off, end)));
+        if (st != Status.ok) {
+          await send(T.ota, pOtaAbort(), ack: false);
+          return fail(st);
+        }
+        onProgress?.call(end / bin.length);
+      }
+      await _m.invokeMethod('otaRestartExpected');    // restart sesudah END bukan "Lokana tertinggal"
+      st = await send(T.ota, pOtaEnd());
+      return st == Status.ok ? null : fail(st);
+    } finally {
+      await sub.cancel();
+    }
+  }
+
   // ---------------- Slot teks (TEXT_SLOT, firmware 0.5.3) ----------------
   bool get hasTextSlots => info?.has(Caps.textSlot) ?? false;
 

@@ -25,6 +25,8 @@
 #include "modules/splash_module.h"
 #include "modules/guide_module.h"
 #include "modules/left_module.h"
+#include "modules/update_module.h"
+#include "services/ota.h"
 
 // Daftar modul. Modul pertama = layar utama.
 // Menambah fitur: buat modul di src/modules/, lalu daftarkan di sini.
@@ -42,6 +44,7 @@ static CallModule  callModule;     // sistem (tersembunyi)
 static SplashModule splashModule(faceModule.face());   // splash boot लोचन (tersembunyi)
 static GuideModule guideModule;                         // panduan cara pakai (tersembunyi)
 static LeftModule leftModule;                           // pengingat HP tertinggal (tersembunyi)
+static UpdateModule updateModule;                       // layar pembaruan firmware (tersembunyi)
 
 static const char* resetReason() {
   switch (esp_reset_reason()) {
@@ -85,6 +88,13 @@ void setup() {
 
   if (oled) Serial.printf("[init] OLED ok di 0x%02X (SDA=GPIO%d, SCL=GPIO%d)\r\n", OLED_ADDR, PIN_SDA, PIN_SCL);
   else Serial.printf("[err] OLED tidak menjawab di 0x%02X (SDA=GPIO%d, SCL=GPIO%d)\r\n", OLED_ADDR, PIN_SDA, PIN_SCL);
+  TRACE("ota");       ota::bootCheck(oled);        // firmware hasil OTA: masa uji + rollback
+#ifdef LOKANA_OTA_TEST_CRASH
+  // Firmware rusak sengaja (env supermini-otacrash) untuk menguji rollback OTA
+  Serial.println("[uji] LOKANA_OTA_TEST_CRASH: crash disengaja");
+  Serial.flush();
+  abort();
+#endif
 
   led::pulse(300);
   core::addModule(&faceModule);
@@ -100,6 +110,7 @@ void setup() {
   core::addModule(&splashModule);
   core::addModule(&guideModule);
   core::addModule(&leftModule);
+  core::addModule(&updateModule);
   TRACE("core");
   core::begin();
   core::goTo(splashModule.name());   // splash berjalan di loop: BLE & console sudah aktif selama animasi

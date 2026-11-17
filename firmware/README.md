@@ -111,6 +111,7 @@ Layar Lokana / `lokana_link.py screen --shot`). Bitmap लोचन dibuat ulang
 | `supermini` | 128×64 | Default, hardware asli |
 | `supermini-091` | 128×32 | Varian 0.91", tata letak ringkas (`-DSCREEN_H=32`) |
 | `wokwi` | 128×64 | Simulasi: pin sama, tombol mekanis aktif LOW |
+| `supermini-otacrash` | 128×64 | **Hanya untuk uji rollback OTA**: versi `0.5.5-rusak` yang sengaja crash di `setup()`. Kirim lewat OTA, jangan upload USB |
 
 Tabel partisi: [`partitions.csv`](partitions.csv) (2 slot OTA 1,75 MB, littlefs 384 KB, coredump 64 KB).
 
@@ -119,6 +120,22 @@ Tabel partisi: [`partitions.csv`](partitions.csv) (2 slot OTA 1,75 MB, littlefs 
 Port USB yang sama membawa console teks dan frame biner (`A5 5A … CRC`). BLE beriklan sebagai
 `Lokana-XXXX`; HP baru harus pairing dengan kode 6 digit yang tampil di OLED.
 Uji dari PC: [`protocol/tools/lokana_link.py`](../protocol/tools/lokana_link.py) (`python lokana_link.py test`).
+
+### Pembaruan firmware (OTA, 0.5.5)
+
+`services/ota` menerima firmware lewat pesan `OTA` (BLE terenkripsi atau USB), menulisnya ke slot cadangan
+(`app0`/`app1`), memeriksa SHA-256 saat END, lalu restart. Firmware baru berjalan dalam **masa uji 10 detik**
+(`verifyRollbackLater()` ditimpa, loop dipantau watchdog 5 dtk); setelah OLED menjawab dan loop berjalan sehat,
+baru ditandai valid (`esp_ota_mark_app_valid_cancel_rollback`). Crash, macet, atau OLED hilang selama masa uji =
+restart dan bootloader kembali ke versi lama; layar menampilkan "v… gagal, versi lama".
+
+- Versi Lokana OS ditanam di image sebagai penanda `LOKANA_OS_VERSION:<versi>` (header `esp_app_desc_t` berisi versi
+  ESP-IDF, bukan Lokana). Aplikasi & alat PC membaca penanda ini dari file `.bin`.
+- Rilis GitHub: lampirkan `firmware.bin` env `supermini` dengan nama **`lokana-os-<versi>.bin`**; aplikasi mencarinya
+  di rilis terbaru (Pengaturan → Pembaruan firmware).
+- Dari PC: `python protocol/tools/lokana_link.py ota .pio/build/supermini/firmware.bin` (kirim lewat USB, tunggu
+  restart, laporkan berhasil / rollback). Console `ota` = slot yang berjalan, status masa uji, versi yang ditolak.
+- Upload USB (`pio run -t upload`) menulis ulang `otadata`, jadi selalu boot dari `app0` tanpa masa uji.
 
 Gambar dari aplikasi (BITMAP) disimpan di partisi **littlefs** (`/bmp/1.bin` … `/bmp/8.bin`);
 partisi baru diformat otomatis saat boot pertama. Teks slot 1–8 dan pengaturan ada di NVS.

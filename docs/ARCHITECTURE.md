@@ -157,7 +157,7 @@ Tiga jalur, satu sumber (**GitHub Releases**):
 |---|---|---|
 | Build dari kode | `pio run -e supermini -t upload` lewat USB | ✅ sekarang |
 | Mode Update | Mekanisme masih didiskusikan (WiFi AP + unggah lewat browser HP, atau USB) | v0.8 |
-| OTA lewat aplikasi | Pesan `OTA` Lokana Link lewat BLE | v0.9 |
+| OTA lewat aplikasi | Pesan `OTA` Lokana Link lewat BLE (atau USB dari PC) | ✅ v0.5.5 |
 
 Firmware baru ditulis ke slot cadangan. Setelah boot sukses, firmware menandai dirinya
 valid; kalau gagal, bootloader kembali ke slot lama (*rollback*).
@@ -171,11 +171,15 @@ valid; kalau gagal, bootloader kembali ke slot lama (*rollback*).
   `esp_ota_mark_app_valid_cancel_rollback()` **sebelum `setup()`**, karena fungsi weak
   `verifyOta()` bawaan selalu `true`. Akibatnya firmware baru yang crash di `setup()` atau
   `loop()` tetap dianggap valid; rollback hanya terjadi kalau crash sebelum `setup()`.
-- **Rencana untuk OTA (v0.8/v0.9):** di `main.cpp` timpa fungsi weak
-  `bool verifyRollbackLater() { return true; }` supaya Arduino tidak menandai valid otomatis,
-  lalu panggil `esp_ota_mark_app_valid_cancel_rollback()` sendiri setelah boot terbukti sehat
-  (misalnya `setup()` selesai, OLED menjawab, dan loop berjalan ±10 detik tanpa crash).
-  Kalau firmware reset sebelum itu, bootloader otomatis kembali ke slot lama.
+- **Sudah diterapkan (v0.5.5, `firmware/src/services/ota.cpp`):** `verifyRollbackLater()` ditimpa (return
+  `true`); `ota::bootCheck()` di `setup()` mendeteksi status *pending verify*, menolak langsung jika OLED tidak
+  menjawab, dan memasang loop task ke watchdog (5 dtk, panic). `ota::update()` menandai valid setelah 10 dtk sehat.
+  Versi yang sedang dicoba disimpan di NVS (`ota/try`) supaya setelah rollback firmware lama bisa melapor versi yang
+  gagal. Penulisan memakai `OTA_WITH_SEQUENTIAL_WRITES` (hapus flash per sektor, tidak memblokir lama).
+- **Diuji 2026-11-18 di Super Mini (USB, `lokana_link.py ota`):** 0.5.5 → 0.5.5-ota berhasil (88 dtk untuk 1,1 MB,
+  ±13 KB/dtk; `app1` valid); 0.5.5-ota → 0.5.5-rusak (crash di `setup()`) kembali sendiri ke 0.5.5-ota. SHA-256
+  salah, image rusak, data bukan firmware, CHUNK salah urutan, ABORT, dan batas waktu 30 dtk ditolak tanpa mengubah
+  firmware (`test_v055`). Macet di loop (watchdog) belum diuji di hardware.
 - Upload lewat USB (`pio run -t upload`) menulis ulang `otadata` kosong, jadi status
   *pending verify* tidak berlaku untuk jalur "build dari kode".
 

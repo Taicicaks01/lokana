@@ -161,6 +161,21 @@ void main() {
     expect(LokanaSettings.parse(bytes('02 08 01 01')).leaveAlert, isNull);
   });
 
+  // Byte sama dengan lokana_link.py (struct.pack("<BI", 0, size) + sha + s(versi)) yang diuji ke firmware 0.5.5
+  test('OTA: BEGIN, CHUNK, END, ABORT, versi file', () {
+    expect(hex(pOtaBegin(0x11CA20, List.filled(32, 0xAB), '0.5.5')),
+        '00 20 ca 11 00 ${List.filled(32, 'ab').join(' ')} 05 30 2e 35 2e 35');
+    expect(hex(pOtaChunk(1195, [1, 2, 3])), '01 ab 04 00 00 01 02 03');
+    expect(hex(pOtaEnd()), '02');
+    expect(hex(pOtaAbort()), '03 05');
+    final bin = Uint8List.fromList([0xE9, 1, 2, ...ascii.encode('xxLOKANA_OS_VERSION:0.5.5-ota'), 0, 9, 9]);
+    expect(firmwareVersion(bin), '0.5.5-ota');
+    expect(firmwareVersion(Uint8List.fromList([0x00, ...ascii.encode('LOKANA_OS_VERSION:1.0'), 0])), isNull);
+    expect(firmwareVersion(Uint8List.fromList([0xE9, 1, 2, 3])), isNull);
+    expect(otaReason(1), contains('SHA-256'));
+    expect(otaMaxChunk + 5, 1200);
+  });
+
   test('Teks ke ASCII OLED', () {
     expect(toLokanaAscii('Café “Lokana” – ok'), 'Cafe "Lokana" - ok');
     expect(toLokanaAscii('Hai 👋'), 'Hai ?');

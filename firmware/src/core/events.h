@@ -20,6 +20,8 @@ enum EventType : uint8_t {
   EV_SPLASH,       // putar ulang splash boot; value > 0 = bekukan di ms tersebut (uji/screenshot)
   EV_GUIDE,        // putar Panduan cara pakai; value > 0 = bekukan di ms tersebut (uji/screenshot)
   EV_LEFT,         // pengingat ketinggalan: value 1 = HP tertinggal, 0 = HP tersambung lagi
+  EV_OTA,          // pembaruan firmware: 1 mulai, 2 terpasang (restart), 3 ditandai valid, -alasan gagal,
+                   // -100 firmware baru gagal boot dan sudah kembali ke versi lama
 };
 
 struct Event {

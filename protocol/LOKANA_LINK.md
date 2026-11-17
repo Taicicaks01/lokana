@@ -283,6 +283,25 @@ memeriksa SHA-256 saat END, lalu restart. Firmware baru menandai dirinya valid s
 berhasil boot; jika gagal, bootloader kembali ke versi lama (*rollback*). Hanya diizinkan
 lewat BLE terenkripsi atau USB.
 
+Aturan rinci (firmware 0.5.5+, bit `caps` 6 `OTA`):
+
+- `BEGIN`: `size` 1 B s.d. ukuran slot (1,75 MB) dan `version` maks 31 byte, kalau tidak `BAD_PAYLOAD`. `BEGIN` saat
+  OTA lain dari transport berbeda sedang berjalan = `BUSY`; dari transport yang sama = mulai ulang dari awal.
+- `CHUNK` harus **berurutan**: `offset` = jumlah byte yang sudah diterima. `offset` lebih kecil dan potongannya
+  persis berakhir di posisi sekarang dianggap **kiriman ulang** (ACK hilang) dan dibalas `OK` tanpa ditulis ulang.
+  `offset` lain, data kosong, atau melewati `size` = `BAD_PAYLOAD` (host mulai lagi dari `BEGIN`).
+  Data maks 1195 byte per CHUNK (payload 1200 − 5).
+- `CHUNK` pertama yang bukan image ESP32-C3 (byte awal ≠ `0xE9`) langsung dibalas `ERROR` + `ABORT` alasan `6`.
+- `END` sebelum semua byte diterima = `BAD_PAYLOAD`. SHA-256 tidak cocok atau image ditolak = `ERROR`, lalu device
+  mengirim `ABORT`. `OK` berarti image sudah dipasang sebagai boot berikutnya; device restart ±0,5 detik kemudian.
+- Device mengirim `PROGRESS` (`seq = 0`) tiap 64 KB dan setelah semua byte diterima. Tanpa `CHUNK` selama
+  **30 detik**, device membatalkan dan mengirim `ABORT`.
+- `reason` ABORT: `1` SHA-256 tidak cocok, `2` gagal menulis flash, `3` waktu habis, `4` ukuran tidak valid,
+  `5` dibatalkan host, `6` image ditolak (bukan firmware ESP32-C3 yang sah).
+- Setelah restart, firmware baru berada dalam masa uji. Ditandai valid setelah ±10 detik berjalan sehat
+  (OLED menjawab, loop berjalan). Crash, macet (watchdog), atau OLED hilang selama masa uji = restart dan
+  bootloader kembali ke versi lama. Host mengetahui hasilnya dari `fw_version` di `DEVICE_INFO` setelah tersambung lagi.
+
 ### `0x06` UNPAIR (H→D)
 
 Tanpa payload. Lewat BLE: device membalas `ACK` (jika `seq ≠ 0`), menghapus *bond* HP pengirim,
@@ -707,3 +726,4 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-18 | Untuk firmware 0.5.5 (format lama tetap): aturan rinci `OTA` (CHUNK berurutan + kiriman ulang, kode `reason` ABORT, PROGRESS tiap 64 KB, batas waktu 30 dtk, masa uji & rollback); bit `caps` 6 `OTA` dinyalakan |

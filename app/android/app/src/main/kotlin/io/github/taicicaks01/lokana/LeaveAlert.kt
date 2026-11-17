@@ -49,6 +49,14 @@ object LeaveAlert {
         cancel(ctx)
     }
 
+    private var quietUntil = 0L
+
+    /** Lokana sengaja restart (setelah pembaruan firmware): jangan anggap tertinggal selama [ms]. */
+    fun quietFor(ctx: Context, ms: Long) {
+        quietUntil = android.os.SystemClock.elapsedRealtime() + ms
+        cancelPending()
+    }
+
     /** Koneksi siap ke Lokana putus tanpa diminta pengguna. [rssiAgeMs] umur RSSI terakhir. */
     fun lost(ctx: Context, status: Int, rssi: Int?, rssiAgeMs: Long) {
         val app = ctx.applicationContext
@@ -56,6 +64,7 @@ object LeaveAlert {
         val near = rssi != null && rssiAgeMs <= RSSI_MAX_AGE_MS && rssi >= NEAR_RSSI
         val why = when {
             !enabled(app) -> "mati"
+            android.os.SystemClock.elapsedRealtime() < quietUntil -> "restart setelah update"
             System.currentTimeMillis() < snoozeUntil(app) -> "dijeda"
             status != GATT_CONN_TIMEOUT -> "diputus (status $status)"
             else -> null

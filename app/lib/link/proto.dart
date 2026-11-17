@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 class T {
-  static const hello = 0x00, timeSync = 0x01, deviceInfo = 0x02, settings = 0x03, ack = 0x05, unpair = 0x06;
+  static const hello = 0x00, timeSync = 0x01, deviceInfo = 0x02, settings = 0x03, ota = 0x04, ack = 0x05, unpair = 0x06;
   static const notif = 0x10, call = 0x15;
   static const findKeys = 0x20, findPhone = 0x21, expression = 0x22, dice = 0x23, goto = 0x24, button = 0x25;
   static const customText = 0x30, bitmap = 0x31, anim = 0x32, screen = 0x33, textSlot = 0x34;
@@ -31,7 +31,7 @@ class Status {
 }
 
 class Caps {
-  static const notif = 1 << 0, customText = 1 << 4, bitmap = 1 << 5, buzzer = 1 << 9;
+  static const notif = 1 << 0, customText = 1 << 4, bitmap = 1 << 5, ota = 1 << 6, buzzer = 1 << 9;
   static const dice = 1 << 10, findPhone = 1 << 11, anim = 1 << 12, screen = 1 << 13, textSlot = 1 << 14;
 }
 
@@ -165,6 +165,52 @@ Uint8List pSettingsSet({int? brightness, bool? sound, int? screenTimeoutS, bool?
   if (bootGuide != null) item(0x08, [bootGuide ? 1 : 0]);
   if (leaveAlert != null) item(0x09, [leaveAlert ? 1 : 0]);
   return w.done();
+}
+
+// ---------------- OTA (pembaruan firmware, 0.5.5) ----------------
+class OtaOp {
+  static const begin = 0, chunk = 1, end = 2, abort = 3, progress = 4;
+}
+
+/// Alasan ABORT dari Lokana (LOKANA_LINK.md §OTA).
+String otaReason(int r) => switch (r) {
+      1 => 'Data rusak di perjalanan (SHA-256 tidak cocok)',
+      2 => 'Lokana gagal menulis flash',
+      3 => 'Terputus terlalu lama',
+      4 => 'Ukuran file tidak valid',
+      5 => 'Dibatalkan',
+      6 => 'Bukan firmware Lokana yang sah',
+      _ => 'Alasan $r',
+    };
+
+/// Data maks per CHUNK: payload 1200 - op - offset u32.
+const otaMaxChunk = 1195;
+
+Uint8List pOtaBegin(int size, List<int> sha256, String version) =>
+    (Writer()..u8(OtaOp.begin)..u32(size)..bytes(sha256)..str(version, max: 31)).done();
+Uint8List pOtaChunk(int offset, List<int> data) => (Writer()..u8(OtaOp.chunk)..u32(offset)..bytes(data)).done();
+Uint8List pOtaEnd() => Uint8List.fromList([OtaOp.end]);
+Uint8List pOtaAbort([int reason = 5]) => Uint8List.fromList([OtaOp.abort, reason]);
+
+/// Versi Lokana OS di file firmware: penanda `LOKANA_OS_VERSION:versi` (firmware services/ota.cpp).
+/// null = bukan firmware Lokana (atau versi lama tanpa penanda).
+String? firmwareVersion(Uint8List bin) {
+  if (bin.isEmpty || bin[0] != 0xE9) return null;          // bukan image ESP32
+  const tag = 'LOKANA_OS_VERSION:';
+  final t = ascii.encode(tag);
+  outer:
+  for (var i = 0; i + t.length < bin.length; i++) {
+    for (var k = 0; k < t.length; k++) {
+      if (bin[i + k] != t[k]) continue outer;
+    }
+    final start = i + t.length;
+    var end = start;
+    while (end < bin.length && end - start < 31 && bin[end] != 0) {
+      end++;
+    }
+    return ascii.decode(bin.sublist(start, end), allowInvalid: true);
+  }
+  return null;
 }
 
 // ---------------- TEXT_SLOT (0.5.3) ----------------
