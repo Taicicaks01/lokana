@@ -8,7 +8,6 @@ import '../theme.dart';
 import '../ui.dart';
 import 'cube_page.dart';
 import 'guide_page.dart';
-import 'leave_page.dart';
 
 /// Pengaturan: bagian Aplikasi (tema, disimpan di HP) dan bagian Lokana (SETTINGS, perlu tersambung).
 class SettingsPage extends StatefulWidget {
@@ -24,14 +23,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final nameCtrl = TextEditingController();
   static const timeouts = {15: '15 dtk', 30: '30 dtk', 60: '1 mnt', 300: '5 mnt', 0: 'Tidak pernah'};
 
-  String? ringtone;
-
   void _changed() => setState(() {});
-
-  Future<void> _pickRingtone({bool file = false}) async {
-    final t = await link.pickRingtone(file: file);
-    if (t != null && mounted) setState(() => ringtone = t);
-  }
 
   @override
   void initState() {
@@ -39,7 +31,6 @@ class _SettingsPageState extends State<SettingsPage> {
     link.addListener(_changed);
     theme.addListener(_changed);
     nameCtrl.text = link.settings?.deviceName ?? '';
-    link.ringtoneTitle().then((t) => mounted ? setState(() => ringtone = t) : null);
     if (link.ready) link.send(T.settings, pSettingsGet());   // segarkan; REPORT datang lewat link
   }
 
@@ -47,7 +38,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void dispose() {
     link.removeListener(_changed);
     theme.removeListener(_changed);
-    link.stopRingtonePreview();
     nameCtrl.dispose();
     super.dispose();
   }
@@ -156,50 +146,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ])),
           ]),
-
-        const SizedBox(height: Gap.s),
-        Panel(padding: const EdgeInsets.symmetric(vertical: 4), children: [
-          NavRow(
-            icon: Icons.social_distance_outlined,
-            title: 'Pengingat ketinggalan',
-            subtitle: 'HP & Lokana saling mengingatkan',
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeavePage())),
-          ),
-        ]),
-
-        // ---------------- Cari HP (nada di HP ini) ----------------
-        const SectionHeader('Nada Cari HP', icon: Icons.ring_volume_outlined, subtitle: 'Disimpan di HP ini'),
-        Panel(children: [
-          Text('Berbunyi saat modul Cari HP di Lokana ditap. Selalu keras, walau HP dalam mode senyap.', style: t.bodySmall),
-          const SizedBox(height: Gap.s),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const IconBadge(Icons.music_note_outlined, size: 40),
-            title: Text(ringtone ?? '...', maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: const Text('Nada sekarang'),
-            trailing: IconButton.filledTonal(
-              tooltip: 'Coba (4 detik)',
-              onPressed: link.previewRingtone,
-              icon: const Icon(Icons.play_arrow),
-            ),
-          ),
-          const SizedBox(height: Gap.xs),
-          Wrap(spacing: Gap.s, runSpacing: Gap.s, children: [
-            OutlinedButton.icon(
-                onPressed: _pickRingtone, icon: const Icon(Icons.library_music_outlined), label: const Text('Nada HP')),
-            OutlinedButton.icon(
-                onPressed: () => _pickRingtone(file: true),
-                icon: const Icon(Icons.audio_file_outlined),
-                label: const Text('File audio')),
-            TextButton(
-              onPressed: () async {
-                final t = await link.resetRingtone();
-                if (t != null && mounted) setState(() => ringtone = t);
-              },
-              child: const Text('Bawaan'),
-            ),
-          ]),
-        ]),
 
         // ---------------- Aplikasi ----------------
         const SectionHeader('Tampilan aplikasi', icon: Icons.palette_outlined),

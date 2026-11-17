@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/dice_page.dart';
 import 'pages/expression_page.dart';
+import 'pages/find_phone_page.dart';
 import 'pages/image_page.dart';
 import 'pages/leave_page.dart';
 import 'pages/notif_page.dart';
@@ -70,6 +71,7 @@ class _MainShellState extends State<MainShell> {
         Tabs.link => _SegmentTab(title: 'Terhubung', selected: _linkSeg, segments: const [
             ('Ketinggalan', LeavePage(embedded: true)),
             ('Notifikasi', NotifPage(embedded: true)),
+            ('Cari HP', FindPhonePage(embedded: true)),
           ]),
         _ => const SettingsPage(),
       };

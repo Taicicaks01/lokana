@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import '../link/link.dart';
 import '../link/proto.dart';
 import '../main.dart';
+import '../radar.dart';
 import '../theme.dart';
 import '../ui.dart';
 
@@ -23,6 +25,8 @@ class _LeavePageState extends State<LeavePage> {
   late int delay = prefs.prefInt('leave_delay', 20);
   late String mode = prefs.pref('leave_mode') ?? 'alarm';
   DateTime? snoozed;
+  int? rssi;
+  Timer? _rssiTimer;
 
   static const delays = {10: '10 dtk', 20: '20 dtk', 30: '30 dtk', 60: '1 mnt'};
 
@@ -34,11 +38,19 @@ class _LeavePageState extends State<LeavePage> {
     link.addListener(_changed);
     if (link.ready) link.send(T.settings, pSettingsGet());
     _loadSnooze();
+    _pollRssi();
+    _rssiTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) => _pollRssi());
+  }
+
+  Future<void> _pollRssi() async {
+    final r = await link.rssi();
+    if (mounted && r != rssi) setState(() => rssi = r);
   }
 
   @override
   void dispose() {
     link.removeListener(_changed);
+    _rssiTimer?.cancel();
     super.dispose();
   }
 
@@ -64,32 +76,23 @@ class _LeavePageState extends State<LeavePage> {
     return Scaffold(
       appBar: widget.embedded ? null : AppBar(title: const Text('Pengingat ketinggalan')),
       body: PageBody(children: [
-        // ---------- Pembuka ----------
-        Card(
-          color: Colors.black,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24), side: const BorderSide(color: Colors.white12)),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.smartphone_rounded, size: 44, color: Colors.white),
-                const SizedBox(width: Gap.m),
-                for (var i = 0; i < 5; i++)
-                  Container(
-                    width: 6, height: 6, margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25 + i * 0.12), shape: BoxShape.circle),
-                  ),
-                const SizedBox(width: Gap.m),
-                LokanaEyes(color: AppTheme.instance.oled.color, height: 30),
-              ]),
-              const SizedBox(height: Gap.l),
-              Text('Jangan sampai tertinggal', style: t.titleLarge?.copyWith(color: Colors.white)),
-              const SizedBox(height: Gap.xs),
-              Text('Saat HP dan Lokana berjauhan, yang tertinggal saling mengingatkan.',
-                  style: t.bodySmall?.copyWith(color: Colors.white70), textAlign: TextAlign.center),
-            ]),
-          ),
+        // ---------- Radar ----------
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          decoration: BoxDecoration(color: context.lk.hero, borderRadius: BorderRadius.circular(LokanaTokens.rHero)),
+          child: Column(children: [
+            LeaveRadar(rssi: link.ready ? rssi : null, size: 210),
+            Text(radarLabel(link.ready ? rssi : null),
+                style: t.titleMedium?.copyWith(color: Colors.white)),
+            const SizedBox(height: Gap.xs),
+            Text(
+                rssi == null
+                    ? 'Menunggu sinyal Lokana...'
+                    : 'Cincin melebar & makin cepat saat Lokana menjauh. Kalau sambungan hilang, yang tertinggal '
+                        'saling mengingatkan.',
+                style: t.bodySmall?.copyWith(color: Colors.white70),
+                textAlign: TextAlign.center),
+          ]),
         ),
 
         // ---------- Di HP ----------
