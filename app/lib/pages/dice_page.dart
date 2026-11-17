@@ -6,7 +6,9 @@ import '../ui.dart';
 
 /// DICE: lempar dari HP; hasil dari Lokana (termasuk lemparan dari tombol) muncul di sini.
 class DicePage extends StatefulWidget {
-  const DicePage({super.key});
+  /// true = tampil di dalam tab (tanpa AppBar sendiri; judul dari tab).
+  final bool embedded;
+  const DicePage({super.key, this.embedded = false});
 
   @override
   State<DicePage> createState() => _DicePageState();
@@ -36,7 +38,7 @@ class _DicePageState extends State<DicePage> {
     final cs = Theme.of(context).colorScheme;
     final last = link.dice.isEmpty ? null : link.dice.first;
     return Scaffold(
-      appBar: AppBar(title: const Text('Dadu')),
+      appBar: widget.embedded ? null : AppBar(title: const Text('Dadu')),
       bottomNavigationBar: ActionBar(
         label: 'Lempar ${diceTypes[type]}',
         icon: Icons.casino_rounded,

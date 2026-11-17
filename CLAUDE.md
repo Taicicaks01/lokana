@@ -264,6 +264,10 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      `setColor`) dan `res/` (launch_background, styles) lalu samakan ke pink; latar splash pakai `#1A161E`.
   1. ⬜ **Desain ulang aplikasi Android** sesuai `docs/DESIGN.md` (mockup di artifact "Lokana App — desain"),
      bisa jalan paralel selama Lokana Cube belum dirakit. Kerjakan per layar, jangan sekaligus; uji di HP tiap layar.
+     Progres (`DESIGN.md` §7): 🧪 1 token & tema (`lib/tokens.dart`, `context.lk`; pink brand hanya lewat
+     `AppTheme.primaryButton` karena tema FilledButton ikut berlaku untuk tonal), 🧪 2 `lib/cube.dart` `LokanaCube`
+     + `paintLokanaEyes` (pratinjau: Pengaturan → Tentang → Lokana Cube), 🧪 3 `lib/shell.dart` 4 tab (halaman lama
+     dengan `embedded: true`; Cari HP masih di Pengaturan sampai langkah 6). **Langkah 4 menunggu OK Wayan.**
   2. Lanjut **Backlog hasil audit** di bawah (v0.5.5 Daya, OTA, Play Store, CI, Desktop, kerapian), lalu v0.6 dst.
   - 🟡 **Slot teks: kelola dari Lokana** (ide Wayan). Slot 1–8 + `TEXT_SLOT` **sudah ada sejak v0.5.3**,
     jangan dibuat ulang. Sisanya: cek modul Teks di Lokana, lalu tambah yang belum ada: pilih/putar slot,

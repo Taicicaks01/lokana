@@ -6,7 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'link/link.dart';
 import 'link/proto.dart';
 import 'pages/connect_page.dart';
-import 'pages/dashboard_page.dart';
+import 'shell.dart';
 import 'splash.dart';
 import 'theme.dart';
 import 'ui.dart';
@@ -65,7 +65,7 @@ class HomePage extends StatelessWidget {
     return ListenableBuilder(
       listenable: link,
       builder: (context, _) => Stack(children: [
-        link.ready ? const DashboardPage() : const ConnectPage(),
+        link.ready ? const MainShell() : const ConnectPage(),
         if (link.phoneRinging) const _FindPhoneOverlay(),
       ]),
     );

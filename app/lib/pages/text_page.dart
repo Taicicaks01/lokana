@@ -10,7 +10,9 @@ import '../ui.dart';
 /// CUSTOM_TEXT: tulis teks, lihat pratinjau persis seperti di Lokana, lalu tampilkan sekarang atau simpan
 /// ke slot 1-8 (name tag, pesan favorit). Slot yang tersimpan dibaca dari Lokana (TEXT_SLOT, 0.5.3).
 class TextPage extends StatefulWidget {
-  const TextPage({super.key});
+  /// true = tampil di dalam tab (tanpa AppBar sendiri; judul dari tab).
+  final bool embedded;
+  const TextPage({super.key, this.embedded = false});
 
   @override
   State<TextPage> createState() => _TextPageState();
@@ -136,7 +138,7 @@ class _TextPageState extends State<TextPage> {
     final used = slots == null ? const <int>{} : {for (final s in slots!) if (!s.isEmpty) s.slot};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Teks')),
+      appBar: widget.embedded ? null : AppBar(title: const Text('Teks')),
       bottomNavigationBar: ActionBar(
         label: slot == 0 ? 'Tampilkan di Lokana' : (used.contains(slot) ? 'Ganti isi slot $slot' : 'Simpan ke slot $slot'),
         icon: slot == 0 ? Icons.send_rounded : Icons.save_alt_rounded,

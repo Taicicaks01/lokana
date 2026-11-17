@@ -8,7 +8,9 @@ import '../ui.dart';
 /// Pengingat ketinggalan: HP berbunyi jika Lokana tertinggal (setelan di HP, dijalankan Kotlin LeaveAlert)
 /// dan Lokana berbunyi jika HP tertinggal (SETTINGS leave_alert, firmware 0.5.4).
 class LeavePage extends StatefulWidget {
-  const LeavePage({super.key});
+  /// true = tampil di dalam tab (tanpa AppBar sendiri; judul dari tab).
+  final bool embedded;
+  const LeavePage({super.key, this.embedded = false});
 
   @override
   State<LeavePage> createState() => _LeavePageState();
@@ -60,7 +62,7 @@ class _LeavePageState extends State<LeavePage> {
     final lokanaOk = s?.leaveAlert != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengingat ketinggalan')),
+      appBar: widget.embedded ? null : AppBar(title: const Text('Pengingat ketinggalan')),
       body: PageBody(children: [
         // ---------- Pembuka ----------
         Card(

@@ -86,9 +86,18 @@ class AppTheme extends ChangeNotifier {
   static TextStyle? _brand(TextStyle? s, double weight) => s?.copyWith(
       fontFamily: 'Baloo2', fontVariations: [FontVariation('wght', weight)], height: 1.2, letterSpacing: 0);
 
+  /// Gaya tombol **aksi utama** (satu per layar, §1.4): pink brand #F478AA dengan teks gelap di kedua tema.
+  /// Sengaja tidak dipasang di tema, karena tema FilledButton juga berlaku untuk FilledButton.tonal (aksi kedua).
+  /// Aksen selain Lokana: null = warna `primary` biasa.
+  static ButtonStyle? primaryButton(BuildContext context) {
+    if (instance.accent.id != 'lokana') return null;
+    final lk = context.lk;
+    return FilledButton.styleFrom(backgroundColor: lk.pink, foregroundColor: lk.onPink);
+  }
+
   /// Tema dari token docs/DESIGN.md §2. Permukaan, teks, dan garis selalu dari token Lokana; warna aksen
   /// pilihan pengguna menjadi seed ColorScheme. Aksen "Lokana" memakai pink brand persis:
-  /// `primary` = pink sebagai teks (kontras ≥ 4.5:1), tombol utama = pink brand #F478AA dengan teks gelap.
+  /// `primary` = pink sebagai teks (kontras ≥ 4.5:1); tombol aksi utama memakai [primaryButton].
   ThemeData data(Brightness b) {
     final dark = b == Brightness.dark;
     final lk = dark ? LokanaTokens.dark : LokanaTokens.light;
@@ -175,8 +184,6 @@ class AppTheme extends ChangeNotifier {
           shape: pill,
           minimumSize: const Size(64, 52),
           textStyle: text.labelLarge?.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
-          backgroundColor: brand ? lk.pink : null,
-          foregroundColor: brand ? lk.onPink : null,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(

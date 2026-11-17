@@ -2,6 +2,7 @@
 // kartu fitur, dan "mata" Lokana. Semua halaman memakai ini supaya tampilan konsisten.
 import 'dart:math';
 import 'package:material_ui/material_ui.dart';
+import 'theme.dart';
 
 /// Jarak standar.
 class Gap {
@@ -156,7 +157,8 @@ class ActionBar extends StatelessWidget {
                         onPressed: progress != null ? null : onPressed,
                         icon: Icon(icon),
                         label: Text(label),
-                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52))
+                            .merge(AppTheme.primaryButton(context)),
                       ),
                     ),
                   ]),

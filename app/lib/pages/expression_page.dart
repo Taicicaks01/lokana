@@ -4,7 +4,9 @@ import '../main.dart';
 import '../ui.dart';
 
 class ExpressionPage extends StatefulWidget {
-  const ExpressionPage({super.key});
+  /// true = tampil di dalam tab (tanpa AppBar sendiri; judul dari tab).
+  final bool embedded;
+  const ExpressionPage({super.key, this.embedded = false});
 
   @override
   State<ExpressionPage> createState() => _ExpressionPageState();
@@ -18,7 +20,7 @@ class _ExpressionPageState extends State<ExpressionPage> {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Ekspresi')),
+      appBar: widget.embedded ? null : AppBar(title: const Text('Ekspresi')),
       body: PageBody(children: [
         Text('Ketuk ekspresi untuk ditampilkan di wajah Lokana.',
             style: t.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),

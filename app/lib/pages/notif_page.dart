@@ -7,7 +7,9 @@ import '../ui.dart';
 
 /// Penerusan notifikasi & panggilan ke Lokana. Hanya aplikasi yang dicentang yang diteruskan.
 class NotifPage extends StatefulWidget {
-  const NotifPage({super.key});
+  /// true = tampil di dalam tab (tanpa AppBar sendiri; judul dari tab).
+  final bool embedded;
+  const NotifPage({super.key, this.embedded = false});
 
   @override
   State<NotifPage> createState() => _NotifPageState();
@@ -75,7 +77,7 @@ class _NotifPageState extends State<NotifPage> with WidgetsBindingObserver {
     final cs = Theme.of(context).colorScheme;
     if (s == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Notifikasi')),
+        appBar: widget.embedded ? null : AppBar(title: const Text('Notifikasi')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -90,7 +92,7 @@ class _NotifPageState extends State<NotifPage> with WidgetsBindingObserver {
           });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifikasi')),
+      appBar: widget.embedded ? null : AppBar(title: const Text('Notifikasi')),
       body: PageBody(
         children: [
           if (!s.access)

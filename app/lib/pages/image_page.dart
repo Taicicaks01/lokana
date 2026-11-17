@@ -9,7 +9,9 @@ import '../ui.dart';
 
 /// Emoji, teks, gambar & GIF -> animasi 1-bit; kirim sekarang atau simpan ke galeri Lokana (slot 1-8).
 class ImagePage extends StatefulWidget {
-  const ImagePage({super.key});
+  /// true = tampil di dalam tab (tanpa AppBar sendiri; judul dari tab).
+  final bool embedded;
+  const ImagePage({super.key, this.embedded = false});
 
   @override
   State<ImagePage> createState() => _ImagePageState();
@@ -163,7 +165,7 @@ class _ImagePageState extends State<ImagePage> {
     final a = anim;
     final used = slots == null ? const <int>{} : {for (var i = 0; i < slots!.length; i++) if (slots![i].$1 > 0) i + 1};
     return Scaffold(
-      appBar: AppBar(title: const Text('Emoji & Gambar')),
+      appBar: widget.embedded ? null : AppBar(title: const Text('Emoji & Gambar')),
       bottomNavigationBar: ActionBar(
         label: slot == 0 ? 'Tampilkan di Lokana' : (used.contains(slot) ? 'Ganti isi slot $slot' : 'Simpan ke slot $slot'),
         icon: slot == 0 ? Icons.send_rounded : Icons.save_alt_rounded,
