@@ -351,7 +351,10 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   - 🟡 **Kesiapan Play Store**: kunci rilis (bukan debug key), kebijakan privasi, deklarasi akses notifikasi &
     `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`; pertimbangkan **CompanionDeviceManager** (izin latar + dialog pairing
     yang lebih baik — sekaligus menutup backlog dialog PIN generik).
-  - 🟡 **CI GitHub Actions**: `pio run -e supermini -e supermini-091 -e wokwi` + `flutter test` di setiap push/PR.
+  - ✅ **CI GitHub Actions** (2026-11-21, `.github/workflows/ci.yml`): firmware 3 env, `flutter analyze/test`, `selftest`.
+  - ✅ **Rilis GitHub pertama v0.5.7** (2026-11-21): aset `lokana-os-0.5.7.bin` (nama wajib `lokana-os-*.bin`, dibaca
+    halaman Update aplikasi) + APK. Setiap rilis: naikkan `FW_VERSION` + `pubspec.yaml` + `CLIENT_NAME` (BleLink.kt),
+    pindahkan `[Belum dirilis]` di CHANGELOG ke versi baru, build `pio run -e supermini` + APK, `gh release create`.
   - 🟡 **Lokana Desktop** masih 0% (`desktop/` kosong): mulai dari `protocol/tools/lokana_link.py` → monitor PC lewat USB (v0.7).
   - 🟢 **Kerapian repo**: ✅ `hardware/case/` di-commit (tanpa `_render/`), ✅ `CHANGELOG.md` (v0.3.0 → sekarang;
     perbarui setiap rilis), ✅ versi di `app/README.md`. Sisa: `web/` placeholder bertentangan dengan keputusan
@@ -392,6 +395,11 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP` (mis. Arduino-ESP32 3.x lewat pioarduino `custom_sdkconfig`),
     migrasi NimBLE-Arduino 2.x. Proyek terpisah, perlu OK Wayan.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
+  Dikerjakan **bersama** dua permintaan Wayan (2026-11-21):
+  - Saat USB Super Mini tersambung ke laptop (port COM terdeteksi host, `HWCDC::isPlugged()`), OLED menampilkan
+    tulisan **"mode developer"**.
+  - Saat charger (USB bawah, `battery::charging()`) tersambung, OLED menampilkan tulisan **"charging"** (sekarang baru
+    toast "Mengisi daya" + ikon). Tentukan bersama Wayan: lencana permanen atau layar sendiri saat layar mati.
 
 ## Cara berkomunikasi dengan pemilik proyek
 

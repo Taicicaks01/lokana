@@ -1,0 +1,69 @@
+# CI Lokana: build firmware semua env + uji aplikasi + uji protokol tanpa device.
+# Berjalan di setiap push dan pull request ke main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    name: Firmware (PlatformIO)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
+      - name: Pasang PlatformIO
+        run: pip install --upgrade platformio
+      - name: Build supermini, supermini-091, wokwi
+        working-directory: firmware
+        run: pio run -e supermini -e supermini-091 -e wokwi
+      - name: Simpan firmware supermini
+        uses: actions/upload-artifact@v4
+        with:
+          name: lokana-os-supermini
+          path: firmware/.pio/build/supermini/firmware.bin
+          retention-days: 14
+
+  protocol:
+    name: Protokol (selftest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CRC & contoh byte spesifikasi
+        run: python protocol/tools/lokana_link.py selftest
+
+  app:
+    name: Aplikasi (Flutter)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

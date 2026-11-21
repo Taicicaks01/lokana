@@ -4,7 +4,7 @@ Aplikasi pendamping Lokana: sambungkan lewat BLE, lalu kirim ekspresi, teks, emo
 lempar dadu, cari kunci, ubah pengaturan, dan dipanggil Lokana saat HP terselip (Cari HP).
 Sejak 0.5.0 juga meneruskan **notifikasi** aplikasi pilihan dan **panggilan masuk**.
 
-Versi **0.5.6** (belum dirilis; lihat `CHANGELOG.md`). Android dulu; iOS menyusul
+Versi **0.5.7** (rilis pertama di GitHub Releases; lihat `CHANGELOG.md`). Android dulu; iOS menyusul
 (lihat `docs/ARCHITECTURE.md` §4).
 
 ## Arsitektur

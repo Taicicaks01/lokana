@@ -9,7 +9,7 @@ dan di meja sebagai asisten kerja. Lokana memantau HP, kunci, dan komputermu,
 lalu memberi kabar lewat sepasang matanya.
 
 ![Status](https://img.shields.io/badge/status-pengembangan%20awal-orange)
-![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.4-blue)
+![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.7-blue) ![CI](https://github.com/Taicicaks01/lokana/actions/workflows/ci.yml/badge.svg)
 ![Platform](https://img.shields.io/badge/MCU-ESP32--C3-red)
 ![Layar](https://img.shields.io/badge/OLED-128%C3%9764-lightgrey)
 ![Lisensi kode](https://img.shields.io/badge/kode-MIT-green)
@@ -26,8 +26,10 @@ lalu memberi kabar lewat sepasang matanya.
 
 ---
 
-> **Status proyek:** fondasi firmware sudah berjalan di hardware asli. **Lokana OS v0.5.4**
-> menambahkan **notifikasi HP**, **panggilan masuk**, splash boot **लोचन**, **Panduan cara pakai**, dan **pengingat ketinggalan** dua arah, di atas
+> **Status proyek:** Lokana Cube pertama sudah dirakit dan diuji. **Lokana OS v0.5.7** (rilis pertama di GitHub Releases)
+> menambahkan **baterai** (persen asli, peringatan, *deep sleep*), **pembaruan firmware lewat aplikasi (OTA + rollback)**,
+> dan **hemat daya** (perkiraan ±27 jam pemakaian biasa, uji tahan baterai berjalan), di atas **notifikasi HP**, **panggilan masuk**, splash boot **लोचन**,
+> **Panduan cara pakai**, **pengingat ketinggalan** dua arah,
 > pengaturan, dadu, teks (5 font), gambar/emoji, dan Cari HP lewat **Lokana Link** (USB & BLE). **Aplikasi Lokana**
 > (Android) sudah jalan di HP, dengan pratinjau teks yang sama persis dengan layar Lokana.
 > Lokana Desktop belum dimulai.
@@ -121,7 +123,7 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 | Monitor HP | 📋 | Baterai, sinyal, dan memori HP di layar Lokana |
 | Kontrol musik & cuaca | 📋 | Play/pause/next; cuaca dari aplikasi |
 | Pengaturan WiFi (*BLE provisioning*) | 📋 | Nama & password WiFi dikirim dari aplikasi, tanpa web portal |
-| Update firmware lewat aplikasi (OTA) | 📋 | Mengambil rilis terbaru dari GitHub Releases |
+| Update firmware lewat aplikasi (OTA) | ✅ | Mengambil rilis terbaru dari GitHub Releases (atau file `.bin`), rollback otomatis |
 
 ### 3.3 Dari komputer (Lokana Desktop)
 
@@ -339,7 +341,7 @@ rilis. Sengaja **tidak ada web flasher**: pembeli diarahkan ke repo supaya melih
 |---|---|---|---|
 | **Mode Update** | Pembeli umum | Aktifkan Mode Update di Lokana, unduh `.bin` dari Releases, lalu pasang ke Lokana | 📋 mekanisme masih didiskusikan |
 | **Build dari kode** | Yang ingin belajar | Clone repo → ubah → `pio run -t upload` | ✅ |
-| **Update lewat aplikasi (OTA)** | Pembeli awam | Aplikasi mengambil rilis terbaru; tetap ada tombol "Lihat perubahan & kode di GitHub" | 📋 |
+| **Update lewat aplikasi (OTA)** | Pembeli awam | Aplikasi mengambil rilis terbaru; tetap ada tombol "Lihat perubahan & kode di GitHub" | ✅ sejak 0.5.5 (uji BLE 0.5.6) |
 
 Supaya pembaruan aman:
 

@@ -7,6 +7,16 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+## [0.5.7] - 2026-11-21
+
+Rilis pertama di GitHub Releases: `lokana-os-0.5.7.bin` (firmware ESP32-C3 Super Mini, untuk OTA dari aplikasi atau
+`esptool write_flash 0x10000`) dan APK Android. **Pin OLED berubah jadi SDA GPIO9 / SCL GPIO8** (lihat Hardware di bawah):
+unit dengan wiring lama (SDA 8 / SCL 9) perlu build sendiri dengan `-DPIN_SDA=8 -DPIN_SCL=9`.
+
+### Infrastruktur
+- CI GitHub Actions (`.github/workflows/ci.yml`): build firmware `supermini`, `supermini-091`, `wokwi`, `flutter analyze`
+  + `flutter test`, dan `lokana_link.py selftest` di setiap push/PR ke `main`.
+
 ### Firmware: manajemen daya — Lokana OS 0.5.7 (bertahap)
 - CPU 80 MHz (sebelumnya 160 MHz): layar mati + HP tersambung 30 → 22 mA. Tabel ukur tiap langkah di
   `docs/ARCHITECTURE.md` §2.5. `info` menampilkan frekuensi CPU.
