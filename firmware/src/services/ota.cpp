@@ -97,6 +97,7 @@ uint8_t chunk(uint8_t t, uint32_t off, const uint8_t* d, uint16_t n) {
 }
 
 uint8_t end(uint8_t t) {
+  if (done && t == tr) return ST_OK;              // END ulang: ACK pertama terlambat/hilang, image sudah terpasang
   if (!act || t != tr || got != size) return ST_BAD_PAYLOAD;
   uint8_t out[32];
   mbedtls_sha256_finish(&sha, out);

@@ -172,6 +172,9 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | Versi di header firmware = "esp-idf: v4.4.7…", bukan versi Lokana | Pustaka Arduino prebuilt mengisi `esp_app_desc_t.version` | Pakai penanda `LOKANA_OS_VERSION:` (`services/ota.cpp`); simbol harus **dipakai** kode (linker `--gc-sections` membuang simbol tak terpakai walau `used`) |
 | OTA: data acak ditolak di CHUNK pertama, bukan di END | `esp_ota_write` memeriksa byte `0xE9` di tulisan pertama | Sudah dipetakan ke ABORT alasan 6; data uji harus diawali `0xE9` untuk menguji pemeriksaan di END |
 | Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
+| OTA lewat BLE 8 menit (±2,4 KB/s) | Kotlin menulis dengan *write with response* + interval koneksi bawaan | Sejak 0.5.6: `WRITE_TYPE_NO_RESPONSE` (karakteristik RX punya `WRITE_NR`) + `requestConnectionPriority(HIGH)` selama OTA → ±90 dtk |
+| Aplikasi bilang OTA "gagal menyala" padahal firmware baru sehat | `link.info` tidak dikosongkan saat putus; halaman Update membaca versi lama begitu tersambung lagi | Sejak 0.5.6 tunggu `link.infoCount` naik (DEVICE_INFO baru) sesudah putus. END ulang dibalas OK oleh firmware |
+| Upload PlatformIO gagal "No serial data received" di tahap stub | Sambungan USB goyah (HP juga tercolok ke laptop) | `python -m esptool --chip esp32c3 --port COMx --no-stub write_flash 0x10000 .pio/build/supermini/firmware.bin` (±73 dtk), atau ganti port USB |
 | Serial diam setelah upload (port ada, `info` tidak dibalas) | DTR/RTS saat port dibuka; atau chip tertahan di mode download setelah reset esptool | Skrip pyserial: buka dengan `dtr=False, rts=False`, tunggu ±1 dtk, lalu `dtr=True`. Kalau `esptool --before no_reset --after no_reset read_mac` menjawab, chip di bootloader: cabut-colok USB / tekan RST |
 | GPIO1 terbaca ±2,5 V (≈ 5 V) saat saklar OFF + USB | **D1 tidak terpasang**: pembagi ikut 5V USB, dan saklar ON + USB mengisi LiPo langsung | Pasang D1 (anoda ke saklar, katoda ke pin 5V); pembagi di sisi saklar. `adc` untuk cek |
 | Tahan (`long`) tidak terdeteksi, tap terbaca jadi `double` | Sentuhan tipis: keluaran TTP223 berkedip (HIGH/LOW 50–400 ms) | `btnraw` untuk melihat level mentah. Sentuh dengan bantalan jari rata; jangan menambal di firmware (celah sama dengan jeda double tap) |
@@ -361,7 +364,8 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   `supermini-otacrash`. Aplikasi 0.5.5: `update_page.dart` (GitHub Releases `lokana-os-<versi>.bin` / file .bin),
   `LokanaLink.sendFirmware`, Kotlin `sha256`/`pickFile`/`openUrl`/`keepScreenOn`/`LeaveAlert.quietFor`, izin INTERNET.
   Lulus 175/175 uji USB (termasuk `test_v055`), uji OTA USB: update sukses + firmware rusak rollback.
-  **Belum diuji:** OTA lewat BLE dari HP; macet di loop (watchdog) di hardware.
+  **OTA lewat BLE dari HP lulus 2026-11-21** (unit 1, aplikasi 0.5.6): 1,18 MB ±90 dtk, firmware sehat ditandai valid,
+  `0.5.6-rusak` rollback otomatis. Belum diuji: macet di loop (watchdog) di hardware.
 - **Lokana Cube unit 1 — bring-up ✅** (2026-11-21, COM10): I2C 0x3C, OLED (frame ±25 ms), TTP223 (tap/2×/3×/tahan
   dengan bantalan jari), buzzer (terkeras ±1300 Hz → nada Cari kunci 1300/1500 Hz), deteksi charge GPIO4 (2,8 V dicolok,
   ±15 mV dicabut), pembagi baterai 2,10 (multimeter). Penyimpangan wiring unit 1: `hardware/BOM.md`. Berikutnya: poin 2

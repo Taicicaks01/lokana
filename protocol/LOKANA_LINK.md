@@ -296,6 +296,8 @@ Aturan rinci (firmware 0.5.5+, bit `caps` 6 `OTA`):
   OTA lain dari transport berbeda sedang berjalan = `BUSY`; dari transport yang sama = mulai ulang dari awal.
 - `CHUNK` harus **berurutan**: `offset` = jumlah byte yang sudah diterima. `offset` lebih kecil dan potongannya
   persis berakhir di posisi sekarang dianggap **kiriman ulang** (ACK hilang) dan dibalas `OK` tanpa ditulis ulang.
+  Begitu juga `END` ulang setelah image terpasang (sejak 0.5.6): dibalas `OK` selama device belum restart.
+  Memeriksa image di `END` bisa makan lebih dari 2 detik; host sebaiknya tidak menganggap `END` gagal hanya karena ACK lambat.
   `offset` lain, data kosong, atau melewati `size` = `BAD_PAYLOAD` (host mulai lagi dari `BEGIN`).
   Data maks 1195 byte per CHUNK (payload 1200 − 5).
 - `CHUNK` pertama yang bukan image ESP32-C3 (byte awal ≠ `0xE9`) langsung dibalas `ERROR` + `ABORT` alasan `6`.
@@ -733,5 +735,5 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
-| v1 | 2026-11-21 | Untuk firmware 0.5.6 (tambahan, format lama tetap): `DEVICE_INFO` bit `flags` 3 (charger terdeteksi) dan 4 (baterai lemah), field akhir opsional `battery_mv`, dikirim tanpa diminta saat status daya berubah |
+| v1 | 2026-11-21 | Untuk firmware 0.5.6 (tambahan, format lama tetap): `DEVICE_INFO` bit `flags` 3 (charger terdeteksi) dan 4 (baterai lemah), field akhir opsional `battery_mv`, dikirim tanpa diminta saat status daya berubah; `OTA END` ulang setelah image terpasang dibalas `OK` |
 | v1 | 2026-11-18 | Untuk firmware 0.5.5 (format lama tetap): aturan rinci `OTA` (CHUNK berurutan + kiriman ulang, kode `reason` ABORT, PROGRESS tiap 64 KB, batas waktu 30 dtk, masa uji & rollback); bit `caps` 6 `OTA` dinyalakan |

@@ -15,6 +15,9 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 - Kalibrasi per unit lewat console `batt cal <volt>`; perintah bring-up `tone`, `sweep`, `adc`, `btnraw`.
 - Aplikasi: chip baterai di Beranda dan kartu perangkat Pengaturan (ikon level, mengisi, lemah).
 - Hardware: pin OLED jadi SDA GPIO9 / SCL GPIO8; nada Cari kunci 1300/1500 Hz (resonansi buzzer).
+- **OTA lewat BLE dari HP diuji di Lokana Cube**: ±90 detik untuk 1,2 MB (sebelumnya ±8 menit; aplikasi menulis tanpa
+  respons dan meminta koneksi prioritas tinggi selama kirim). Perbaikan: aplikasi tidak lagi melaporkan "gagal menyala"
+  untuk firmware yang sehat; `END` yang terkirim ulang dibalas OK.
 
 ### Firmware & aplikasi: pembaruan firmware lewat aplikasi (OTA) — Lokana OS 0.5.5
 - Pesan `OTA` diaktifkan (bit `caps` 6): firmware dikirim lewat BLE dari aplikasi atau USB dari PC, diperiksa SHA-256,

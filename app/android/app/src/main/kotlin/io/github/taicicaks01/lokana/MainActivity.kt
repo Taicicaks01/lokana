@@ -106,6 +106,7 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "otaRestartExpected" -> { LeaveAlert.quietFor(this, 90_000); result.success(null) }
+                "otaPriority" -> { BleLink.setHighPriority(call.argument<Boolean>("on") == true); result.success(null) }
                 "getPrefs" -> result.success(getSharedPreferences("lokana_app", MODE_PRIVATE).all
                     .mapValues { it.value.toString() })
                 "setPref" -> {

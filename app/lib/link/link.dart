@@ -29,6 +29,9 @@ class LokanaLink extends ChangeNotifier {
   int mtu = 23;
   ({String address, String name})? saved;
   DeviceInfo? info;
+  /// Bertambah tiap DEVICE_INFO diterima dari Lokana. `info` tidak dikosongkan saat putus, jadi layar yang
+  /// butuh versi terbaru setelah restart (Update) menunggu angka ini naik.
+  int infoCount = 0;
   LokanaSettings? settings;
   final found = <String, FoundDevice>{};
   final dice = <DiceResult>[];
@@ -94,6 +97,7 @@ class LokanaLink extends ChangeNotifier {
     switch (type) {
       case T.deviceInfo:
         info = DeviceInfo.parse(p);
+        infoCount++;
       case T.settings:
         settings = LokanaSettings.parse(p);
       case T.dice:
@@ -281,6 +285,7 @@ class LokanaLink extends ChangeNotifier {
     final sub = frames.where((f) => f.$1 == T.ota && f.$2.length >= 2 && f.$2[0] == OtaOp.abort)
         .listen((f) => abortReason = f.$2[1]);
     String? fail(int st) => abortReason != null ? otaReason(abortReason!) : Status.describe(st);
+    await _m.invokeMethod('otaPriority', {'on': true});    // interval koneksi pendek selama kirim
     try {
       var st = await send(T.ota, pOtaBegin(bin.length, hash, version));
       if (st != Status.ok) return fail(st);
@@ -302,6 +307,7 @@ class LokanaLink extends ChangeNotifier {
       return st == Status.ok ? null : fail(st);
     } finally {
       await sub.cancel();
+      await _m.invokeMethod('otaPriority', {'on': false});
     }
   }
 

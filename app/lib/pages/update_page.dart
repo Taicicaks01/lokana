@@ -45,6 +45,7 @@ class _UpdatePageState extends State<UpdatePage> {
   DateTime? sendStart;
   Timer? _timeout, _verify;
   bool _sawDrop = false;
+  int _infoAtDrop = 0;      // link.infoCount saat koneksi putus; versi dinilai dari DEVICE_INFO sesudahnya
 
   @override
   void initState() {
@@ -69,9 +70,11 @@ class _UpdatePageState extends State<UpdatePage> {
     if (!mounted) return;
     if (phase == _Phase.restarting || phase == _Phase.verifying) {
       if (!link.ready) {
+        _infoAtDrop = link.infoCount;                   // tidak ada frame selama putus: angka ini tetap
         _sawDrop = true;
         if (phase == _Phase.verifying) { _verify?.cancel(); phase = _Phase.restarting; }   // restart lagi di masa uji
-      } else if (_sawDrop && link.info != null) {
+      } else if (_sawDrop && link.info != null && link.infoCount > _infoAtDrop) {
+        // Hanya DEVICE_INFO baru (sesudah restart): `info` lama masih berisi versi sebelum pembaruan
         final v = link.info!.fwVersion;
         if (v == target && phase == _Phase.restarting) {
           // Firmware baru menyala; tunggu masa uji (±10 dtk) sebelum dinyatakan berhasil

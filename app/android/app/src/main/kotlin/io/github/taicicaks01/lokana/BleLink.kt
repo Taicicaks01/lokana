@@ -40,7 +40,7 @@ object BleLink {
     private const val ACK_TIMEOUT_MS = 2000L
     private const val RETRIES = 3
     private const val PREFS = "lokana"
-    const val CLIENT_NAME = "Lokana Android 0.5.5"
+    const val CLIENT_NAME = "Lokana Android 0.5.6"
 
     enum class State(val id: String) {
         IDLE("idle"), SCANNING("scanning"), CONNECTING("connecting"), PAIRING("pairing"),
@@ -471,16 +471,26 @@ object BleLink {
         writeNext()
     }
 
+    /** Prioritas koneksi tinggi (interval 7,5-15 ms) selama OTA; kembali seimbang sesudahnya (hemat baterai). */
+    fun setHighPriority(on: Boolean) {
+        gatt?.requestConnectionPriority(
+            if (on) BluetoothGatt.CONNECTION_PRIORITY_HIGH else BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
+    }
+
     private fun writeNext() {
         if (writing) return
         val g = gatt ?: return
         val c = rx ?: return
         val data = writeQueue.removeFirstOrNull() ?: return
         writing = true
+        // Tanpa respons: beberapa paket per connection event. Alur tetap dijaga onCharacteristicWrite
+        // (dipanggil saat stack menerima paket) dan ACK Lokana Link per frame.
+        val type = if (c.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0)
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE else BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
         val ok = if (Build.VERSION.SDK_INT >= 33) {
-            g.writeCharacteristic(c, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+            g.writeCharacteristic(c, data, type) == BluetoothGatt.GATT_SUCCESS
         } else @Suppress("DEPRECATION") run {
-            c.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            c.writeType = type
             c.value = data
             g.writeCharacteristic(c)
         }
