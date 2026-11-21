@@ -378,11 +378,19 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
 - **Ukur arus ✅** (2026-11-21, poin 3): layar nyala/mati × BLE tersambung/iklan = 45/30/40/28 mA, mengisi 0,38 A (TP4056
   hangat tipis, Rprog 2,7k tetap). Umur ±20 jam pemakaian biasa. Tabel & kesimpulan: `docs/ARCHITECTURE.md` §2.5.
   Manajemen daya (light sleep, CPU, interval BLE) **sekarang boleh dikerjakan**, ukur ulang tabel setelah tiap langkah.
-- **v0.5.7 🚧 Manajemen daya** (2026-11-21, bertahap, tiap langkah diukur USB tester + didokumentasikan di
+- **v0.5.7 ✅ Manajemen daya tahap 1** (2026-11-21, bertahap, tiap langkah diukur USB tester + didokumentasikan di
   `docs/ARCHITECTURE.md` §2.5 — permintaan Wayan: **setiap perubahan didokumentasikan**). Arduino 2.0.17 prebuilt tanpa
   `CONFIG_PM_ENABLE` → tidak ada light sleep otomatis. ✅ 1 CPU 80 MHz (`CPU_MHZ`): 45/30/40/28 → 46/22/39/27 mA.
   ✅ 2 BLE (`link_ble.cpp`, `link_ble::setActive` dari `link.cpp`): iklan hemat 1 dtk setelah 60 dtk, koneksi 125 ms +
-  latency 3 saat layar mati → 45/21/35/22 mA. Berikutnya: 3 OLED/I2C (frame rate, kirim hanya jika berubah).
+  latency 3 saat layar mati → 45/21/35/22 mA (pemakaian biasa ±23 mA → ±27 jam). **Dihentikan di sini atas
+  keputusan Wayan.** Belum dicek di HP setelah langkah 2: Cari kunci, notifikasi, dan sambung ulang saat layar mati.
+  Backlog daya (belum dikerjakan):
+  - Langkah 3 OLED/I2C: kirim frame hanya jika isi berubah / frame rate lebih rendah saat diam (layar nyala ±24 mA
+    untuk OLED + I2C; frame tiap 30 ms, kirim ±25 ms). Ukur kecerahan Redup vs Terang.
+  - Hardware: LED daya merah Super Mini (selalu menyala) dan LED biru GPIO8 (ikut SCL) bisa dilepas resistornya.
+  - Light sleep sungguhan (perkiraan ±3–6 mA saat layar mati, beberapa hari per isi): framework dengan
+    `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP` (mis. Arduino-ESP32 3.x lewat pioarduino `custom_sdkconfig`),
+    migrasi NimBLE-Arduino 2.x. Proyek terpisah, perlu OK Wayan.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

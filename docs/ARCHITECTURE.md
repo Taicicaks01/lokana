@@ -182,6 +182,11 @@ Catatan langkah 2 (Lokana meminta, HP yang memutuskan; HP uji Infinix menyetujui
   Sisa ±21 mA = chip yang tidak pernah tidur (CPU 80 MHz tanpa *light sleep*, controller BLE tanpa *modem sleep*).
   Penurunan besar berikutnya hanya lewat framework dengan `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP`.
 
+Status (2026-11-21): manajemen daya **berhenti setelah langkah 2** (keputusan pemilik). Peluang yang tersisa, belum
+dikerjakan: (3) OLED/I2C — kirim frame hanya jika berubah / frame rate rendah saat diam, untuk beban layar nyala ±24 mA;
+hardware — lepas LED daya merah & LED biru GPIO8 Super Mini; light sleep sungguhan lewat framework yang dikompilasi
+ulang (perkiraan ±3–6 mA saat layar mati).
+
 **Baterai (sejak 0.5.6, `drivers/hw.cpp` + `services/power.cpp`)**
 - Sel dibaca tiap 1 dtk lewat GPIO1 (pembagi dari sisi saklar, sebelum D1), rata-rata 16 sampel + EMA. Di bawah
   2,5 V = sel tidak terbaca (saklar OFF, hanya USB kanan) → persen `255` di `DEVICE_INFO`.
