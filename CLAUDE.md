@@ -383,7 +383,7 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   `CONFIG_PM_ENABLE` → tidak ada light sleep otomatis. ✅ 1 CPU 80 MHz (`CPU_MHZ`): 45/30/40/28 → 46/22/39/27 mA.
   ✅ 2 BLE (`link_ble.cpp`, `link_ble::setActive` dari `link.cpp`): iklan hemat 1 dtk setelah 60 dtk, koneksi 125 ms +
   latency 3 saat layar mati → 45/21/35/22 mA (pemakaian biasa ±23 mA → ±27 jam). **Dihentikan di sini atas
-  keputusan Wayan.** Belum dicek di HP setelah langkah 2: Cari kunci, notifikasi, dan sambung ulang saat layar mati.
+  keputusan Wayan.** Dicek di HP setelah langkah 2: Cari kunci, notifikasi, dan sambung ulang saat layar mati normal.
   Backlog daya (belum dikerjakan):
   - Langkah 3 OLED/I2C: kirim frame hanya jika isi berubah / frame rate lebih rendah saat diam (layar nyala ±24 mA
     untuk OLED + I2C; frame tiap 30 ms, kirim ±25 ms). Ukur kecerahan Redup vs Terang.
