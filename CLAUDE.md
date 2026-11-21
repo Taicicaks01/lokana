@@ -97,12 +97,12 @@ flutter build apk --release --split-per-abi   # HP modern: app-arm64-v8a-release
 |---|---|---|
 | OLED SSD1306 128×64 (I2C, 0x3C) | SDA GPIO8, SCL GPIO9 | Sama di Wokwi. Pindah dari 20/21 di v0.2 (OLED tidak terdeteksi di 20/21) |
 | Tombol | Sensor sentuh TTP223 di GPIO3 (aktif HIGH) | Wokwi: tombol mekanis ke GND (`-DBTN_ACTIVE_LOW=1`). Tombol BOOT (GPIO9) tidak dipakai karena jadi SCL; jangan ditekan saat jalan |
-| Buzzer pasif | GPIO10 | |
+| Buzzer pasif 9×5.5 | GPIO10 → R 1k → Q1 S8050 (NPN); unit pertama: 2SC1815 SOT-23 + R 1.2k | Buzzer + ke 3V3, − ke kolektor Q1, emitor ke GND, D3 SS14 paralel buzzer. Jangan drive langsung dari GPIO (kumparan ±16 Ω). Logika firmware tidak berubah. Daftar komponen: `hardware/BOM.md` |
 | LED bawaan | GPIO8 (= SDA) | Tidak dipakai firmware (`PIN_LED -1`); berkedip redup mengikuti lalu lintas I2C |
-| Baterai | GPIO1 (R1 100k / R2 100k + 100 nF ke GND) | Dipasang **setelah saklar, sebelum D1** (tegangan sel asli). Firmware: `-DPIN_BATT=1` di env `supermini` (belum diaktifkan) |
+| Baterai | GPIO1 (R1 100k / R2 100k + 100 nF ke GND; unit pertama 220 nF) | Dipasang **setelah saklar, sebelum D1** (tegangan sel asli). Firmware: `-DPIN_BATT=1` di env `supermini` (belum diaktifkan) |
 | Deteksi charge (opsional) | GPIO4 (100k/100k dari IN+ TP4056) | Baca dengan **ADC**: > 2.1 V = charger dicolok. Jangan sebagai input digital (bisa 1.6–1.8 V saat D2 terpasang) |
 
-**Jalur daya (case v1.1):** LiPo 102530 → TP4056 Type-C + DW01A (Rprog **4.7 kΩ** ≈ 255 mA) → OUT+ → saklar
+**Jalur daya (case v1.1):** LiPo 102530 → TP4056 Type-C + DW01A (Rprog **2.7 kΩ** ≈ 440 mA, keputusan Wayan 2026-11-19; cadangan 3.3 kΩ kalau terlalu panas) → OUT+ → saklar
 SS12D00 → **D1 Schottky** → pin 5V Super Mini. GND sistem dari **OUT−**. Opsional **D2**: 5V Super Mini → IN+ TP4056
 (port program ikut mengisi). Karena D1 (±0.3 V), regulator 3.3 V mulai kurang tegangan saat sel ±3.5 V.
 Port: USB-C **kanan** = Super Mini (program/data), USB-C **bawah** = TP4056 (charge), saklar di **kiri**.

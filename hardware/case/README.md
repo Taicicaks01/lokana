@@ -19,6 +19,8 @@ tape busa dan setitik lem tembak.
 
 ## Susunan komponen
 
+Daftar lengkap komponen dan bahan: [`../BOM.md`](../BOM.md).
+
 ```
  depan                                                    belakang
  [layar] OLED 0.96" → Super Mini → TP4056 Type-C → LiPo 102530 → [tutup]
@@ -55,7 +57,7 @@ tape busa dan setitik lem tembak.
 ## Perakitan (dua port)
 
 ```
- USB-C bawah ── TP4056 + DW01A (Rprog 4.7 kΩ ≈ 255 mA untuk 700 mAh)
+ USB-C bawah ── TP4056 + DW01A (Rprog 2.7 kΩ ≈ 440 mA, ±0.6C untuk 700 mAh, penuh ±2 jam)
                  B+/B- ── LiPo 102530 (lewat konektor JST)
                  OUT+ ── saklar ──┬── D1 Schottky ►| ── pin 5V Super Mini ── USB-C kanan
                                   │
@@ -71,7 +73,11 @@ tape busa dan setitik lem tembak.
               (supaya port kanan juga mengisi baterai saat Mode Meja)
  D1, D2: B5819W / SS14
  OLED:   SDA GPIO8, SCL GPIO9, VCC 3V3, GND
- Sentuh: OUT GPIO3, VCC 3V3, GND        Buzzer: GPIO10, GND
+ Sentuh: OUT GPIO3, VCC 3V3, GND
+ Buzzer (lewat transistor, JANGAN langsung ke GPIO):
+   GPIO10 ── R 1k (1–1.5k) ── basis Q1 S8050 / 2SC1815 (SOT-23: 1=B, 2=E, 3=C)
+   3V3 ── buzzer + ;  buzzer − ── kolektor Q1 ;  emitor Q1 ── GND
+   D3 SS14 paralel buzzer (garis/katoda ke +) untuk meredam lonjakan kumparan
 ```
 
 | Kondisi | Yang terjadi |
@@ -87,7 +93,9 @@ saat saklar mati. Tegangan 4.2 V terbaca 2.1 V di GPIO1, masih di dalam rentang 
 (±2.5 V pada atenuasi 11 dB). Kalau R1 ≠ R2, sesuaikan `BATT_DIVIDER = (R1 + R2) / R2`.
 
 1. Cabut header pin semua modul; pakai kabel silikon tipis (28–30 AWG), sependek mungkin.
-2. **Ganti Rprog TP4056** sesuai baterai (bawaan 1.2 kΩ = 1 A, terlalu besar).
+2. **Ganti Rprog TP4056** (R3, SMD 0603) dengan **2.7 kΩ** (kode "272"). Bawaan 1.2 kΩ (kode "122") = 1 A,
+   terlalu besar untuk baterai kecil. Arus charge ≈ 1200 / Rprog. Saat charge pertama, ukur dengan USB tester:
+   ±440 mA dan casing hanya hangat = aman; kalau panas sekali, ganti ke 3.3 kΩ (±360 mA).
 3. Masukkan dari belakang, berurutan: OLED (kaca ke jendela) → Super Mini → TP4056.
    Lapisi dengan selotip kapton di antara board dan di depan baterai.
 4. Saklar di sisi kiri, buzzer di kanan atas, sensor sentuh di kantong atas. Rekatkan dengan lem tembak/UHU.
