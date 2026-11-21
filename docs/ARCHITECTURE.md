@@ -127,6 +127,29 @@ BLE / USB / UDP → link (parser) → events::post(EV_NOTIF, …) → Core → m
   dan pengingat ketinggalan butuh BLE tetap tersambung.
 - **Mode Meja**: dideteksi dari daya USB; WiFi boleh hidup untuk monitor PC lewat UDP.
 
+**Hasil ukur arus (2026-11-21, Lokana Cube unit 1, firmware 0.5.6, USB tester)**
+
+Arus kerja diukur di USB kanan dari charger dinding, saklar OFF (Lokana hidup murni dari USB). Regulator 3,3 V
+linier, jadi arus dari sel kurang lebih sama. Belum ada manajemen daya: CPU 160 MHz tanpa *light sleep*, interval BLE
+bawaan NimBLE, OLED kecerahan bawaan.
+
+| # | Layar | BLE | Arus | Umur baterai* |
+|---|---|---|---|---|
+| 1 | Nyala (wajah) | Tersambung | 45 mA | ±14 jam |
+| 2 | Mati | Tersambung | 30 mA | ±21 jam |
+| 3 | Nyala | Iklan (HP tidak tersambung) | 40 mA | ±16 jam |
+| 4 | Mati | Iklan | 28 mA | ±22 jam |
+
+\* LiPo 102530 ±700 mAh, terpakai ±630 mAh (4,20 → 3,40 V, batas deep sleep). Pemakaian Mode Saku biasa (layar
+menyala ±10% waktu, HP tersambung) ≈ 0,1 × 45 + 0,9 × 30 ≈ **31 mA → ±20 jam**, jadi isi daya tiap hari.
+
+Mengisi (USB bawah, saklar OFF, Rprog 2,7 kΩ): **0,38 A pada 5,08 V** saat sel 4,15 V (sudah dekat fase CV, jadi di
+bawah 440 mA), TP4056 hanya hangat tipis → Rprog 2,7 kΩ dipertahankan. Perkiraan isi penuh dari kosong ±2 jam.
+
+Kesimpulan: mematikan layar hanya menghemat ±15 mA; sisa ±28–30 mA adalah CPU yang terus berjalan + radio. Penghematan
+besar ada di manajemen daya (*light sleep* otomatis, CPU 80 MHz saat diam, interval koneksi BLE lebih panjang saat layar
+mati, iklan lebih jarang setelah 1 menit). Target berikutnya: ukur ulang tabel ini setelah tiap langkah.
+
 **Baterai (sejak 0.5.6, `drivers/hw.cpp` + `services/power.cpp`)**
 - Sel dibaca tiap 1 dtk lewat GPIO1 (pembagi dari sisi saklar, sebelum D1), rata-rata 16 sampel + EMA. Di bawah
   2,5 V = sel tidak terbaca (saklar OFF, hanya USB kanan) → persen `255` di `DEVICE_INFO`.

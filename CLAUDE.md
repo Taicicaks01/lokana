@@ -369,8 +369,11 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
 - **v0.5.6 🧪 Baterai** (2026-11-21, poin 2 permintaan Wayan): `PIN_BATT=1` + `PIN_CHG=4` di env `supermini`,
   kalibrasi pembagi per unit (`batt cal`, NVS), persen asli + `battery_mv` + bit mengisi/lemah di `DEVICE_INFO`
   (dikirim ulang saat berubah), ikon baterai OLED (Jam + lencana pojok), peringatan < 3,55 V, deep sleep < 3,40 V
-  (`services/power`), chip baterai di aplikasi 0.5.6 (Beranda + Pengaturan). Manajemen daya lain (light sleep, CPU,
-  interval BLE) **belum disentuh** sampai poin 3 (ukur arus).
+  (`services/power`), chip baterai di aplikasi 0.5.6 (Beranda + Pengaturan). Diuji di unit 1: kalibrasi 2,082,
+  deteksi charge, chip aplikasi, 178/178 uji USB. Belum diuji: peringatan < 3,55 V dan deep sleep (butuh sel hampir habis).
+- **Ukur arus ✅** (2026-11-21, poin 3): layar nyala/mati × BLE tersambung/iklan = 45/30/40/28 mA, mengisi 0,38 A (TP4056
+  hangat tipis, Rprog 2,7k tetap). Umur ±20 jam pemakaian biasa. Tabel & kesimpulan: `docs/ARCHITECTURE.md` §2.5.
+  Manajemen daya (light sleep, CPU, interval BLE) **sekarang boleh dikerjakan**, ukur ulang tabel setelah tiap langkah.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek
