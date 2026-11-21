@@ -99,8 +99,8 @@ flutter build apk --release --split-per-abi   # HP modern: app-arm64-v8a-release
 | Tombol | Sensor sentuh TTP223 di GPIO3 (aktif HIGH) | Wokwi: tombol mekanis ke GND (`-DBTN_ACTIVE_LOW=1`). Tombol BOOT (GPIO9) tidak dipakai karena jadi SDA; jangan ditekan saat jalan |
 | Buzzer pasif 9×5.5 | GPIO10 → R 1k → Q1 S8050 (NPN); unit pertama: 2SC1815 SOT-23 + R 1.2k | Buzzer + ke 3V3, − ke kolektor Q1, emitor ke GND, D3 SS14 paralel buzzer. Jangan drive langsung dari GPIO (kumparan ±16 Ω). Logika firmware tidak berubah. Daftar komponen: `hardware/BOM.md` |
 | LED bawaan | GPIO8 (= SCL) | Tidak dipakai firmware (`PIN_LED -1`); berkedip redup mengikuti lalu lintas I2C |
-| Baterai | GPIO1 (R1 100k / R2 100k + 100 nF ke GND; unit pertama 220 nF) | Dipasang **setelah saklar, sebelum D1** (tegangan sel asli). Firmware: `-DPIN_BATT=1` di env `supermini` (belum diaktifkan) |
-| Deteksi charge (opsional) | GPIO4 (100k/100k dari IN+ TP4056) | Baca dengan **ADC**: > 2.1 V = charger dicolok. Jangan sebagai input digital (bisa 1.6–1.8 V saat D2 terpasang) |
+| Baterai | GPIO1 (R1 100k / R2 100k + 100 nF ke GND; unit pertama 220 nF) | Dipasang **setelah saklar, sebelum D1** (tegangan sel asli). Firmware: `-DPIN_BATT=1` di env `supermini` (sejak 0.5.6); faktor per unit `batt cal <V>` (NVS) |
+| Deteksi charge (opsional) | GPIO4 (100k/100k dari IN+ TP4056) | `-DPIN_CHG=4` (0.5.6). Baca dengan **ADC**: > 2.0 V dicolok, < 1.5 V dicabut. Jangan sebagai input digital (±2,5 V, batas VIH) |
 
 **Jalur daya (case v1.1):** LiPo 102530 → TP4056 Type-C + DW01A (Rprog **2.7 kΩ** ≈ 440 mA, keputusan Wayan 2026-11-19; cadangan 3.3 kΩ kalau terlalu panas) → OUT+ → saklar
 SS12D00 → **D1 Schottky** → pin 5V Super Mini. GND sistem dari **OUT−**. Opsional **D2**: 5V Super Mini → IN+ TP4056
@@ -366,6 +366,11 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   dengan bantalan jari), buzzer (terkeras ±1300 Hz → nada Cari kunci 1300/1500 Hz), deteksi charge GPIO4 (2,8 V dicolok,
   ±15 mV dicabut), pembagi baterai 2,10 (multimeter). Penyimpangan wiring unit 1: `hardware/BOM.md`. Berikutnya: poin 2
   kode baterai v0.5.6, poin 3 uji daya USB tester, poin 4 OTA BLE dari HP (lihat permintaan Wayan 2026-11-21).
+- **v0.5.6 🧪 Baterai** (2026-11-21, poin 2 permintaan Wayan): `PIN_BATT=1` + `PIN_CHG=4` di env `supermini`,
+  kalibrasi pembagi per unit (`batt cal`, NVS), persen asli + `battery_mv` + bit mengisi/lemah di `DEVICE_INFO`
+  (dikirim ulang saat berubah), ikon baterai OLED (Jam + lencana pojok), peringatan < 3,55 V, deep sleep < 3,40 V
+  (`services/power`), chip baterai di aplikasi 0.5.6 (Beranda + Pengaturan). Manajemen daya lain (light sleep, CPU,
+  interval BLE) **belum disentuh** sampai poin 3 (ukur arus).
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

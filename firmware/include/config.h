@@ -15,7 +15,7 @@
   "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01" // Lokana_लोचन-01
 #endif
 #ifndef FW_VERSION // bisa ditimpa build_flags (env uji OTA)
-#define FW_VERSION "0.5.5"
+#define FW_VERSION "0.5.6"
 #endif
 
 // ---------- Layar ----------
@@ -55,7 +55,13 @@
 #ifndef PIN_BATT
 #define PIN_BATT -1 // 1 jika pembagi tegangan baterai dipasang
 #endif
+#ifndef PIN_CHG
+#define PIN_CHG -1 // 4 jika deteksi charge (IN+ TP4056 -> 100k -> GPIO4 -> 100k -> GND) dipasang
+#endif
+// Faktor pembagi bawaan (R1 = R2). Per unit dikalibrasi lewat console `batt cal <volt>` (NVS).
 #define BATT_DIVIDER 2.0f
+#define BATT_WARN_V 3.55f   // peringatan "Baterai lemah" (ingat drop D1 ±0.3 V ke regulator)
+#define BATT_CUTOFF_V 3.40f // di bawah ini selama 10 dtk -> layar mati + deep sleep
 
 // ---------- Waktu & WiFi ----------
 #define TZ_OFFSET_MIN 480 // default WITA (UTC+8); diganti TIME_SYNC

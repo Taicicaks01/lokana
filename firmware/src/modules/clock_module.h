@@ -1,5 +1,6 @@
 #pragma once
 #include "core/module.h"
+#include "config.h"
 
 // Jam animasi: angka yang berubah meluncur ke atas. Tap = tampilkan detik.
 // 128x64: digit besar + baris tanggal + bilah detik.
@@ -9,6 +10,7 @@ public:
   void enter() override;
   bool input(Gesture g) override;
   void render(Adafruit_GFX& g, uint32_t now) override;
+  bool drawsBattery() const override { return SCREEN_H >= 64; }
 
 private:
   void drawDigits(Adafruit_GFX& g, float p, uint32_t now);

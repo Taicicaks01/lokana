@@ -47,6 +47,8 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 | OLED 0.96" 128×64 (SSD1306) | SDA GPIO9, SCL GPIO8 (sejak 2026-11-21; Wokwi tetap 8/9) |
 | Tombol | Sensor sentuh TTP223 di GPIO3 (VCC 3V3, GND, I/O → GPIO3). Tombol mekanis ke GND: tambah `-DBTN_ACTIVE_LOW=1` |
 | Buzzer pasif (opsional) | GPIO10 |
+| Baterai (ADC) | GPIO1, pembagi 100k/100k dari sisi saklar (`-DPIN_BATT=1` di env `supermini`) |
+| Deteksi charge (ADC) | GPIO4, IN+ TP4056 → 100k → GPIO4 → 100k → GND (`-DPIN_CHG=4`) |
 | LED bawaan | GPIO8 = SCL, tidak dipakai firmware |
 
 ## Cara pakai (satu tombol)
@@ -100,6 +102,9 @@ tap  double  triple  long  info  scan  oled  reset  splash  splash 1300
 Bring-up hardware (alat uji, sebagian *blocking*): `tone <Hz> [ms]`, `sweep [a] [b] [langkah] [ms]` (frekuensi tampil
 di OLED, untuk mencari nada terkeras buzzer), `adc` (mV mentah GPIO1 baterai & GPIO4 charge + status kalibrasi),
 `btnraw [dtk]` (rekam level mentah pin sentuh beserta lamanya).
+
+Baterai: `batt` (tegangan, persen, charger, lemah/kritis). Kalibrasi per unit: ukur tegangan sel dengan multimeter
+(saklar ON), lalu `batt cal 4.12` → faktor pembagi disimpan di NVS. `batt cal reset` kembali ke bawaan 2,0.
 
 `guide [ms]` memutar Panduan (ms = bekukan di waktu itu, untuk screenshot).
 `splash` memutar ulang splash boot; `splash <ms>` membekukannya di waktu itu (untuk screenshot lewat

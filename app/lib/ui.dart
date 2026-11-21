@@ -3,6 +3,7 @@
 import 'dart:math';
 import 'package:material_ui/material_ui.dart';
 import 'theme.dart';
+import 'link/proto.dart' show DeviceInfo;
 
 /// Jarak standar.
 class Gap {
@@ -294,6 +295,27 @@ class Pill extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// Chip baterai Lokana. Hanya untuk persen asli (DESIGN.md §1.5): null kalau firmware tidak mengirimnya,
+/// kecuali sedang mengisi (persen tidak terbaca saat saklar OFF).
+Widget? batteryPill(DeviceInfo? i, {Color color = Colors.white70}) {
+  if (i == null || (!i.batteryKnown && !i.charging)) return null;
+  final p = i.battery;
+  final IconData icon;
+  if (i.charging) {
+    icon = Icons.battery_charging_full_rounded;
+  } else if (i.lowBattery || p < 10) {
+    icon = Icons.battery_alert_rounded;
+  } else {
+    icon = const [
+      Icons.battery_0_bar_rounded, Icons.battery_1_bar_rounded, Icons.battery_2_bar_rounded,
+      Icons.battery_3_bar_rounded, Icons.battery_4_bar_rounded, Icons.battery_5_bar_rounded,
+      Icons.battery_6_bar_rounded, Icons.battery_full_rounded,
+    ][(p * 7 / 100).round().clamp(0, 7)];
+  }
+  final text = !i.batteryKnown ? 'Mengisi' : i.charging ? '$p% · mengisi' : i.lowBattery ? '$p% · lemah' : '$p%';
+  return Pill(text, icon: icon, color: i.lowBattery && !i.charging ? const Color(0xFFFFB86B) : color);
 }
 
 /// Kerangka abu-abu berbentuk kartu selama data dibaca (DESIGN.md §5), bukan spinner.

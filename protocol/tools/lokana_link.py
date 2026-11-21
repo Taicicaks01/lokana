@@ -321,6 +321,7 @@ def parse_device_info(p: bytes) -> dict:
     d["flags"] = u8()
     d["caps"] = struct.unpack_from("<I", p, i)[0]; i += 4
     d["device_name"] = st()
+    d["battery_mv"] = struct.unpack_from("<H", p, i)[0] if i + 2 <= len(p) else None   # 0.5.6+
     return d
 
 
@@ -356,8 +357,10 @@ def describe(type_, seq, payload) -> str:
     if type_ == T["DEVICE_INFO"]:
         d = parse_device_info(payload)
         caps = [c for b, c in enumerate(CAPS) if d["caps"] >> b & 1]
-        flags = [f for b, f in enumerate(["USB", "WiFi", "bonded"]) if d["flags"] >> b & 1]
+        flags = [f for b, f in enumerate(["USB", "WiFi", "bonded", "mengisi", "lemah"]) if d["flags"] >> b & 1]
         bat = "?" if d["battery_pct"] == 255 else f'{d["battery_pct"]}%'
+        if d.get("battery_mv"):
+            bat += f' {d["battery_mv"] / 1000:.2f} V'
         return (f'DEVICE_INFO: {d["device_name"]} fw {d["fw_version"]} proto {d["proto_ver"]} '
                 f'layar {d["screen_w"]}x{d["screen_h"]} baterai {bat} flags {flags} caps {caps}')
     if type_ == T["SETTINGS"] and payload:
@@ -1070,6 +1073,24 @@ def test_v052(lk, expect):
     lk.request(T["GOTO"], s("lokana"))
 
 
+def test_v056(lk, expect):
+    """v0.5.6: baterai di DEVICE_INFO (battery_mv, bit mengisi/lemah) konsisten dengan persen."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    d = parse_device_info(info[2]) if info else {}
+    mv, pct, fl = d.get("battery_mv"), d.get("battery_pct"), d.get("flags", 0)
+    expect("DEVICE_INFO punya battery_mv", mv is not None, True, raw=True)
+    if pct == 255:
+        expect("sel tidak terbaca: battery_mv 0", mv, 0, raw=True)
+        expect("sel tidak terbaca: bit0 daya luar", bool(fl & 1), True, raw=True)
+    else:
+        expect("battery_mv masuk akal (3,0-4,5 V)", mv is not None and 3000 <= mv <= 4500, True, raw=True)
+        expect("persen 0-100", 0 <= pct <= 100, True, raw=True)
+    if fl & 1 << 3:
+        expect("mengisi: bit0 daya luar ikut", bool(fl & 1), True, raw=True)
+    print(f"    baterai {pct}% {mv} mV flags {fl:#04x}")
+
+
 def test_v055(lk, expect):
     """v0.5.5: OTA (tanpa restart): penolakan SHA salah, image rusak, aturan CHUNK, ABORT, batas waktu."""
     import os
@@ -1427,6 +1448,7 @@ def cmd_test(a):
     test_v053(lk, expect)
     test_v054(lk, expect)
     test_v055(lk, expect)
+    test_v056(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()

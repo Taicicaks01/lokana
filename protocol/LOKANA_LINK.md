@@ -105,7 +105,7 @@ dibungkus envelope supaya bisa dibedakan dari teks:
 - Frame dengan CRC salah dibuang tanpa balasan; host akan mengirim ulang setelah *timeout*.
 - Device boleh mengirim log teks di antara frame. Host mencari `A5 5A` untuk menemukan frame.
 - Pesan D→H **tanpa diminta** (`DICE` hasil, `BUTTON`, `FIND_PHONE`, `SETTINGS` REPORT karena
-  perubahan di device) hanya dikirim lewat USB setelah host mengirim `HELLO` di USB. Begitu ada
+  perubahan di device, `DEVICE_INFO` karena status daya berubah) hanya dikirim lewat USB setelah host mengirim `HELLO` di USB. Begitu ada
   teks console masuk (orang mengetik di serial monitor), pengiriman ini berhenti sampai `HELLO`
   berikutnya, supaya serial monitor tidak dibanjiri byte biner.
 
@@ -208,11 +208,18 @@ device memakai zona waktu terakhir. Zona waktu disimpan di flash.
 | `screen_w` | u16 | Lebar layar (128) |
 | `screen_h` | u16 | Tinggi layar (64 atau 32) |
 | `battery_pct` | u8 | 0–100, `255` = tidak diketahui |
-| `flags` | u8 | bit0 USB/mengisi daya, bit1 WiFi tersambung, bit2 sudah *bonded* |
+| `flags` | u8 | bit0 USB/mengisi daya (daya luar), bit1 WiFi tersambung, bit2 sudah *bonded*, bit3 charger terdeteksi (sedang mengisi), bit4 baterai lemah |
 | `caps` | u32 | Kemampuan (lihat di bawah) |
 | `device_name` | str | Nama pemilik/alat dari `SETTINGS`, contoh `"Lokana Wayan"`. Belum diatur = nama iklan BLE (`Lokana-XXXX`) |
+| `battery_mv` | u16 | *Opsional (0.5.6+)*. Tegangan sel dalam mV, `0` = tidak terbaca |
 
-Device tanpa sensor baterai (`battery_pct = 255`) dianggap mendapat daya dari USB (bit0 = 1).
+Device tanpa sensor baterai, atau sel tidak terbaca (saklar OFF, hanya USB), mengirim `battery_pct = 255`
+dan bit0 = 1. bit0 juga 1 saat charger terdeteksi atau USB tersambung ke komputer; persen tetap dikirim
+kalau sel terbaca. bit4 = di bawah ambang peringatan device (Lokana: 3,55 V).
+
+Sejak 0.5.6 device mengirim `DEVICE_INFO` **tanpa diminta** (`seq = 0`, aturan §3.2) saat status daya berubah:
+bit0/bit3/bit4 berubah (paling cepat tiap 2 detik) atau `battery_pct` bergeser ≥ 2 (paling cepat tiap 30 detik).
+Host memperlakukannya sama dengan balasan `HELLO`.
 
 Bit `caps`: 0 `NOTIF` · 1 `NAV` · 2 `PC_STATS` · 3 `PHONE_STATS` · 4 `CUSTOM_TEXT` ·
 5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE` · 12 `ANIM` · 13 `SCREEN` ·
@@ -726,4 +733,5 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-21 | Untuk firmware 0.5.6 (tambahan, format lama tetap): `DEVICE_INFO` bit `flags` 3 (charger terdeteksi) dan 4 (baterai lemah), field akhir opsional `battery_mv`, dikirim tanpa diminta saat status daya berubah |
 | v1 | 2026-11-18 | Untuk firmware 0.5.5 (format lama tetap): aturan rinci `OTA` (CHUNK berurutan + kiriman ulang, kode `reason` ABORT, PROGRESS tiap 64 KB, batas waktu 30 dtk, masa uji & rollback); bit `caps` 6 `OTA` dinyalakan |

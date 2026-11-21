@@ -43,6 +43,7 @@ static void help() {
     "sweep [a] [b] [s] [ms]  sapuan nada a..b Hz langkah s (bawaan 1500 5000 100 400)\r\n"
     "adc                  tegangan mentah GPIO1 (baterai) & GPIO4 (charge)\r\n"
     "btnraw [dtk]         rekam level mentah pin tombol + lamanya (bawaan 10 dtk)\r\n"
+    "batt [cal <V>|cal reset]  status baterai; kalibrasi pembagi dari volt multimeter\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
     "tap|double|triple|long   simulasi tombol\r\n"
@@ -88,8 +89,8 @@ static void adcReport() {
   uint32_t b = 0, c = 0;
   for (int i = 0; i < 16; i++) { b += analogReadMilliVolts(1); c += analogReadMilliVolts(4); }
   b /= 16; c /= 16;
-  Serial.printf("GPIO1 %lu mV -> baterai ~%.2f V (pembagi %.2f)\r\n", (unsigned long)b, b * BATT_DIVIDER / 1000.f,
-                (double)BATT_DIVIDER);
+  Serial.printf("GPIO1 %lu mV -> baterai ~%.2f V (pembagi %.3f)\r\n", (unsigned long)b, b * battery::divider() / 1000.f,
+                (double)battery::divider());
   Serial.printf("GPIO4 %lu mV -> %s\r\n", (unsigned long)c,
                 c > 2100 ? "charger dicolok" : c < 300 ? "charger dicabut" : "di tengah (cek wiring / pembagi)");
   // Diagnostik kalibrasi: nilai mentah 12-bit + sumber kalibrasi yang dipakai IDF
@@ -101,6 +102,29 @@ static void adcReport() {
   Serial.printf("GPIO1 mentah %lu/4095 | kalibrasi %s (eFuse TP %s) | rev chip %d\r\n", (unsigned long)r,
                 v == ESP_ADC_CAL_VAL_EFUSE_TP ? "eFuse two-point" : v == ESP_ADC_CAL_VAL_EFUSE_VREF ? "eFuse Vref" : "Vref bawaan",
                 esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_TP) == ESP_OK ? "ada" : "tidak ada", ESP.getChipRevision());
+}
+
+// Status baterai + kalibrasi pembagi terhadap multimeter: `batt cal 4.20` (tegangan sel, saklar ON)
+static void battCmd(const char* arg) {
+  if (!strncasecmp(arg, "cal", 3)) {
+    const char* v = arg + 3;
+    while (*v == ' ') v++;
+    if (!strcasecmp(v, "reset")) {
+      battery::resetCalibration();
+      Serial.printf("kalibrasi dihapus, pembagi bawaan %.3f\r\n", (double)battery::divider());
+    } else if (battery::calibrate(atof(v))) {
+      Serial.printf("kalibrasi tersimpan: pembagi %.3f\r\n", (double)battery::divider());
+    } else {
+      Serial.println("gagal: batt cal <3.0..4.5> (volt sel dari multimeter, saklar ON) | batt cal reset");
+      return;
+    }
+  }
+  Serial.printf("baterai %.3f V (%d%%) | GPIO%d %u mV x pembagi %.3f (%s)\r\n", (double)battery::volts(),
+                battery::percent(), PIN_BATT, battery::pinMv(), (double)battery::divider(),
+                battery::calibrated() ? "kalibrasi" : "bawaan");
+  Serial.printf("charger %s (GPIO%d %u mV) | lemah %s | kritis %s | daya luar %s\r\n",
+                battery::charging() ? "dicolok" : "tidak", PIN_CHG, battery::chgMv(), battery::low() ? "ya" : "tidak",
+                battery::critical() ? "ya" : "tidak", battery::externalPower() ? "ya" : "tidak");
 }
 
 // Rekam level mentah pin tombol (bring-up sensor sentuh): tiap perubahan dicetak dengan lamanya. Blocking.
@@ -205,6 +229,7 @@ static void handle(char* line) {
   else if (!strcasecmp(line, "sweep")) sweep(arg);
   else if (!strcasecmp(line, "adc")) adcReport();
   else if (!strcasecmp(line, "btnraw")) btnRaw(arg);
+  else if (!strcasecmp(line, "batt")) battCmd(arg);
   else if (!strcasecmp(line, "forget")) lklink::forgetBonds();
   else if (!strcasecmp(line, "time")) {
     int h, m;

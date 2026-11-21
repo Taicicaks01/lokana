@@ -127,6 +127,19 @@ BLE / USB / UDP → link (parser) → events::post(EV_NOTIF, …) → Core → m
   dan pengingat ketinggalan butuh BLE tetap tersambung.
 - **Mode Meja**: dideteksi dari daya USB; WiFi boleh hidup untuk monitor PC lewat UDP.
 
+**Baterai (sejak 0.5.6, `drivers/hw.cpp` + `services/power.cpp`)**
+- Sel dibaca tiap 1 dtk lewat GPIO1 (pembagi dari sisi saklar, sebelum D1), rata-rata 16 sampel + EMA. Di bawah
+  2,5 V = sel tidak terbaca (saklar OFF, hanya USB kanan) → persen `255` di `DEVICE_INFO`.
+- Faktor pembagi per unit dikalibrasi lewat console `batt cal <volt multimeter>` (NVS `batt/div`), bawaan 2,0.
+- Persen dari kurva LiPo 3,40 V = 0% … 4,20 V = 100%. Saat mengisi, tegangan naik ±0,1 V sehingga persen sedikit lebih tinggi.
+- Charger dideteksi lewat GPIO4 (ADC > 2,0 V dicolok, < 1,5 V dicabut): toast "Mengisi daya", ikon mengisi.
+- **< 3,55 V**: toast "Baterai lemah" + nada (diulang tiap 10 menit selama layar menyala), ikon berkedip.
+- **< 3,40 V selama 10 bacaan** (tanpa charger, tanpa USB komputer, tidak sedang OTA): layar "Baterai habis", lalu
+  *deep sleep*. Bangun lewat sensor sentuh; saat boot sel diperiksa lagi (ambang 3,45 V). Batas ini menjaga regulator
+  3,3 V yang mulai kurang tegangan sekitar 3,5 V karena drop D1, dan sel tetap di atas proteksi DW01 (±2,4 V).
+- Ikon: Jam (128×64) di ujung bilah detik; modul lain hanya lencana pojok kanan atas saat lemah/mengisi.
+- `DEVICE_INFO` dikirim ulang tanpa diminta saat status daya berubah (protokol §DEVICE_INFO).
+
 ### 2.6 Memori (flash 4 MB)
 
 Partisi custom (`firmware/partitions.csv`, sejak v0.2; dipasang lewat `board_build.partitions`):

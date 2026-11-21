@@ -102,13 +102,25 @@ static void broadcast(uint8_t type, const uint8_t* p, uint16_t n, bool onlyButto
     if (session[t] && (!onlyButtons || btnEvents[t])) lklink::send((Transport)t, type, 0, p, n);
 }
 
-static void sendDeviceInfo(Transport t) {
-  uint8_t p[64];
-  Writer w(p, sizeof(p));
+// bit0 daya luar (USB/charger/baterai tak terbaca), bit2 bonded, bit3 charger dicolok, bit4 baterai lemah
+static uint8_t infoFlags() {
+  uint8_t f = 0;
+  if (battery::externalPower()) f |= 1 << 0;
+  if (lklink::bondCount() > 0) f |= 1 << 2;
+  if (battery::charging()) f |= 1 << 3;
+  if (battery::low()) f |= 1 << 4;
+  return f;
+}
+static const uint8_t BATT_FLAGS = (1 << 0) | (1 << 3) | (1 << 4);
+static int infoPct = -2;
+static uint8_t infoFl = 0;
+static uint32_t infoAt = 0;
+
+static uint16_t buildDeviceInfo(uint8_t* p, uint16_t cap) {
+  Writer w(p, cap);
   int bat = battery::percent();
-  uint8_t flags = 0;
-  if (bat < 0) flags |= 1 << 0;            // tanpa sensor baterai = pasti dari USB
-  if (lklink::bondCount() > 0) flags |= 1 << 2;
+  uint8_t flags = infoFlags();
+  infoPct = bat; infoFl = flags & BATT_FLAGS; infoAt = millis();
   uint32_t caps = CAP_NOTIF | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
   caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA;
@@ -124,7 +136,26 @@ static void sendDeviceInfo(Transport t) {
   w.u8(flags);
   w.u32(caps);
   w.str(devName);
-  lklink::send(t, T_DEVICE_INFO, 0, p, w.len());
+  w.u16(battery::millivolts());            // v0.5.6, 0 = tidak terbaca
+  return w.len();
+}
+
+static void sendDeviceInfo(Transport t) {
+  uint8_t p[64];
+  lklink::send(t, T_DEVICE_INFO, 0, p, buildDeviceInfo(p, sizeof(p)));
+}
+
+// DEVICE_INFO tanpa diminta saat status daya berubah (segera, min 2 dtk) atau persen bergeser >= 2 (min 30 dtk)
+static void pumpBattery(uint32_t now) {
+  if (!session[TR_USB] && !session[TR_BLE]) return;
+  int pct = battery::percent();
+  uint8_t fl = infoFlags() & BATT_FLAGS;
+  bool flagsChanged = fl != infoFl && (int32_t)(now - infoAt) > 2000;
+  bool pctChanged = abs(pct - infoPct) >= 2 && (int32_t)(now - infoAt) > 30000;
+  if (!flagsChanged && !pctChanged) return;
+  uint8_t p[64];
+  uint16_t n = buildDeviceInfo(p, sizeof(p));
+  broadcast(T_DEVICE_INFO, p, n);
 }
 
 static uint16_t buildReport(uint8_t* p, uint16_t cap, Transport t) {
@@ -777,6 +808,7 @@ void update(uint32_t now) {
   pumpOta();
   ota::update(now);
   pumpMirror(now);
+  pumpBattery(now);
 }
 
 const char* deviceName() { return devName; }

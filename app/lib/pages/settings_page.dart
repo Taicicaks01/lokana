@@ -132,6 +132,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     link.ready
                         ? Pill('Tersambung', icon: Icons.circle, color: lk.ok)
                         : const Pill('Belum tersambung', icon: Icons.circle_outlined, color: Colors.white54),
+                    if (link.ready) ?batteryPill(info),
                     if (info != null) Pill('Lokana OS ${info.fwVersion}', color: AppTheme.instance.oled.color),
                   ]),
                 ]),

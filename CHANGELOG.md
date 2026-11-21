@@ -7,6 +7,15 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Firmware & aplikasi: baterai — Lokana OS 0.5.6
+- Tegangan baterai dibaca di GPIO1 (env `supermini`), persen asli dikirim ke aplikasi, plus tegangan (`battery_mv`) dan
+  status **mengisi** (charger di GPIO4) / **lemah**. Lokana memberi tahu aplikasi sendiri saat status baterai berubah.
+- OLED: ikon baterai di Jam, lencana pojok saat lemah atau mengisi, toast "Mengisi daya" / "Baterai lemah".
+- Di bawah 3,40 V Lokana menampilkan "Baterai habis" lalu tidur dalam (*deep sleep*); sentuh untuk menyalakan.
+- Kalibrasi per unit lewat console `batt cal <volt>`; perintah bring-up `tone`, `sweep`, `adc`, `btnraw`.
+- Aplikasi: chip baterai di Beranda dan kartu perangkat Pengaturan (ikon level, mengisi, lemah).
+- Hardware: pin OLED jadi SDA GPIO9 / SCL GPIO8; nada Cari kunci 1300/1500 Hz (resonansi buzzer).
+
 ### Firmware & aplikasi: pembaruan firmware lewat aplikasi (OTA) — Lokana OS 0.5.5
 - Pesan `OTA` diaktifkan (bit `caps` 6): firmware dikirim lewat BLE dari aplikasi atau USB dari PC, diperiksa SHA-256,
   lalu dipasang ke slot cadangan.

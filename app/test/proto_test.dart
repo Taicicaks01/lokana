@@ -72,6 +72,20 @@ void main() {
     expect(d.name, 'Uji Lokana');
   });
 
+  test('DEVICE_INFO 0.5.6: battery_mv + bit mengisi/lemah', () {
+    // firmware 0.4.0 + flags 0x19 (daya luar, mengisi, lemah), persen 7, battery_mv 3520 (0x0DC0)
+    final d = DeviceInfo.parse(bytes('01 01 05 30 2e 35 2e 36 80 00 40 00 07 19 30 0e 00 00 0a 55 6a 69 20 4c 6f 6b 61 6e 61 c0 0d'));
+    expect(d.battery, 7);
+    expect(d.batteryMv, 3520);
+    expect(d.charging, isTrue);
+    expect(d.lowBattery, isTrue);
+    expect(d.usbPower, isTrue);
+    expect(d.name, 'Uji Lokana');
+    final old = DeviceInfo.parse(bytes('01 01 05 30 2e 34 2e 30 80 00 40 00 ff 05 30 0e 00 00 0a 55 6a 69 20 4c 6f 6b 61 6e 61'));
+    expect(old.batteryMv, isNull);
+    expect(old.charging, isFalse);
+  });
+
   test('SETTINGS REPORT dari firmware 0.4.0', () {
     final s = LokanaSettings.parse(bytes('02 01 01 01 02 01 01 03 02 3c 00 04 01 00 05 0a 55 6a 69 20 4c 6f 6b 61 6e 61 06 01 00'));
     expect(s.brightness, 1);

@@ -27,4 +27,6 @@ uint16_t recoverCount();            // berapa kali pemulihan otomatis terjadi
 // Helper teks
 void centerText(const char* s, int y, uint8_t size = 1);
 int textWidth(const char* s, uint8_t size = 1);
+// Ikon baterai 15x8 (badan 13x8 + kutub). pct -1 = kosong. charging: isian naik bertahap (animasi).
+void batteryIcon(int x, int y, int pct, bool charging, uint32_t now);
 }

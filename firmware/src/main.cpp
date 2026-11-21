@@ -13,6 +13,7 @@
 #include "drivers/button.h"
 #include "drivers/buzzer.h"
 #include "drivers/hw.h"
+#include "services/power.h"
 #include "services/console.h"
 #include "services/link.h"
 #include "modules/face_module.h"
@@ -84,6 +85,7 @@ void setup() {
   TRACE("display");   bool oled = display::begin();
   TRACE("buzzer");    buzzer::begin();
   TRACE("tombol");    button::begin();
+  TRACE("daya");      power::bootCheck(oled);      // sel kritis: pesan + deep sleep lagi
   TRACE("jam");       clockx::begin();
 
   if (oled) Serial.printf("[init] OLED ok di 0x%02X (SDA=GPIO%d, SCL=GPIO%d)\r\n", OLED_ADDR, PIN_SDA, PIN_SCL);
@@ -122,4 +124,5 @@ void setup() {
 void loop() {
   lklink::update(millis());
   core::loop();
+  power::update(millis());
 }

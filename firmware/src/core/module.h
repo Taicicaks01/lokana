@@ -29,4 +29,6 @@ public:
   virtual bool hidden() const { return false; }
   // Boleh dibuka lewat GOTO dari HP/PC. Bawaan: hanya modul biasa (Panduan: modul tersembunyi yang boleh).
   virtual bool remoteOpen() const { return !hidden(); }
+  // Modul menggambar ikon baterai sendiri (Jam): Core tidak menimpa pojok kanan atas saat lemah/mengisi.
+  virtual bool drawsBattery() const { return false; }
 };

@@ -140,8 +140,8 @@ static void drawInfo(Adafruit_GFX& g) {
   uint8_t n = 0;
   snprintf(l[n++], 24, "%s v%s", LOKANA_OS, FW_VERSION);
   int p = battery::percent();
-  if (p < 0) snprintf(l[n++], 24, "Baterai: USB");
-  else snprintf(l[n++], 24, "Baterai: %.2fV %d%%", battery::volts(), p);
+  if (p < 0) snprintf(l[n++], 24, battery::charging() ? "Baterai: USB, mengisi" : "Baterai: USB");
+  else snprintf(l[n++], 24, "%s %.2fV %d%%", battery::charging() ? "Mengisi:" : "Baterai:", battery::volts(), p);
   g.setTextSize(1); g.setTextColor(1);
 #if SCREEN_H >= 64
   uint32_t up = millis() / 1000;
@@ -166,6 +166,16 @@ static void drawToast(Adafruit_GFX& g) {
   g.drawRoundRect(x, y, w, h, 3, 1);
   g.setTextSize(1); g.setTextColor(1);
   g.setCursor(x + 5, y + (h - 7) / 2); g.print(toastText);
+}
+
+// Lencana baterai di pojok kanan atas, hanya saat lemah (berkedip) atau mengisi
+static void drawBattBadge(Adafruit_GFX& g, uint32_t now) {
+  bool chg = battery::charging(), low = battery::low();
+  if (!chg && !low) return;
+  if (low && !chg && (now / 500) % 2) return;
+  const int x = SCREEN_W - 16;
+  g.fillRect(x - 2, 0, 18, 10, 0);
+  display::batteryIcon(x, 1, battery::percent(), chg, now);
 }
 
 // Nama modul saat berganti: label kecil di tengah atas, supaya isi modul (gambar, notifikasi) tetap terlihat
@@ -326,6 +336,7 @@ void loop() {
     if (menuOpen) { if (infoOpen) drawInfo(gfx); else drawMenu(gfx); }
     else {
       mods[active]->render(gfx, now);
+      if (!mods[active]->hidden() && !mods[active]->drawsBattery()) drawBattBadge(gfx, now);
       if ((int32_t)(tabUntil - now) > 0) drawTab(gfx);
       if ((int32_t)(toastUntil - now) > 0) drawToast(gfx);
     }

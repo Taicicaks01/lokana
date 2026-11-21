@@ -3,6 +3,7 @@
 #include "core/clock.h"
 #include "drivers/buzzer.h"
 #include "drivers/display.h"
+#include "drivers/hw.h"
 
 static const uint16_t ANIM_MS = 350;
 
@@ -110,9 +111,14 @@ void ClockModule::render(Adafruit_GFX& g, uint32_t now) {
   char d[24];
   snprintf(d, sizeof(d), "%s, %d %s %d", DAYS_LONG[t.tm_wday], t.tm_mday, MONTHS[t.tm_mon], t.tm_year + 1900);
   display::centerText(d, DATE_Y);
-  const int bw = SCREEN_W - 2 * DIG_X;
+  // Bilah detik; ikon baterai di ujung kanan jika baterai terbaca / sedang mengisi
+  const int pct = battery::percent();
+  const bool chg = battery::charging(), bat = pct >= 0 || chg;
+  const int bw = SCREEN_W - 2 * DIG_X - (bat ? 19 : 0);
   g.drawRect(DIG_X, BAR_Y, bw, 4, 1);
   g.fillRect(DIG_X + 1, BAR_Y + 1, (t.tm_sec * (bw - 2)) / 59, 2, 1);
+  if (bat && !(battery::low() && !chg && (now / 500) % 2))          // lemah: berkedip
+    display::batteryIcon(SCREEN_W - DIG_X - 15, BAR_Y - 2, pct, chg, now);
 #else
   // Kolom kanan: hari, tanggal, dan bilah detik
   g.fillRect(93, 0, 35, 32, 0);

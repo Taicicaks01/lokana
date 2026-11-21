@@ -123,3 +123,14 @@ void centerText(const char* s, int y, uint8_t size) {
 }
 
 }  // namespace display
+
+namespace display {
+void batteryIcon(int x, int y, int pct, bool charging, uint32_t now) {
+  Adafruit_GFX& g = gfx();
+  g.drawRect(x, y, 13, 8, 1);
+  g.fillRect(x + 13, y + 2, 2, 4, 1);
+  int lvl = pct < 0 ? 0 : (pct * 9 + 50) / 100;   // isian 0..9 px
+  if (charging) lvl += (now / 350) % (10 - lvl);    // naik dari level sekarang sampai penuh, berulang
+  if (lvl > 0) g.fillRect(x + 2, y + 2, lvl, 4, 1);
+}
+}  // namespace display

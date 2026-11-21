@@ -351,19 +351,26 @@ bool versionAtLeast(String v, String min) {
 class DeviceInfo {
   final int protoVer, deviceType, screenW, screenH, battery, flags, caps;
   final String fwVersion, name;
+  /// Tegangan sel (mV) sejak firmware 0.5.6; null = firmware lama, 0 = tidak terbaca.
+  final int? batteryMv;
   DeviceInfo(this.protoVer, this.deviceType, this.fwVersion, this.screenW, this.screenH, this.battery, this.flags,
-      this.caps, this.name);
+      this.caps, this.name, [this.batteryMv]);
 
   factory DeviceInfo.parse(Uint8List p) {
     final r = Reader(p);
     final ver = r.u8(), type = r.u8();
     final fw = r.str();
     final w = r.u16(), h = r.u16(), bat = r.u8(), flags = r.u8(), caps = r.u32();
-    return DeviceInfo(ver, type, fw, w, h, bat, flags, caps, r.str());
+    final name = r.str();
+    final mv = r.i + 2 <= p.length ? r.u16() : null;
+    return DeviceInfo(ver, type, fw, w, h, bat, flags, caps, name, mv);
   }
 
   bool has(int cap) => caps & cap != 0;
   bool get usbPower => flags & 1 != 0;
+  bool get charging => flags & 1 << 3 != 0;
+  bool get lowBattery => flags & 1 << 4 != 0;
+  bool get batteryKnown => battery != 255;
   String get batteryText => battery == 255 ? (usbPower ? 'USB' : '?') : '$battery%';
 }
 

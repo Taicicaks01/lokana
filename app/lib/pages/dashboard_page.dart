@@ -258,7 +258,7 @@ class _Hero extends StatelessWidget {
                         : r >= -75 ? Icons.signal_cellular_alt_2_bar_rounded : Icons.signal_cellular_alt_1_bar_rounded,
                     color: Colors.white70),
               // Baterai hanya jika firmware mengirim persen asli (DESIGN.md §1.5); 255 = tidak diketahui
-              if (i != null && i.battery != 255) Pill('${i.battery}%', icon: Icons.battery_std_rounded, color: Colors.white70),
+              ?batteryPill(i),
               if (i != null) Pill('Lokana OS ${i.fwVersion}', color: oled),
             ]),
             if (onTap != null) ...[
