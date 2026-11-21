@@ -378,6 +378,11 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
 - **Ukur arus ✅** (2026-11-21, poin 3): layar nyala/mati × BLE tersambung/iklan = 45/30/40/28 mA, mengisi 0,38 A (TP4056
   hangat tipis, Rprog 2,7k tetap). Umur ±20 jam pemakaian biasa. Tabel & kesimpulan: `docs/ARCHITECTURE.md` §2.5.
   Manajemen daya (light sleep, CPU, interval BLE) **sekarang boleh dikerjakan**, ukur ulang tabel setelah tiap langkah.
+- **v0.5.7 🚧 Manajemen daya** (2026-11-21, bertahap, tiap langkah diukur USB tester + didokumentasikan di
+  `docs/ARCHITECTURE.md` §2.5 — permintaan Wayan: **setiap perubahan didokumentasikan**). Arduino 2.0.17 prebuilt tanpa
+  `CONFIG_PM_ENABLE` → tidak ada light sleep otomatis. ✅ 1 CPU 80 MHz (`CPU_MHZ`): 45/30/40/28 → 46/22/39/27 mA.
+  Berikutnya: 2 BLE (iklan lebih jarang setelah 1 menit, interval koneksi panjang saat layar mati, tetap jaga RSSI
+  pengingat ketinggalan tiap 2 dtk), 3 OLED/I2C (frame rate, kirim hanya jika berubah).
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

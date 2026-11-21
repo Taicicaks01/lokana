@@ -245,8 +245,9 @@ static void handle(char* line) {
                   core::current() ? core::current()->name() : "-", core::screenOn() ? "nyala" : "mati",
                   battery::percent(), clockx::status(), millis() / 1000);
     lklink::printStatus();
-    Serial.printf("  layar %dx%d | loop terlama %lums | kirim frame %luus | I2C %lukHz | pulih otomatis %u kali\r\n",
-                  SCREEN_W, SCREEN_H, core::loopMaxMs(), display::lastShowUs(), display::i2cClock() / 1000, display::recoverCount());
+    Serial.printf("  layar %dx%d | loop terlama %lums | kirim frame %luus | I2C %lukHz | pulih otomatis %u kali | CPU %lu MHz\r\n",
+                  SCREEN_W, SCREEN_H, core::loopMaxMs(), display::lastShowUs(), display::i2cClock() / 1000, display::recoverCount(),
+                  (unsigned long)getCpuFrequencyMhz());
   } else if (!strcasecmp(line, "oled")) {
     display::recover();
     uint32_t t = micros(); display::show();

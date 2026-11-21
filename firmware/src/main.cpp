@@ -65,6 +65,7 @@ static const char* resetReason() {
 #define TRACE(msg) do { Serial.print("[boot] " msg "\r\n"); Serial.flush(); } while (0)
 
 void setup() {
+  setCpuFrequencyMhz(CPU_MHZ);    // sebelum BLE & periferal lain (hemat daya, lihat config.h)
   Serial.setRxBufferSize(2048);   // frame Lokana Link s.d. 1200 B datang sekaligus lewat USB
   Serial.begin(115200);
   // Tunggu serial monitor (maks 3 dtk) supaya log boot tidak hilang. Hanya kalau USB tersambung ke

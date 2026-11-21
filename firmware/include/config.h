@@ -15,7 +15,7 @@
   "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01" // Lokana_लोचन-01
 #endif
 #ifndef FW_VERSION // bisa ditimpa build_flags (env uji OTA)
-#define FW_VERSION "0.5.6"
+#define FW_VERSION "0.5.7"
 #endif
 
 // ---------- Layar ----------
@@ -62,6 +62,13 @@
 #define BATT_DIVIDER 2.0f
 #define BATT_WARN_V 3.55f   // peringatan "Baterai lemah" (ingat drop D1 ±0.3 V ke regulator)
 #define BATT_CUTOFF_V 3.40f // di bawah ini selama 10 dtk -> layar mati + deep sleep
+
+// ---------- Daya ----------
+// Frekuensi CPU. 80 MHz = minimum untuk BLE di ESP32-C3; APB tetap 80 MHz (I2C/UART/LEDC tidak berubah).
+// Arduino 2.0.17 prebuilt tanpa CONFIG_PM_ENABLE: tidak ada DFS/light sleep otomatis (docs/ARCHITECTURE.md §2.5).
+#ifndef CPU_MHZ
+#define CPU_MHZ 80
+#endif
 
 // ---------- Waktu & WiFi ----------
 #define TZ_OFFSET_MIN 480 // default WITA (UTC+8); diganti TIME_SYNC

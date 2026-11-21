@@ -7,6 +7,10 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Firmware: manajemen daya — Lokana OS 0.5.7 (bertahap)
+- CPU 80 MHz (sebelumnya 160 MHz): layar mati + HP tersambung 30 → 22 mA. Tabel ukur tiap langkah di
+  `docs/ARCHITECTURE.md` §2.5. `info` menampilkan frekuensi CPU.
+
 ### Firmware & aplikasi: baterai — Lokana OS 0.5.6
 - Tegangan baterai dibaca di GPIO1 (env `supermini`), persen asli dikirim ke aplikasi, plus tegangan (`battery_mv`) dan
   status **mengisi** (charger di GPIO4) / **lemah**. Lokana memberi tahu aplikasi sendiri saat status baterai berubah.

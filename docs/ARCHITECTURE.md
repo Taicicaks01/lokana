@@ -150,6 +150,25 @@ Kesimpulan: mematikan layar hanya menghemat ±15 mA; sisa ±28–30 mA adalah CP
 besar ada di manajemen daya (*light sleep* otomatis, CPU 80 MHz saat diam, interval koneksi BLE lebih panjang saat layar
 mati, iklan lebih jarang setelah 1 menit). Target berikutnya: ukur ulang tabel ini setelah tiap langkah.
 
+**Manajemen daya (0.5.7, bertahap; ukur ulang tiap langkah dengan susunan yang sama)**
+
+Arduino-ESP32 2.0.17 *prebuilt* dikompilasi tanpa `CONFIG_PM_ENABLE` dan tanpa *modem sleep* controller BLE
+(`tools/sdk/esp32c3/sdkconfig`), jadi `esp_pm_configure` (DFS + *light sleep* otomatis) tidak tersedia. Yang bisa:
+frekuensi CPU tetap, loop yang banyak menunggu (task idle menjalankan WFI), parameter BLE, dan beban OLED/I2C.
+*Light sleep* sungguhan butuh framework yang dikompilasi ulang (ESP-IDF / Arduino 3 dengan sdkconfig sendiri).
+
+| Langkah | Perubahan | Nyala + sambung | Mati + sambung | Nyala + iklan | Mati + iklan | Pemakaian biasa* |
+|---|---|---|---|---|---|---|
+| 0 | Awal (0.5.6, CPU 160 MHz) | 45 mA | 30 mA | 40 mA | 28 mA | ±31 mA → ±20 jam |
+| 1 | CPU 80 MHz (`CPU_MHZ`, `setCpuFrequencyMhz` paling awal di `setup()`) | 46 mA | 22 mA | 39 mA | 27 mA | ±25 mA → ±25 jam |
+
+\* Layar nyala ±10% waktu, HP tersambung: 0,1 × kolom 1 + 0,9 × kolom 2; sel terpakai ±630 mAh.
+
+Catatan langkah 1: 80 MHz adalah minimum untuk BLE di ESP32-C3; APB tetap 80 MHz sehingga I2C, UART, dan LEDC tidak
+berubah. Layar nyala tidak turun: bebannya OLED + I2C (frame tiap 30 ms, kirim ±25 ms → bus sibuk ±80%, LED biru di
+GPIO8/SCL ikut berkedip). Layar mati + iklan lebih boros dari tersambung → interval iklan bawaan terlalu rapat.
+Uji USB 178/178 lulus di 80 MHz; animasi & sentuhan tetap responsif.
+
 **Baterai (sejak 0.5.6, `drivers/hw.cpp` + `services/power.cpp`)**
 - Sel dibaca tiap 1 dtk lewat GPIO1 (pembagi dari sisi saklar, sebelum D1), rata-rata 16 sampel + EMA. Di bawah
   2,5 V = sel tidak terbaca (saklar OFF, hanya USB kanan) → persen `255` di `DEVICE_INFO`.
