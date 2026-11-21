@@ -25,7 +25,19 @@ Wiring lengkap ada di `case/lokana_wiring.png`, cara rakit di `case/README.md`.
 | C1 | Kapasitor SMD 0805 **100 nF** | 1 | GPIO1 ke GND, penstabil ADC. 100–220 nF sah (RC ±5–11 ms) | `kapasitor 0805 100nf` |
 
 **Unit pertama (dirakit 2026-11-21):** Q1 = 2SC1815 SOT-23, R5 = 1.2 kΩ, C1 = 220 nF, Rprog = 2.7 kΩ. Semua masih
-dalam rentang di atas; firmware sama.
+dalam rentang di atas; firmware sama. Hasil bring-up dan penyimpangan dari gambar wiring:
+
+- **OLED SDA/SCL tertukar** saat solder → dijadikan pin bawaan untuk semua unit: **SDA GPIO9, SCL GPIO8**.
+  Strapping aman (keduanya ditarik HIGH oleh pull-up OLED). Prototipe lama (8/9) perlu solder ulang atau override
+  `-DPIN_SDA=8 -DPIN_SCL=9`.
+- **D1 sempat tidak dipasang** → GPIO1 membaca 5V USB, dan saklar ON + USB kanan mengisi LiPo langsung dari 5V.
+  Sudah dipasang 2026-11-21. **D1 wajib.**
+- **Buzzer + di jalur saklar/baterai** (sebelum D1), bukan 3V3: aman (Q1 *low-side*), tapi buzzer diam saat saklar
+  OFF + hanya USB kanan. Dibiarkan.
+- **GPIO4 tanpa 100k ke GND** (hanya 100k seri dari IN+): terbaca ±2,8 V saat charger dicolok (lewat dioda
+  pelindung, ±14 µA). Deteksi tetap jalan. Dibiarkan; unit berikutnya pasang 100k ke GND.
+- **Pembagi baterai terukur 2,10** (multimeter: sel 4,20 V, GPIO1 2,00 V; ADC 1,995 V akurat). Toleransi resistor.
+- **Buzzer 9×5.5 terkeras di ±1300 Hz** (sweep 1000–5000 Hz); nada Cari kunci 1300/1500 Hz.
 
 Lebih praktis beli **kit resistor SMD 0603/0805** dan **kit kapasitor 0805** daripada satu per satu.
 Nilai 2.7 kΩ, 100 kΩ, 1 kΩ, dan 100 nF biasanya sudah ada di kit.
@@ -67,7 +79,7 @@ konsumsi daya), kabel data USB-C, printer 3D, cutter/amplas halus untuk merapika
 
 | Fungsi | Pin Super Mini |
 |---|---|
-| OLED SDA / SCL | GPIO8 / GPIO9 |
+| OLED SDA / SCL | GPIO9 / GPIO8 |
 | Sensor sentuh | GPIO3 |
 | Buzzer (lewat Q1) | GPIO10 |
 | Baterai (ADC, pembagi 2.0) | GPIO1 |

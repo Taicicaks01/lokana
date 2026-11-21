@@ -17,7 +17,8 @@ static const Note N_DONE[]  = {{1319, 60}, {1760, 120}, {0, 0}};
 static const Note N_WIN[]   = {{1047, 70}, {1319, 70}, {1568, 70}, {2093, 180}, {0, 0}};
 static const Note N_LOSE[]  = {{392, 120}, {330, 120}, {262, 220}, {0, 0}};
 static const Note N_LOVE[]  = {{1047, 80}, {1319, 80}, {1047, 80}, {1568, 140}, {0, 0}};
-static const Note N_FIND[]  = {{2093, 90}, {0, 40}, {2637, 90}, {0, 40}, {2093, 90}, {0, 40}, {2637, 90}, {0, 300}, {0, 0}};
+// Cari kunci: dekat resonansi buzzer 9x5.5 (paling keras ±1300 Hz, hasil sweep unit 1 2026-11-21)
+static const Note N_FIND[]  = {{1300, 90}, {0, 40}, {1500, 90}, {0, 40}, {1300, 90}, {0, 40}, {1500, 90}, {0, 300}, {0, 0}};
 static const Note N_PAIR[]  = {{1568, 60}, {0, 40}, {1568, 60}, {0, 0}};
 static const Note N_NOTIF[] = {{1568, 60}, {0, 40}, {2093, 90}, {0, 0}};
 static const Note N_NOTHI[] = {{2093, 70}, {0, 40}, {2093, 70}, {0, 40}, {2637, 140}, {0, 0}};
@@ -76,6 +77,17 @@ void update(uint32_t now) {
 }
 
 void stop() { cur = nullptr; TONE(0); }
+
+void raw(uint16_t hz) { cur = nullptr; TONE(hz); }
+
+void tone(uint16_t hz, uint16_t ms) {
+  static Note one[2];
+  one[0] = {hz, ms};
+  one[1] = {0, 0};
+  cur = one;
+  idx = 0;
+  startNote(millis());
+}
 
 bool playing() { return cur != nullptr; }
 

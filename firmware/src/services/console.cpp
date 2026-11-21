@@ -7,12 +7,14 @@
 #include "core/settings.h"
 #include "drivers/display.h"
 #include "drivers/hw.h"
+#include "drivers/buzzer.h"
 #include "services/link.h"
 #include "services/text_store.h"
 #include "services/image_store.h"
 #include "core/settings.h"
 #include "services/notif_store.h"
 #include <Wire.h>
+#include <esp_adc_cal.h>
 
 static char buf[128];
 static uint8_t len = 0;
@@ -37,6 +39,10 @@ static void help() {
     "name [nama]          nama Bluetooth (kosong = bawaan)\r\n"
     "ble                  status BLE & pairing\r\n"
     "ota                  status slot firmware & masa uji OTA\r\n"
+    "tone <Hz> [ms]       bunyikan satu nada (bawaan 500 ms)\r\n"
+    "sweep [a] [b] [s] [ms]  sapuan nada a..b Hz langkah s (bawaan 1500 5000 100 400)\r\n"
+    "adc                  tegangan mentah GPIO1 (baterai) & GPIO4 (charge)\r\n"
+    "btnraw [dtk]         rekam level mentah pin tombol + lamanya (bawaan 10 dtk)\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
     "tap|double|triple|long   simulasi tombol\r\n"
@@ -45,6 +51,76 @@ static void help() {
     "i2c <kHz>            ganti kecepatan I2C (contoh: i2c 100)\r\n"
     "oled                 pulihkan bus I2C & inisialisasi ulang OLED\r\n"
     "reset                pengaturan default\r\n");
+}
+
+// Sapuan nada untuk mencari frekuensi resonansi buzzer (paling nyaring). Sengaja blocking (alat bring-up):
+// OLED menampilkan frekuensi yang sedang berbunyi supaya bisa dibaca sambil mendengarkan.
+static void sweep(const char* arg) {
+  int a = 1500, b = 5000, step = 100, ms = 400;
+  sscanf(arg, "%d %d %d %d", &a, &b, &step, &ms);
+  a = constrain(a, 100, 12000); b = constrain(b, a, 12000);
+  step = constrain(step, 10, 2000); ms = constrain(ms, 100, 3000);
+  int n = (b - a) / step + 1;
+  Serial.printf("sapuan %d..%d Hz, langkah %d, %d ms per nada (%d nada)\r\n", a, b, step, ms, n);
+  Adafruit_GFX& g = display::gfx();
+  for (int i = 0; i < n; i++) {
+    int f = a + i * step;
+    display::clear();
+    g.setTextColor(1);
+    char t[16];
+    snprintf(t, sizeof(t), "%d Hz", f);
+    display::centerText(t, SCREEN_H >= 64 ? 18 : 6, 2);
+    snprintf(t, sizeof(t), "nada %d/%d", i + 1, n);
+    display::centerText(t, SCREEN_H >= 64 ? 44 : 24);
+    display::show();
+    Serial.printf("  %d Hz\r\n", f);
+    buzzer::raw(f);
+    delay(ms);
+    buzzer::raw(0);
+    delay(120);
+  }
+  buzzer::raw(0);
+  Serial.println("selesai");
+}
+
+// Tegangan mentah pin ADC (atenuasi 11 dB, kalibrasi eFuse). Untuk bring-up pembagi baterai & deteksi charge.
+static void adcReport() {
+  uint32_t b = 0, c = 0;
+  for (int i = 0; i < 16; i++) { b += analogReadMilliVolts(1); c += analogReadMilliVolts(4); }
+  b /= 16; c /= 16;
+  Serial.printf("GPIO1 %lu mV -> baterai ~%.2f V (pembagi %.2f)\r\n", (unsigned long)b, b * BATT_DIVIDER / 1000.f,
+                (double)BATT_DIVIDER);
+  Serial.printf("GPIO4 %lu mV -> %s\r\n", (unsigned long)c,
+                c > 2100 ? "charger dicolok" : c < 300 ? "charger dicabut" : "di tengah (cek wiring / pembagi)");
+  // Diagnostik kalibrasi: nilai mentah 12-bit + sumber kalibrasi yang dipakai IDF
+  uint32_t r = 0;
+  for (int i = 0; i < 16; i++) r += analogRead(1);
+  r /= 16;
+  esp_adc_cal_characteristics_t ch;
+  esp_adc_cal_value_t v = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &ch);
+  Serial.printf("GPIO1 mentah %lu/4095 | kalibrasi %s (eFuse TP %s) | rev chip %d\r\n", (unsigned long)r,
+                v == ESP_ADC_CAL_VAL_EFUSE_TP ? "eFuse two-point" : v == ESP_ADC_CAL_VAL_EFUSE_VREF ? "eFuse Vref" : "Vref bawaan",
+                esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_TP) == ESP_OK ? "ada" : "tidak ada", ESP.getChipRevision());
+}
+
+// Rekam level mentah pin tombol (bring-up sensor sentuh): tiap perubahan dicetak dengan lamanya. Blocking.
+static void btnRaw(const char* arg) {
+  int sec = constrain(atoi(arg) > 0 ? atoi(arg) : 10, 1, 60);
+  Serial.printf("rekam GPIO%d %d dtk (aktif %s)\r\n", PIN_BTN, sec, BTN_ACTIVE_LOW ? "LOW" : "HIGH");
+  int last = digitalRead(PIN_BTN);
+  uint32_t t0 = millis(), since = t0;
+  Serial.printf("  awal %s\r\n", last ? "HIGH" : "LOW");
+  while ((int32_t)(millis() - t0) < sec * 1000) {
+    int v = digitalRead(PIN_BTN);
+    if (v != last) {
+      uint32_t now = millis();
+      Serial.printf("  %6lu ms: %s -> %s (setelah %lu ms)\r\n", (unsigned long)(now - t0), last ? "HIGH" : "LOW",
+                    v ? "HIGH" : "LOW", (unsigned long)(now - since));
+      last = v; since = now;
+    }
+    delay(1);
+  }
+  Serial.println("selesai");
 }
 
 static void handle(char* line) {
@@ -118,6 +194,17 @@ static void handle(char* line) {
     events::post(EV_FIND_KEYS, !strcasecmp(arg, "stop") ? 0 : (atoi(arg) > 0 ? atoi(arg) : 10));
   } else if (!strcasecmp(line, "ble")) lklink::printStatus();
   else if (!strcasecmp(line, "ota")) ota::printStatus();
+  else if (!strcasecmp(line, "tone")) {
+    int hz = atoi(arg);
+    const char* sp = strchr(arg, ' ');
+    int ms = sp ? atoi(sp + 1) : 500;
+    if (hz < 50 || hz > 12000) { Serial.println("tone <50..12000 Hz> [ms]"); return; }
+    buzzer::tone(hz, constrain(ms, 20, 5000));
+    Serial.printf("nada %d Hz, %d ms\r\n", hz, ms);
+  }
+  else if (!strcasecmp(line, "sweep")) sweep(arg);
+  else if (!strcasecmp(line, "adc")) adcReport();
+  else if (!strcasecmp(line, "btnraw")) btnRaw(arg);
   else if (!strcasecmp(line, "forget")) lklink::forgetBonds();
   else if (!strcasecmp(line, "time")) {
     int h, m;

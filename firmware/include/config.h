@@ -7,12 +7,14 @@
 #define LOKANA_NAME "Lokana"
 #define LOKANA_OS "Lokana OS"
 
-// Nama Bluetooth bawaan (UTF-8, maks 26 byte). Bisa diganti dari aplikasi (Pengaturan).
-// "locana" = mata (Sansekerta). Di OLED tampil sebagai "Lokana_locana-01".
+// Nama Bluetooth bawaan (UTF-8, maks 26 byte). Bisa diganti dari aplikasi
+// (Pengaturan). "locana" = mata (Sansekerta). Di OLED tampil sebagai
+// "Lokana_locana-01".
 #ifndef BLE_NAME_DEFAULT
-#define BLE_NAME_DEFAULT "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01"   // Lokana_लोचन-01
+#define BLE_NAME_DEFAULT                                                       \
+  "Lokana_\xE0\xA4\xB2\xE0\xA5\x8B\xE0\xA4\x9A\xE0\xA4\xA8-01" // Lokana_लोचन-01
 #endif
-#ifndef FW_VERSION                 // bisa ditimpa build_flags (env uji OTA)
+#ifndef FW_VERSION // bisa ditimpa build_flags (env uji OTA)
 #define FW_VERSION "0.5.5"
 #endif
 
@@ -33,13 +35,13 @@
 
 // ---------- Pin (default: ESP32-C3 Super Mini) ----------
 #ifndef PIN_SDA
-#define PIN_SDA 8
+#define PIN_SDA 9
 #endif
 #ifndef PIN_SCL
-#define PIN_SCL 9
+#define PIN_SCL 8
 #endif
 #ifndef PIN_BTN
-#define PIN_BTN 3 // sensor sentuh TTP223 (GPIO9/BOOT dipakai SCL)
+#define PIN_BTN 3 // sensor sentuh TTP223 (GPIO9/BOOT dipakai SDA)
 #endif
 #ifndef BTN_ACTIVE_LOW
 #define BTN_ACTIVE_LOW 0 // 1 = tombol ke GND, 0 = TTP223 (aktif HIGH)
@@ -48,7 +50,7 @@
 #define PIN_BUZZER 10 // -1 jika tidak ada buzzer
 #endif
 #ifndef PIN_LED
-#define PIN_LED -1 // LED bawaan ada di GPIO8, tapi GPIO8 dipakai SDA
+#define PIN_LED -1 // LED bawaan ada di GPIO8, tapi GPIO8 dipakai SCL
 #endif
 #ifndef PIN_BATT
 #define PIN_BATT -1 // 1 jika pembagi tegangan baterai dipasang

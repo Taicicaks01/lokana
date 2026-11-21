@@ -15,4 +15,7 @@ void play(Melody m, bool force = false);   // force: bunyi walau suara dimatikan
 bool playing();
 void update(uint32_t now);
 void stop();
+// Diagnostik (console `tone` / `sweep`): bunyi satu frekuensi, mengabaikan setelan suara. 0 = diam.
+void raw(uint16_t hz);
+void tone(uint16_t hz, uint16_t ms);
 }

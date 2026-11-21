@@ -44,10 +44,10 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 
 | Komponen | Pin |
 |---|---|
-| OLED 0.96" 128×64 (SSD1306) | SDA GPIO8, SCL GPIO9 |
+| OLED 0.96" 128×64 (SSD1306) | SDA GPIO9, SCL GPIO8 (sejak 2026-11-21; Wokwi tetap 8/9) |
 | Tombol | Sensor sentuh TTP223 di GPIO3 (VCC 3V3, GND, I/O → GPIO3). Tombol mekanis ke GND: tambah `-DBTN_ACTIVE_LOW=1` |
 | Buzzer pasif (opsional) | GPIO10 |
-| LED bawaan | GPIO8 = SDA, tidak dipakai firmware |
+| LED bawaan | GPIO8 = SCL, tidak dipakai firmware |
 
 ## Cara pakai (satu tombol)
 
@@ -96,6 +96,10 @@ text Halo|dunia  img  find 5  find stop  phone  ble  forget
 notif WhatsApp|Ibu|Sudah makan?  notif clear  call Ibu  call stop  name  name Lokana_saya  name -
 tap  double  triple  long  info  scan  oled  reset  splash  splash 1300
 ```
+
+Bring-up hardware (alat uji, sebagian *blocking*): `tone <Hz> [ms]`, `sweep [a] [b] [langkah] [ms]` (frekuensi tampil
+di OLED, untuk mencari nada terkeras buzzer), `adc` (mV mentah GPIO1 baterai & GPIO4 charge + status kalibrasi),
+`btnraw [dtk]` (rekam level mentah pin sentuh beserta lamanya).
 
 `guide [ms]` memutar Panduan (ms = bekukan di waktu itu, untuk screenshot).
 `splash` memutar ulang splash boot; `splash <ms>` membekukannya di waktu itu (untuk screenshot lewat

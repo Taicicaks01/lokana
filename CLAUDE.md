@@ -95,10 +95,10 @@ flutter build apk --release --split-per-abi   # HP modern: app-arm64-v8a-release
 
 | Komponen | Pin | Catatan |
 |---|---|---|
-| OLED SSD1306 128×64 (I2C, 0x3C) | SDA GPIO8, SCL GPIO9 | Sama di Wokwi. Pindah dari 20/21 di v0.2 (OLED tidak terdeteksi di 20/21) |
-| Tombol | Sensor sentuh TTP223 di GPIO3 (aktif HIGH) | Wokwi: tombol mekanis ke GND (`-DBTN_ACTIVE_LOW=1`). Tombol BOOT (GPIO9) tidak dipakai karena jadi SCL; jangan ditekan saat jalan |
+| OLED SSD1306 128×64 (I2C, 0x3C) | SDA GPIO9, SCL GPIO8 | **Ditukar 2026-11-21** (keputusan Wayan, ikut wiring unit 1). Wokwi tetap 8/9 lewat `build_flags`. `lokana_wiring.png` masih 8/9. Pindah dari 20/21 di v0.2 |
+| Tombol | Sensor sentuh TTP223 di GPIO3 (aktif HIGH) | Wokwi: tombol mekanis ke GND (`-DBTN_ACTIVE_LOW=1`). Tombol BOOT (GPIO9) tidak dipakai karena jadi SDA; jangan ditekan saat jalan |
 | Buzzer pasif 9×5.5 | GPIO10 → R 1k → Q1 S8050 (NPN); unit pertama: 2SC1815 SOT-23 + R 1.2k | Buzzer + ke 3V3, − ke kolektor Q1, emitor ke GND, D3 SS14 paralel buzzer. Jangan drive langsung dari GPIO (kumparan ±16 Ω). Logika firmware tidak berubah. Daftar komponen: `hardware/BOM.md` |
-| LED bawaan | GPIO8 (= SDA) | Tidak dipakai firmware (`PIN_LED -1`); berkedip redup mengikuti lalu lintas I2C |
+| LED bawaan | GPIO8 (= SCL) | Tidak dipakai firmware (`PIN_LED -1`); berkedip redup mengikuti lalu lintas I2C |
 | Baterai | GPIO1 (R1 100k / R2 100k + 100 nF ke GND; unit pertama 220 nF) | Dipasang **setelah saklar, sebelum D1** (tegangan sel asli). Firmware: `-DPIN_BATT=1` di env `supermini` (belum diaktifkan) |
 | Deteksi charge (opsional) | GPIO4 (100k/100k dari IN+ TP4056) | Baca dengan **ADC**: > 2.1 V = charger dicolok. Jangan sebagai input digital (bisa 1.6–1.8 V saat D2 terpasang) |
 
@@ -172,9 +172,11 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | Versi di header firmware = "esp-idf: v4.4.7…", bukan versi Lokana | Pustaka Arduino prebuilt mengisi `esp_app_desc_t.version` | Pakai penanda `LOKANA_OS_VERSION:` (`services/ota.cpp`); simbol harus **dipakai** kode (linker `--gc-sections` membuang simbol tak terpakai walau `used`) |
 | OTA: data acak ditolak di CHUNK pertama, bukan di END | `esp_ota_write` memeriksa byte `0xE9` di tulisan pertama | Sudah dipetakan ke ABORT alasan 6; data uji harus diawali `0xE9` untuk menguji pemeriksaan di END |
 | Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
-| Serial diam setelah upload (port ada, `info` tidak dibalas) | DTR/RTS saat port dibuka | Skrip pyserial: buka dengan `dtr=False, rts=False`, tunggu ±1 dtk, lalu `dtr=True` |
+| Serial diam setelah upload (port ada, `info` tidak dibalas) | DTR/RTS saat port dibuka; atau chip tertahan di mode download setelah reset esptool | Skrip pyserial: buka dengan `dtr=False, rts=False`, tunggu ±1 dtk, lalu `dtr=True`. Kalau `esptool --before no_reset --after no_reset read_mac` menjawab, chip di bootloader: cabut-colok USB / tekan RST |
+| GPIO1 terbaca ±2,5 V (≈ 5 V) saat saklar OFF + USB | **D1 tidak terpasang**: pembagi ikut 5V USB, dan saklar ON + USB mengisi LiPo langsung | Pasang D1 (anoda ke saklar, katoda ke pin 5V); pembagi di sisi saklar. `adc` untuk cek |
+| Tahan (`long`) tidak terdeteksi, tap terbaca jadi `double` | Sentuhan tipis: keluaran TTP223 berkedip (HIGH/LOW 50–400 ms) | `btnraw` untuk melihat level mentah. Sentuh dengan bantalan jari rata; jangan menambal di firmware (celah sama dengan jeda double tap) |
 
-Perintah diagnostik console: `info`, `scan`, `oled`, `i2c <kHz>`, `ble`, `help`.
+Perintah diagnostik console: `info`, `scan`, `oled`, `i2c <kHz>`, `ble`, `help`. Bring-up hardware: `tone`, `sweep`, `adc`, `btnraw`.
 Uji protokol dari PC: `python protocol/tools/lokana_link.py test` (tutup serial monitor dulu).
 Perintah console di USB menghentikan pesan tanpa diminta ke USB sampai `HELLO` berikutnya (spesifikasi §3.2),
 jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
@@ -360,6 +362,10 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   `LokanaLink.sendFirmware`, Kotlin `sha256`/`pickFile`/`openUrl`/`keepScreenOn`/`LeaveAlert.quietFor`, izin INTERNET.
   Lulus 175/175 uji USB (termasuk `test_v055`), uji OTA USB: update sukses + firmware rusak rollback.
   **Belum diuji:** OTA lewat BLE dari HP; macet di loop (watchdog) di hardware.
+- **Lokana Cube unit 1 — bring-up ✅** (2026-11-21, COM10): I2C 0x3C, OLED (frame ±25 ms), TTP223 (tap/2×/3×/tahan
+  dengan bantalan jari), buzzer (terkeras ±1300 Hz → nada Cari kunci 1300/1500 Hz), deteksi charge GPIO4 (2,8 V dicolok,
+  ±15 mV dicabut), pembagi baterai 2,10 (multimeter). Penyimpangan wiring unit 1: `hardware/BOM.md`. Berikutnya: poin 2
+  kode baterai v0.5.6, poin 3 uji daya USB tester, poin 4 OTA BLE dari HP (lihat permintaan Wayan 2026-11-21).
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

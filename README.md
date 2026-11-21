@@ -259,10 +259,10 @@ Spesifikasi lengkap (payload, keamanan, aturan kompatibilitas, contoh byte):
 | Komponen | Keterangan | Pin |
 |---|---|---|
 | ESP32-C3 Super Mini | MCU RISC-V, WiFi + BLE 5, USB-C | — |
-| **OLED 0.96" 128×64** (SSD1306, I2C) | Layar utama / wajah Lokana | SDA **GPIO8**, SCL **GPIO9** |
+| **OLED 0.96" 128×64** (SSD1306, I2C) | Layar utama / wajah Lokana | SDA **GPIO9**, SCL **GPIO8** |
 | Tombol | Sensor sentuh **TTP223** | GPIO3 |
 | Buzzer pasif | Bunyi reaksi, notifikasi, cari kunci | GPIO10 |
-| LED bawaan | Tidak dipakai (pinnya dipakai SDA) | GPIO8 |
+| LED bawaan | Tidak dipakai (pinnya dipakai SCL) | GPIO8 |
 | LiPo 3.7 V + TP4056 Type-C | Baterai & pengisian | Pembagi tegangan → GPIO1 |
 | Dudukan meja (3D print) | Untuk Mode Meja | — |
 
