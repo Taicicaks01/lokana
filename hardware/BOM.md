@@ -34,8 +34,8 @@ dalam rentang di atas; firmware sama. Hasil bring-up dan penyimpangan dari gamba
   Sudah dipasang 2026-11-21. **D1 wajib.**
 - **Buzzer + di jalur saklar/baterai** (sebelum D1), bukan 3V3: aman (Q1 *low-side*), tapi buzzer diam saat saklar
   OFF + hanya USB kanan. Dibiarkan.
-- **GPIO4 tanpa 100k ke GND** (hanya 100k seri dari IN+): terbaca ±2,8 V saat charger dicolok (lewat dioda
-  pelindung, ±14 µA). Deteksi tetap jalan. Dibiarkan; unit berikutnya pasang 100k ke GND.
+- **GPIO4 sempat tanpa 100k ke GND** (hanya 100k seri dari IN+): terbaca ±2,8 V lewat dioda pelindung (±14 µA).
+  100k ke GND ditambahkan 2026-11-21, sesuai gambar.
 - **Pembagi baterai terukur 2,10** (multimeter: sel 4,20 V, GPIO1 2,00 V; ADC 1,995 V akurat). Toleransi resistor.
 - **Buzzer 9×5.5 terkeras di ±1300 Hz** (sweep 1000–5000 Hz); nada Cari kunci 1300/1500 Hz.
 

@@ -72,7 +72,7 @@ Daftar lengkap komponen dan bahan: [`../BOM.md`](../BOM.md).
  Opsional D2: pin 5V Super Mini ── Schottky ►| ── IN+ TP4056
               (supaya port kanan juga mengisi baterai saat Mode Meja)
  D1, D2: B5819W / SS14
- OLED:   SDA GPIO9, SCL GPIO8, VCC 3V3, GND  (sejak 2026-11-21; lokana_wiring.png masih 8/9)
+ OLED:   SDA GPIO9, SCL GPIO8, VCC 3V3, GND  (sejak 2026-11-21)
  Sentuh: OUT GPIO3, VCC 3V3, GND
  Buzzer (lewat transistor, JANGAN langsung ke GPIO):
    GPIO10 ── R 1k (1–1.5k) ── basis Q1 S8050 / 2SC1815 (SOT-23: 1=B, 2=E, 3=C)

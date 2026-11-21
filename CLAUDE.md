@@ -95,7 +95,7 @@ flutter build apk --release --split-per-abi   # HP modern: app-arm64-v8a-release
 
 | Komponen | Pin | Catatan |
 |---|---|---|
-| OLED SSD1306 128×64 (I2C, 0x3C) | SDA GPIO9, SCL GPIO8 | **Ditukar 2026-11-21** (keputusan Wayan, ikut wiring unit 1). Wokwi tetap 8/9 lewat `build_flags`. `lokana_wiring.png` masih 8/9. Pindah dari 20/21 di v0.2 |
+| OLED SSD1306 128×64 (I2C, 0x3C) | SDA GPIO9, SCL GPIO8 | **Ditukar 2026-11-21** (keputusan Wayan, ikut wiring unit 1). Wokwi tetap 8/9 lewat `build_flags`. Pindah dari 20/21 di v0.2 |
 | Tombol | Sensor sentuh TTP223 di GPIO3 (aktif HIGH) | Wokwi: tombol mekanis ke GND (`-DBTN_ACTIVE_LOW=1`). Tombol BOOT (GPIO9) tidak dipakai karena jadi SDA; jangan ditekan saat jalan |
 | Buzzer pasif 9×5.5 | GPIO10 → R 1k → Q1 S8050 (NPN); unit pertama: 2SC1815 SOT-23 + R 1.2k | Buzzer + ke 3V3, − ke kolektor Q1, emitor ke GND, D3 SS14 paralel buzzer. Jangan drive langsung dari GPIO (kumparan ±16 Ω). Logika firmware tidak berubah. Daftar komponen: `hardware/BOM.md` |
 | LED bawaan | GPIO8 (= SCL) | Tidak dipakai firmware (`PIN_LED -1`); berkedip redup mengikuti lalu lintas I2C |
