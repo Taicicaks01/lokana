@@ -809,6 +809,12 @@ void update(uint32_t now) {
   ota::update(now);
   pumpMirror(now);
   pumpBattery(now);
+#ifndef WOKWI_SIM
+  // Hemat daya BLE: interval pendek hanya saat layar menyala, OTA, atau mirror layar berjalan
+  bool mirroring = false;
+  for (uint8_t t = 0; t < TR_COUNT; t++) mirroring |= mirror[t].until && (int32_t)(mirror[t].until - now) > 0;
+  link_ble::setActive(core::screenOn() || ota::active() || mirroring);
+#endif
 }
 
 const char* deviceName() { return devName; }
@@ -863,6 +869,7 @@ void printStatus() {
                 link_ble::mtu(),
 #endif
                 session[TR_USB], session[TR_BLE], btnEvents[TR_USB], btnEvents[TR_BLE], rxFrames, txFrames);
+  link_ble::printPower();
 }
 
 }  // namespace lklink

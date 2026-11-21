@@ -161,6 +161,7 @@ frekuensi CPU tetap, loop yang banyak menunggu (task idle menjalankan WFI), para
 |---|---|---|---|---|---|---|
 | 0 | Awal (0.5.6, CPU 160 MHz) | 45 mA | 30 mA | 40 mA | 28 mA | ±31 mA → ±20 jam |
 | 1 | CPU 80 MHz (`CPU_MHZ`, `setCpuFrequencyMhz` paling awal di `setup()`) | 46 mA | 22 mA | 39 mA | 27 mA | ±25 mA → ±25 jam |
+| 2 | BLE: iklan hemat + interval koneksi panjang saat layar mati (`link_ble.cpp`) | 45 mA | 21 mA | 35 mA | 22 mA | ±23 mA → ±27 jam |
 
 \* Layar nyala ±10% waktu, HP tersambung: 0,1 × kolom 1 + 0,9 × kolom 2; sel terpakai ±630 mAh.
 
@@ -168,6 +169,18 @@ Catatan langkah 1: 80 MHz adalah minimum untuk BLE di ESP32-C3; APB tetap 80 MHz
 berubah. Layar nyala tidak turun: bebannya OLED + I2C (frame tiap 30 ms, kirim ±25 ms → bus sibuk ±80%, LED biru di
 GPIO8/SCL ikut berkedip). Layar mati + iklan lebih boros dari tersambung → interval iklan bawaan terlalu rapat.
 Uji USB 178/178 lulus di 80 MHz; animasi & sentuhan tetap responsif.
+
+Catatan langkah 2 (Lokana meminta, HP yang memutuskan; HP uji Infinix menyetujui keduanya):
+- Iklan (HP tidak tersambung): 100–150 ms selama layar menyala dan 60 dtk setelah boot/putus, lalu 1–1,1 dtk.
+  Layar dinyalakan → kembali cepat (mungkin sedang mau menyambungkan HP). Sambung ulang dari mode hemat bisa
+  beberapa detik lebih lambat.
+- Koneksi: aktif (layar nyala, OTA, mirror layar) 15–30 ms latency 0 → HP memberi 22 ms; layar mati 100–150 ms
+  latency 3 → 125 ms (Lokana bangun ±0,5 dtk saat tidak ada data). Supervision timeout 4 dtk untuk keduanya.
+  Permintaan dikirim 3 dtk setelah koneksi aman. RSSI pengingat ketinggalan tetap tiap 2 dtk.
+- Parameter yang dipakai HP tercatat di log (`[ble] koneksi: ...`) dan perintah `ble`.
+- Iklan hemat paling terasa (mati + iklan −5 mA). Mati + tersambung hanya −1 mA: radio bukan beban utama lagi.
+  Sisa ±21 mA = chip yang tidak pernah tidur (CPU 80 MHz tanpa *light sleep*, controller BLE tanpa *modem sleep*).
+  Penurunan besar berikutnya hanya lewat framework dengan `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP`.
 
 **Baterai (sejak 0.5.6, `drivers/hw.cpp` + `services/power.cpp`)**
 - Sel dibaca tiap 1 dtk lewat GPIO1 (pembagi dari sisi saklar, sebelum D1), rata-rata 16 sampel + EMA. Di bawah

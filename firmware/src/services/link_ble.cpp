@@ -41,10 +41,40 @@ static uint16_t lossReason = 0;
 static int8_t lossRssi = 0;
 static uint32_t lossAge = 0;
 
+static volatile bool connUpdated = false;        // HP menyetujui / mengubah parameter koneksi
+
 // Callback server NimBLE 1.4 tidak memberi alasan putus: ambil dari event GAP mentah.
 static int gapEvent(struct ble_gap_event* e, void*) {
   if (e->type == BLE_GAP_EVENT_DISCONNECT) lostReason = e->disconnect.reason;
+  if (e->type == BLE_GAP_EVENT_CONN_UPDATE && e->conn_update.status == 0) connUpdated = true;
   return 0;
+}
+
+// ---------------- Hemat daya (0.5.7) ----------------
+// Iklan: cepat 100-150 ms selama 60 dtk setelah boot/putus atau selama layar menyala, lalu hemat 1-1,1 dtk.
+// Koneksi (diminta Lokana, HP yang memutuskan): aktif 15-30 ms; layar mati 100-150 ms + slave latency 3
+// (Lokana boleh melewatkan event tanpa data, bangun ±0,6 dtk). Supervision timeout 4 dtk untuk keduanya.
+// RSSI pengingat ketinggalan tetap dibaca tiap 2 dtk.
+static const uint16_t ADV_FAST_MIN = 160, ADV_FAST_MAX = 240;    // satuan 0,625 ms
+static const uint16_t ADV_SLOW_MIN = 1600, ADV_SLOW_MAX = 1760;
+static const uint32_t ADV_FAST_MS = 60000;
+static bool wantActive = true, advFast = true;
+static uint32_t advFastUntil = ADV_FAST_MS, secureSince = 0;
+static int8_t connMode = -1;                     // -1 belum diminta, 0 hemat, 1 aktif
+
+static void setAdv(bool fast) {
+  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+  adv->setMinInterval(fast ? ADV_FAST_MIN : ADV_SLOW_MIN);
+  adv->setMaxInterval(fast ? ADV_FAST_MAX : ADV_SLOW_MAX);
+  advFast = fast;
+  if (adv->isAdvertising()) { adv->stop(); adv->start(); }
+  Serial.printf("[ble] iklan %s\r\n", fast ? "cepat (100-150 ms)" : "hemat (1-1,1 dtk)");
+}
+
+static void requestConn(bool active) {
+  if (active) server->updateConnParams(connHandle, 12, 24, 0, 400);   // 15-30 ms, latency 0, 4 dtk
+  else server->updateConnParams(connHandle, 80, 120, 3, 400);         // 100-150 ms, latency 3, 4 dtk
+  connMode = active ? 1 : 0;
 }
 static bool showingKey = false;                 // hanya dipakai di loop
 
@@ -117,6 +147,8 @@ void begin(const char* name) {
   svc->start();
 
   applyAdvertising(name);
+  NimBLEDevice::getAdvertising()->setMinInterval(ADV_FAST_MIN);
+  NimBLEDevice::getAdvertising()->setMaxInterval(ADV_FAST_MAX);
   NimBLEDevice::getAdvertising()->start();
   Serial.printf("[ble] iklan sebagai \"%s\" (bond tersimpan: %d)\r\n", name, NimBLEDevice::getNumBonds());
 }
@@ -150,9 +182,32 @@ void update(uint32_t now) {
     }
     lostSecure = false;
     rssiAt = 0;
+    secureSince = 0;
+    connMode = -1;
+    advFastUntil = now + ADV_FAST_MS;             // cepat tersambung lagi
+    if (!advFast) setAdv(true);
     if (showingKey) { showingKey = false; events::post(EV_PAIR_DONE, 0); }
   }
   if (dropped) { dropped = false; Serial.println("[ble] buffer RX penuh, data dibuang"); }
+
+  // Hemat daya: iklan & parameter koneksi
+  if (!isConn) {
+    if (wantActive) {                             // layar menyala: mungkin sedang mau menyambungkan HP
+      advFastUntil = now + 30000;
+      if (!advFast) setAdv(true);
+    } else if (advFast && (int32_t)(now - advFastUntil) >= 0) setAdv(false);
+  } else if (isSecure) {
+    if (!secureSince) secureSince = now ? now : 1;
+    // Tunggu 3 dtk setelah aman (HP masih menukar MTU / discovery dengan interval cepat)
+    if ((int32_t)(now - secureSince) > 3000 && connMode != (wantActive ? 1 : 0)) requestConn(wantActive);
+  }
+  if (connUpdated) {
+    connUpdated = false;
+    ble_gap_conn_desc d;
+    if (isConn && ble_gap_conn_find(connHandle, &d) == 0)
+      Serial.printf("[ble] koneksi: interval %u ms, latency %u, timeout %u ms\r\n", d.conn_itvl * 5 / 4,
+                    d.conn_latency, d.supervision_timeout * 10);
+  }
   if (isConn && isSecure && (int32_t)(now - rssiAt) >= 2000) {
     int8_t r;
     if (ble_gap_conn_rssi(connHandle, &r) == 0 && r != 127) { rssi = r; rssiAt = now ? now : 1; }
@@ -179,6 +234,16 @@ bool write(const uint8_t* frame, uint16_t n) {
     txChar->notify(frame + i, m);
   }
   return true;
+}
+
+void setActive(bool active) { wantActive = active; }
+
+void printPower() {
+  ble_gap_conn_desc d;
+  if (isConn && ble_gap_conn_find(connHandle, &d) == 0)
+    Serial.printf("  koneksi: interval %u ms, latency %u, timeout %u ms (diminta: %s)\r\n", d.conn_itvl * 5 / 4,
+                  d.conn_latency, d.supervision_timeout * 10, connMode == 1 ? "aktif" : connMode == 0 ? "hemat" : "-");
+  else Serial.printf("  iklan: %s\r\n", advFast ? "cepat (100-150 ms)" : "hemat (1-1,1 dtk)");
 }
 
 bool connected() { return isConn; }
@@ -234,6 +299,8 @@ void unpairCurrent() {}
 void setName(const char*) {}
 uint16_t mtu() { return 0; }
 bool takeLoss(uint16_t&, int8_t&, uint32_t&) { return false; }
+void setActive(bool) {}
+void printPower() {}
 }
 
 #endif

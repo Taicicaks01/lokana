@@ -28,4 +28,7 @@ uint16_t mtu();
 // Sekali setelah koneksi aman putus: alasan (NimBLE: 0x200 + kode HCI), RSSI terakhir & umurnya (ms).
 // RSSI 0 = belum pernah terukur.
 bool takeLoss(uint16_t& reason, int8_t& rssi, uint32_t& rssiAgeMs);
+// Hemat daya: active = layar nyala / OTA / mirror -> interval koneksi pendek & iklan cepat.
+void setActive(bool active);
+void printPower();                              // parameter koneksi & mode iklan (console `ble`)
 }

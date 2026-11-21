@@ -381,8 +381,8 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
 - **v0.5.7 🚧 Manajemen daya** (2026-11-21, bertahap, tiap langkah diukur USB tester + didokumentasikan di
   `docs/ARCHITECTURE.md` §2.5 — permintaan Wayan: **setiap perubahan didokumentasikan**). Arduino 2.0.17 prebuilt tanpa
   `CONFIG_PM_ENABLE` → tidak ada light sleep otomatis. ✅ 1 CPU 80 MHz (`CPU_MHZ`): 45/30/40/28 → 46/22/39/27 mA.
-  Berikutnya: 2 BLE (iklan lebih jarang setelah 1 menit, interval koneksi panjang saat layar mati, tetap jaga RSSI
-  pengingat ketinggalan tiap 2 dtk), 3 OLED/I2C (frame rate, kirim hanya jika berubah).
+  ✅ 2 BLE (`link_ble.cpp`, `link_ble::setActive` dari `link.cpp`): iklan hemat 1 dtk setelah 60 dtk, koneksi 125 ms +
+  latency 3 saat layar mati → 45/21/35/22 mA. Berikutnya: 3 OLED/I2C (frame rate, kirim hanya jika berubah).
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
 
 ## Cara berkomunikasi dengan pemilik proyek

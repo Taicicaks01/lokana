@@ -10,6 +10,9 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 ### Firmware: manajemen daya — Lokana OS 0.5.7 (bertahap)
 - CPU 80 MHz (sebelumnya 160 MHz): layar mati + HP tersambung 30 → 22 mA. Tabel ukur tiap langkah di
   `docs/ARCHITECTURE.md` §2.5. `info` menampilkan frekuensi CPU.
+- BLE hemat: iklan 1 detik setelah 1 menit tanpa koneksi (cepat lagi saat layar dinyalakan), interval koneksi 125 ms +
+  latency 3 saat layar mati (22 ms saat menyala/OTA/mirror). Layar mati + HP tidak tersambung 27 → 22 mA.
+  Perintah `ble` menampilkan parameter koneksi.
 
 ### Firmware & aplikasi: baterai — Lokana OS 0.5.6
 - Tegangan baterai dibaca di GPIO1 (env `supermini`), persen asli dikirim ke aplikasi, plus tegangan (`battery_mv`) dan
