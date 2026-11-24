@@ -24,6 +24,8 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
   sering sejak CPU 80 MHz). Hal yang sama diperbaiki di gulir teks Notif.
 - Pesan dari HP/PC saat layar Lokana mati hanya menyalakan layar: GOTO, toast, dan **pengaturan kecerahan / putar
   180°** dari aplikasi hilang. Sekarang diproses seperti biasa. Uji regresi baru di `test_v07`.
+- Navigasi: saat HP diam, Google Maps bisa bolak-balik antara dua instruksi; Lokana dulu menyala dan berbunyi tiap
+  kali. Sekarang bolak-balik (belokan sama dengan belokan sebelum-terakhir dalam 60 detik) hanya memperbarui layar.
 
 ## [0.6.0] - 2026-11-25
 

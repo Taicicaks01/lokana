@@ -445,7 +445,8 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     setelah ≤ 300 m dikirim **0 m "Sekarang"**; transisi "Memulai navigasi…" / "Mengubah rute…" (elipsis, tanpa jam tiba,
     ikon 66×66) **tidak dikirim**; tiba = title "Tiba" + text "di <tujuan>" → jalan = nama tujuan; kaki terakhir =
     "5,1 km · <nama tujuan>"; notifikasi dihapus saat sampai/berhenti → state 1. Ikon lain: putar balik, tujuan
-    (jalan + pin), semua putih + alpha. Diketahui: saat diam di awal, Maps bisa bolak-balik dua instruksi (GPS) →
+    (jalan + pin), semua putih + alpha. Saat diam di awal, Maps bisa bolak-balik dua instruksi (GPS) → **diredam sejak 0.7** (`nav_store`: belokan = belokan
+    sebelum-terakhir dalam 60 dtk → tanpa event; uji console A,B,A,B,C → 1,2,0,0,2). Catatan lama:
     Lokana menyala/berbunyi tiap ganti; belum diredam. Perekam dimatikan (file `ON` dihapus) setelah data diambil.
 
 ## Cara berkomunikasi dengan pemilik proyek
