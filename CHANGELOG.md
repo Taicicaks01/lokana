@@ -21,6 +21,12 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 - Label DEV hanya di layar wajah (tidak menutupi judul modul lain).
 - Console `nav`; alat PC `lokana_link.py nav`; uji `test_v06` (191/191 lulus).
 
+### Aplikasi: navigasi Google Maps ke Lokana (v0.6, langkah 4, versi pertama)
+- Notifikasi navigasi Google Maps dibaca dan dikirim ke Lokana: jarak ke belokan, instruksi, jalan, waktu tiba, dan
+  panah belokan (ikon Maps dikecilkan ke 32×32 1-bit). Saklar **Navigasi Google Maps** di halaman Notifikasi.
+- Hanya dikirim saat isi berubah (plus ulang tiap 20 detik); navigasi berhenti di HP → layar Navigasi Lokana tertutup.
+- Alat pengembangan `NavCapture` (merekam notifikasi Maps ke HP, hanya bila diaktifkan lewat adb).
+
 ## [0.5.7] - 2026-11-21
 
 Rilis pertama di GitHub Releases: `lokana-os-0.5.7.bin` (firmware ESP32-C3 Super Mini, untuk OTA dari aplikasi atau

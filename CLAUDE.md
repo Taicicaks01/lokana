@@ -415,7 +415,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     kedaluwarsa 3 menit / HP putus, field opsional `eta_text`, console `nav`, `lokana_link.py nav`, `test_v06`.
     191/191 uji USB; skenario layar (mulai → mati saat jauh → menyala di 280 m → belokan baru → selesai) dicek Wayan.
     Label DEV dibatasi ke layar wajah (menutupi judul Notif).
-  - 4 Aplikasi: baca notifikasi Maps (`NotifListener.kt`) → NAV.
+  - 🟡 4 Aplikasi, parser versi pertama (2026-11-24): `NavForwarder.kt` (dipanggil `NotifListener` sebelum filter
+    aplikasi; saklar "Navigasi Google Maps" di halaman Notifikasi, `NotifPrefs.nav`, bawaan nyala). Data asli saat
+    bergerak: title "2,9 km · Belok kiri ke Jl. Damai/Jl. I Gede Taman", `shortCriticalText` "2,9 km",
+    subText "Tiba 01.39"; spasi angka–satuan = **NBSP** (dinormalkan dulu). Kalimat dipecah di kata penghubung
+    (menuju/ke/di/pada/onto…) → instruksi + jalan. Ikon: `smallIcon` jika bitmap (panah putih + alpha), selain itu
+    `largeIcon`; skala 32×32 → 1-bit dari alpha. Kirim saat isi berubah (seq 0) + ulang tiap 20 dtk; notifikasi hilang
+    → state 1. Diuji ujung ke ujung di unit 1 (layar: panah kiri, "2,9 km", "Belok kiri", jalan berjalan, "Tiba 01.43").
+    Sisa: uji perjalanan sungguhan (belokan < 300 m, ganti instruksi, sampai tujuan), lalu matikan perekam.
 
 ## Cara berkomunikasi dengan pemilik proyek
 

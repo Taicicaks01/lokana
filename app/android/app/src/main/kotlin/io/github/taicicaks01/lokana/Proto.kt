@@ -101,6 +101,30 @@ object Proto {
         return o.toByteArray()
     }
 
+    const val T_NAV = 0x11
+
+    /**
+     * NAV state 0 (v0.6). distM -1 = tidak diketahui, etaMin -1 = tidak diketahui.
+     * icon: baris demi baris, MSB = kiri, ceil(w/8) x h byte; w = 0 tanpa ikon.
+     */
+    fun nav(distM: Long, distText: String, instr: String, street: String, etaMin: Int,
+            iconW: Int, iconH: Int, icon: ByteArray, etaText: String): ByteArray {
+        val o = ByteArrayOutputStream()
+        o.write(0)
+        u32(o, if (distM < 0) 0xFFFFFFFFL else distM)
+        str(o, distText.take(15))
+        str(o, instr.take(63))
+        str(o, street.take(63))
+        val eta = if (etaMin < 0) 0xFFFF else etaMin.coerceAtMost(0xFFFE)
+        o.write(eta and 0xFF); o.write(eta shr 8)
+        o.write(iconW); o.write(if (iconW == 0) 0 else iconH)
+        if (iconW > 0) o.write(icon)
+        str(o, etaText.take(15))
+        return o.toByteArray()
+    }
+
+    fun navStop(): ByteArray = byteArrayOf(1)
+
     fun call(ringing: Boolean, caller: String): ByteArray {
         val o = ByteArrayOutputStream()
         o.write(if (ringing) 0 else 1)

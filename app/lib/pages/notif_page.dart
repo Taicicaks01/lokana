@@ -152,6 +152,18 @@ class _NotifPageState extends State<NotifPage> with WidgetsBindingObserver {
                   _refresh();
                 },
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Navigasi Google Maps'),
+                subtitle: Text(link.ready && !link.hasNav
+                    ? 'Perbarui Lokana OS ke 0.6 untuk menampilkan navigasi.'
+                    : 'Panah belokan, jarak, dan jalan tampil di Lokana. Layar menyala saat mendekati belokan.'),
+                value: s.nav,
+                onChanged: (v) async {
+                  await link.setNavEnabled(v);
+                  _refresh();
+                },
+              ),
             ],
           ),
           const SectionHeader('Lama tampil di Lokana', icon: Icons.timer_outlined),

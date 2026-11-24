@@ -135,12 +135,14 @@ class MainActivity : FlutterActivity() {
                     "access" to NotifPrefs.hasAccess(this),
                     "enabled" to NotifPrefs.enabled(this),
                     "calls" to NotifPrefs.calls(this),
+                    "nav" to NotifPrefs.nav(this),
                     "apps" to NotifPrefs.apps(this).toList(),
                     "battery" to batteryUnrestricted(),
                 ))
                 "setNotif" -> {
                     call.argument<Boolean>("enabled")?.let { NotifPrefs.setEnabled(this, it) }
                     call.argument<Boolean>("calls")?.let { NotifPrefs.setCalls(this, it) }
+                    call.argument<Boolean>("nav")?.let { NotifPrefs.setNav(this, it); if (!it) NavForwarder.disable() }
                     call.argument<String>("app")?.let { NotifPrefs.setApp(this, it, call.argument<Boolean>("on") == true) }
                     result.success(null)
                 }

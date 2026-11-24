@@ -23,6 +23,10 @@ object NotifPrefs {
     fun enabled(c: Context) = prefs(c).getBoolean("enabled", true)
     fun setEnabled(c: Context, on: Boolean) = prefs(c).edit().putBoolean("enabled", on).apply()
 
+    /** Navigasi Google Maps ke Lokana (v0.6). Terpisah dari daftar aplikasi notifikasi. */
+    fun nav(c: Context) = prefs(c).getBoolean("nav", true)
+    fun setNav(c: Context, on: Boolean) = prefs(c).edit().putBoolean("nav", on).apply()
+
     fun calls(c: Context) = prefs(c).getBoolean("calls", true)
     fun setCalls(c: Context, on: Boolean) = prefs(c).edit().putBoolean("calls", on).apply()
 

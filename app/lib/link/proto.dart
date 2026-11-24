@@ -31,7 +31,7 @@ class Status {
 }
 
 class Caps {
-  static const notif = 1 << 0, customText = 1 << 4, bitmap = 1 << 5, ota = 1 << 6, buzzer = 1 << 9;
+  static const notif = 1 << 0, nav = 1 << 1, customText = 1 << 4, bitmap = 1 << 5, ota = 1 << 6, buzzer = 1 << 9;
   static const dice = 1 << 10, findPhone = 1 << 11, anim = 1 << 12, screen = 1 << 13, textSlot = 1 << 14;
 }
 

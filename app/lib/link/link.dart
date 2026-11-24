@@ -343,6 +343,8 @@ class LokanaLink extends ChangeNotifier {
       NotifStatus.fromMap(await _m.invokeMapMethod<String, dynamic>('notifStatus') ?? const {});
   Future<void> setNotifEnabled(bool on) => _m.invokeMethod('setNotif', {'enabled': on});
   Future<void> setCallsEnabled(bool on) => _m.invokeMethod('setNotif', {'calls': on});
+  Future<void> setNavEnabled(bool on) => _m.invokeMethod('setNotif', {'nav': on});
+  bool get hasNav => info?.has(Caps.nav) ?? false;
   Future<void> setNotifApp(String pkg, bool on) => _m.invokeMethod('setNotif', {'app': pkg, 'on': on});
   Future<void> openNotifAccess() => _m.invokeMethod('openNotifAccess');
   Future<void> openBattery() => _m.invokeMethod('openBattery');
@@ -357,13 +359,14 @@ class LokanaLink extends ChangeNotifier {
 }
 
 class NotifStatus {
-  final bool access, enabled, calls, battery;
+  final bool access, enabled, calls, nav, battery;
   final Set<String> apps;
-  NotifStatus(this.access, this.enabled, this.calls, this.battery, this.apps);
+  NotifStatus(this.access, this.enabled, this.calls, this.nav, this.battery, this.apps);
   factory NotifStatus.fromMap(Map<String, dynamic> m) => NotifStatus(
         m['access'] == true,
         m['enabled'] != false,
         m['calls'] != false,
+        m['nav'] != false,
         m['battery'] == true,
         {...(m['apps'] as List? ?? const []).cast<String>()},
       );

@@ -40,11 +40,13 @@ class NotifListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         NavCapture.record(this, sbn)                 // alat pengembangan NAV, mati kecuali diaktifkan lewat adb
+        try { NavForwarder.onPosted(this, sbn) } catch (e: Exception) { Log.w(TAG, "navigasi dilewati", e) }
         try { handle(sbn) } catch (e: Exception) { Log.w(TAG, "notifikasi dilewati", e) }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         NavCapture.record(this, sbn, removed = true)
+        NavForwarder.onRemoved(sbn)
         val key = sbn.key
         if (ringing.remove(key)) {
             BleLink.send(Proto.T_CALL, Proto.call(false, ""), true) {}
