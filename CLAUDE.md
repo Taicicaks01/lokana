@@ -401,7 +401,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   - ✅ 1 Penanda (2026-11-21): `usb::host()` (`HWCDC::isPlugged()`, hanya komputer), toast "mode developer" (stabil
     1 dtk, tidak saat boot), label DEV kiri atas, "DEV" di Info; toast + lencana "charging", Jam bergantian
     "charging 78%". Diuji Wayan di unit 1.
-  - 2 Ambil contoh notifikasi Google Maps asli dari HP (adb `dumpsys notification --noredact`) sebelum menulis parser.
+  - 🟡 2 Contoh notifikasi Google Maps asli (2026-11-24, Infinix Android 16, Maps bahasa Indonesia): format
+    **ProgressStyle** (*promoted ongoing*, kategori `navigation`): `android.title` = "Ambil arah menuju Jl. Raya Anturan"
+    (instruksi + jalan), `android.subText` = "Tiba 01.02" (jam tiba), `android.text` kosong, `android.progressMax` =
+    panjang rute (m), `android.progress`, `android.shortCriticalText` (kosong saat diam), `largeIcon` 94×94 panah biru,
+    `smallIcon` 132×132 panah putih + alpha. Jarak ke belokan saat bergerak **belum terlihat** (HP diam).
+    Perekam: `NavCapture.kt` (aktif hanya jika ada file `ON`):
+    `adb shell touch /sdcard/Android/data/io.github.taicicaks01.lokana/files/nav_capture/ON` (Git Bash: `MSYS_NO_PATHCONV=1`),
+    ambil `adb pull /sdcard/Android/data/io.github.taicicaks01.lokana/files/nav_capture`. Sisa: rekam perjalanan sungguhan.
   - 3 Firmware NAV + modul Navigasi (`keepAwake` saat < 300 m, bangun saat instruksi baru), console `nav`, uji USB.
   - 4 Aplikasi: baca notifikasi Maps (`NotifListener.kt`) → NAV.
 
