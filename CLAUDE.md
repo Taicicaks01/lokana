@@ -395,7 +395,8 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP` (mis. Arduino-ESP32 3.x lewat pioarduino `custom_sdkconfig`),
     migrasi NimBLE-Arduino 2.x. Proyek terpisah, perlu OK Wayan.
 - **v0.6 ✅ Navigasi Google Maps — dirilis v0.6.0 (2026-11-25)** di GitHub Releases. NAV (ikon panah dari notifikasi
-  Maps → bitmap 1-bit), modul Navigasi.
+  Maps → bitmap 1-bit), modul Navigasi. **OTA dari GitHub Releases terbukti** (2026-11-25): aplikasi 0.6.0 → cek
+  pembaruan → unduh `lokana-os-0.6.0.bin` → BLE → unit 1 naik ke 0.6.0 dan ditandai sehat (uji Wayan).
   Dikerjakan **bersama** dua permintaan Wayan (2026-11-21). Keputusan Wayan: layar navigasi **menyala saat belokan**
   (instruksi baru / < 300 m, lalu ikut batas waktu), "mode developer" = **toast + label DEV + Info**, "charging" =
   **teks di lencana**. Langkah (satu commit per langkah, uji di unit 1, tunggu OK Wayan):
