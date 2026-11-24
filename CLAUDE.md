@@ -415,14 +415,20 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     kedaluwarsa 3 menit / HP putus, field opsional `eta_text`, console `nav`, `lokana_link.py nav`, `test_v06`.
     191/191 uji USB; skenario layar (mulai → mati saat jauh → menyala di 280 m → belokan baru → selesai) dicek Wayan.
     Label DEV dibatasi ke layar wajah (menutupi judul Notif).
-  - 🟡 4 Aplikasi, parser versi pertama (2026-11-24): `NavForwarder.kt` (dipanggil `NotifListener` sebelum filter
+  - ✅ 4 Aplikasi, parser (2026-11-24/25): `NavForwarder.kt` (dipanggil `NotifListener` sebelum filter
     aplikasi; saklar "Navigasi Google Maps" di halaman Notifikasi, `NotifPrefs.nav`, bawaan nyala). Data asli saat
     bergerak: title "2,9 km · Belok kiri ke Jl. Damai/Jl. I Gede Taman", `shortCriticalText` "2,9 km",
     subText "Tiba 01.39"; spasi angka–satuan = **NBSP** (dinormalkan dulu). Kalimat dipecah di kata penghubung
     (menuju/ke/di/pada/onto…) → instruksi + jalan. Ikon: `smallIcon` jika bitmap (panah putih + alpha), selain itu
     `largeIcon`; skala 32×32 → 1-bit dari alpha. Kirim saat isi berubah (seq 0) + ulang tiap 20 dtk; notifikasi hilang
     → state 1. Diuji ujung ke ujung di unit 1 (layar: panah kiri, "2,9 km", "Belok kiri", jalan berjalan, "Tiba 01.43").
-    Sisa: uji perjalanan sungguhan (belokan < 300 m, ganti instruksi, sampai tujuan), lalu matikan perekam.
+    **Uji perjalanan sungguhan oleh Wayan 2026-11-25: navigasi berjalan baik.** Dari rekaman 246 pembaruan:
+    tepat di belokan Maps menghapus jarak ("50 m · Belok kiri ke X" → "Belok kiri ke X") → kalimat sama + jarak hilang
+    setelah ≤ 300 m dikirim **0 m "Sekarang"**; transisi "Memulai navigasi…" / "Mengubah rute…" (elipsis, tanpa jam tiba,
+    ikon 66×66) **tidak dikirim**; tiba = title "Tiba" + text "di <tujuan>" → jalan = nama tujuan; kaki terakhir =
+    "5,1 km · <nama tujuan>"; notifikasi dihapus saat sampai/berhenti → state 1. Ikon lain: putar balik, tujuan
+    (jalan + pin), semua putih + alpha. Diketahui: saat diam di awal, Maps bisa bolak-balik dua instruksi (GPS) →
+    Lokana menyala/berbunyi tiap ganti; belum diredam. Perekam dimatikan (file `ON` dihapus) setelah data diambil.
 
 ## Cara berkomunikasi dengan pemilik proyek
 

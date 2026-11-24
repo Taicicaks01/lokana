@@ -32,6 +32,10 @@ object NavForwarder {
     private val main = Handler(Looper.getMainLooper())
     private var lastPayload: ByteArray? = null
     private var activeKey: String? = null
+    private const val NEAR_M = 300L
+    private var lastInstr = ""
+    private var lastStreet = ""
+    private var lastDist = -1L
 
     private val resend = object : Runnable {
         override fun run() {
@@ -53,7 +57,15 @@ object NavForwarder {
         val sub = ex.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString().orEmpty().trim()
         val critical = ex.getCharSequence("android.shortCriticalText")?.toString().orEmpty().trim()
 
-        val p = parse(title, text, sub, critical)
+        // Transisi ("Memulai navigasi...", "Mengubah rute..."): tanpa jarak/ETA, ikon logo. Jangan dikirim
+        // (akan terbaca sebagai belokan baru: layar menyala + bunyi); data sebelumnya tetap tampil.
+        if (isTransient(title, sub)) return
+        var p = parse(title, text, sub, critical)
+        // Tepat di belokan Maps menghapus jarak ("50 m · Belok kiri ke X" -> "Belok kiri ke X"):
+        // kalimat sama + jarak hilang setelah <= 300 m -> "Sekarang" (0 m), layar tetap menyala.
+        if (p.distM < 0 && p.instr == lastInstr && p.street == lastStreet && lastDist in 0..NEAR_M)
+            p = p.copy(distM = 0, distText = "Sekarang")
+        lastInstr = p.instr; lastStreet = p.street; lastDist = p.distM
         val (w, h, bits) = icon(ctx, n)
         val payload = Proto.nav(p.distM, Proto.toAscii(p.distText, 15), Proto.toAscii(p.instr, 63),
             Proto.toAscii(p.street, 63), p.etaMin, w, h, bits, Proto.toAscii(p.etaText, 15))
@@ -70,6 +82,7 @@ object NavForwarder {
     fun onRemoved(sbn: StatusBarNotification) {
         if (sbn.key != activeKey) return
         activeKey = null
+        lastInstr = ""; lastStreet = ""; lastDist = -1
         lastPayload = null
         main.removeCallbacks(resend)
         if (BleLink.state == BleLink.State.READY) BleLink.send(Proto.T_NAV, Proto.navStop(), true) {}
@@ -94,9 +107,16 @@ object NavForwarder {
     private val SPLIT = Regex("""^(.+?)\s+(menuju|ke arah|ke|di|pada|toward|towards|onto|on|to)\s+(.+)$""",
         RegexOption.IGNORE_CASE)
     private val CLOCK = Regex("""(\d{1,2})[.:](\d{2})""")
+    private val LEAD = Regex("""^(di|ke|menuju|at|to)\s+""", RegexOption.IGNORE_CASE)
+
+    /** "Memulai navigasi...", "Mengubah rute..." (data asli 2026-11-24): diakhiri elipsis, tanpa jam tiba. */
+    fun isTransient(title0: String, sub0: String): Boolean {
+        val t = clean(title0)
+        return (t.endsWith("...") || t.endsWith("\u2026")) && CLOCK.find(clean(sub0)) == null
+    }
 
     // Maps memakai spasi tak terputus (U+00A0 / U+202F) di "2,9 km"
-    private fun clean(s: String) = s.replace(' ', ' ').replace(' ', ' ').trim()
+    private fun clean(s: String) = s.replace('\u00A0', ' ').replace('\u202F', ' ').trim()
 
     /**
      * Saat bergerak (data asli 2026-11-24): title "2,9 km · Belok kiri ke Jl. Damai/Jl. I Gede Taman",
@@ -114,7 +134,10 @@ object NavForwarder {
 
         val m = SPLIT.find(sentence)
         val instr = m?.groupValues?.get(1)?.trim() ?: sentence
-        val street = m?.groupValues?.get(3)?.trim() ?: ""
+        var street = m?.groupValues?.get(3)?.trim() ?: ""
+        // Tiba: title "Tiba", text "di Satu Titik Kopi Singaraja" -> baris kedua = nama tujuan
+        if (street.isEmpty() && text.isNotEmpty() && DIST.find(text) == null)
+            street = text.replace(LEAD, "").trim()
 
         return Parsed(meters(distText), distText.trim(), instr, street, etaMinutes(sub), sub)
     }

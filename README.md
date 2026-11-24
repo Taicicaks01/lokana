@@ -119,7 +119,7 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 | Pengingat ketinggalan | ✅ | Dua arah: HP berbunyi jika Lokana tertinggal, Lokana berbunyi jika HP tertinggal (sinyal melemah lalu putus; dimatikan di dekat HP = notifikasi saja) |
 | Notifikasi HP | ✅ | Nama aplikasi + judul + potongan isi, dengan filter per aplikasi |
 | Panggilan masuk | ✅ | Nama penelepon + bunyi |
-| Navigasi Google Maps | 🔨 | Panah belok, jarak, dan nama jalan (lihat [4.3](#43-cara-kerja-notifikasi--navigasi)). Firmware siap (0.6), pembaca notifikasi di aplikasi sedang dikerjakan |
+| Navigasi Google Maps | ✅ | Panah belok, jarak, dan nama jalan (lihat [4.3](#43-cara-kerja-notifikasi--navigasi)). Layar menyala saat mendekati belokan; diuji di perjalanan sungguhan |
 | Monitor HP | 📋 | Baterai, sinyal, dan memori HP di layar Lokana |
 | Kontrol musik & cuaca | 📋 | Play/pause/next; cuaca dari aplikasi |
 | Pengaturan WiFi (*BLE provisioning*) | 📋 | Nama & password WiFi dikirim dari aplikasi, tanpa web portal |
@@ -360,7 +360,7 @@ Supaya pembaruan aman:
 | **v0.3** | BLE & Lokana Link | GATT service RX/TX, pairing kode 6 digit, `TIME_SYNC`, `DEVICE_INFO`, `FIND_KEYS`, modul Teks | ✅ selesai |
 | **v0.4** | Aplikasi MVP | Flutter: sambungkan, pengaturan, teks/emoji custom, ekspresi, cari kunci ↔ cari HP | ✅ selesai |
 | **v0.5** | Notifikasi | *NotificationListener*, filter aplikasi, panggilan masuk, modul Notif | ✅ |
-| **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | 🔨 firmware ✅, aplikasi berjalan |
+| **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | ✅ diuji di jalan (belum dirilis) |
 | **v0.7** | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro | 📋 |
 | **v0.8** | Jaringan | Monitor PC via WiFi UDP, *BLE provisioning*, Mode Update | 📋 |
 | **v0.9** | Integrasi | BLE HID (presentasi, media, Win+L), OTA lewat aplikasi, cuaca, musik | 📋 |

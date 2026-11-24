@@ -26,6 +26,8 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
   panah belokan (ikon Maps dikecilkan ke 32×32 1-bit). Saklar **Navigasi Google Maps** di halaman Notifikasi.
 - Hanya dikirim saat isi berubah (plus ulang tiap 20 detik); navigasi berhenti di HP → layar Navigasi Lokana tertutup.
 - Alat pengembangan `NavCapture` (merekam notifikasi Maps ke HP, hanya bila diaktifkan lewat adb).
+- Disempurnakan dari rekaman perjalanan sungguhan: tepat di belokan tampil **"Sekarang"** (Maps menghapus jaraknya),
+  "Memulai navigasi…" / "Mengubah rute…" tidak lagi menyalakan Lokana, dan saat tiba nama tujuan tampil di baris kedua.
 
 ## [0.5.7] - 2026-11-21
 
