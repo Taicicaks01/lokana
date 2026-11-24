@@ -7,6 +7,12 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Firmware: penanda "mode developer" & "charging" (v0.6, langkah 1)
+- USB tersambung ke komputer: toast **"mode developer"** + label **DEV** di pojok kiri atas (dan di layar Info).
+- Charger dicolok: toast dan lencana **"charging"** + ikon mengisi; di Jam tanggal bergantian dengan "charging 78%".
+  Toast lama "Mengisi daya" diganti "charging" supaya seragam.
+- Alat PC: `lokana_link.py screen --delay N` (screenshot setelah toast HELLO hilang).
+
 ## [0.5.7] - 2026-11-21
 
 Rilis pertama di GitHub Releases: `lokana-os-0.5.7.bin` (firmware ESP32-C3 Super Mini, untuk OTA dari aplikasi atau

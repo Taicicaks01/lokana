@@ -138,7 +138,7 @@ static void drawMenu(Adafruit_GFX& g) {
 static void drawInfo(Adafruit_GFX& g) {
   char l[5][24];
   uint8_t n = 0;
-  snprintf(l[n++], 24, "%s v%s", LOKANA_OS, FW_VERSION);
+  snprintf(l[n++], 24, "%s v%s%s", LOKANA_OS, FW_VERSION, usb::host() ? " DEV" : "");
   int p = battery::percent();
   if (p < 0) snprintf(l[n++], 24, battery::charging() ? "Baterai: USB, mengisi" : "Baterai: USB");
   else snprintf(l[n++], 24, "%s %.2fV %d%%", battery::charging() ? "Mengisi:" : "Baterai:", battery::volts(), p);
@@ -168,14 +168,27 @@ static void drawToast(Adafruit_GFX& g) {
   g.setCursor(x + 5, y + (h - 7) / 2); g.print(toastText);
 }
 
-// Lencana baterai di pojok kanan atas, hanya saat lemah (berkedip) atau mengisi
+// Lencana baterai di pojok kanan atas, hanya saat lemah (berkedip) atau mengisi ("charging" + ikon)
 static void drawBattBadge(Adafruit_GFX& g, uint32_t now) {
   bool chg = battery::charging(), low = battery::low();
   if (!chg && !low) return;
   if (low && !chg && (now / 500) % 2) return;
   const int x = SCREEN_W - 16;
-  g.fillRect(x - 2, 0, 18, 10, 0);
+  const int tw = chg ? display::textWidth("charging") + 3 : 0;
+  g.fillRect(x - 2 - tw, 0, 18 + tw, 10, 0);
+  if (chg) { g.setTextSize(1); g.setTextColor(1); g.setCursor(x - tw, 1); g.print("charging"); }
   display::batteryIcon(x, 1, battery::percent(), chg, now);
+}
+
+// Label "DEV" di pojok kiri atas selama USB tersambung ke komputer (mode developer)
+static void drawDevBadge(Adafruit_GFX& g) {
+  if (!usb::host()) return;
+  const int w = display::textWidth("DEV") + 6;
+  g.fillRect(0, 0, w + 1, 10, 0);
+  g.fillRoundRect(0, -3, w, 12, 3, 1);
+  g.setTextSize(1); g.setTextColor(0);
+  g.setCursor(3, 1); g.print("DEV");
+  g.setTextColor(1);
 }
 
 // Nama modul saat berganti: label kecil di tengah atas, supaya isi modul (gambar, notifikasi) tetap terlihat
@@ -336,7 +349,7 @@ void loop() {
     if (menuOpen) { if (infoOpen) drawInfo(gfx); else drawMenu(gfx); }
     else {
       mods[active]->render(gfx, now);
-      if (!mods[active]->hidden() && !mods[active]->drawsBattery()) drawBattBadge(gfx, now);
+      if (!mods[active]->hidden() && !mods[active]->drawsBattery()) { drawBattBadge(gfx, now); drawDevBadge(gfx); }
       if ((int32_t)(tabUntil - now) > 0) drawTab(gfx);
       if ((int32_t)(toastUntil - now) > 0) drawToast(gfx);
     }

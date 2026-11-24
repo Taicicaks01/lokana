@@ -829,6 +829,8 @@ def cmd_screen(a):
     lk = Link(a.port, verbose=False)
     lk.request(T["HELLO"], p_hello("lokana_link.py screen"))
     if a.shot:
+        if a.delay:
+            lk.poll(a.delay)
         lk.frames.clear()
         lk.request(T["SCREEN"], bytes([SC["CAPTURE"]]))
         f = lk.wait_frame(lambda f: f[0] == T["SCREEN"] and f[2][0] == SC["FRAME"], 2.0)
@@ -1546,6 +1548,7 @@ def main():
     t = sub.add_parser("screen", help="SCREEN: layar Lokana langsung / screenshot")
     t.add_argument("--fps", type=int, default=5)
     t.add_argument("--shot", help="simpan screenshot PNG ke file ini (butuh Pillow)")
+    t.add_argument("--delay", type=float, default=0, help="tunggu N detik sebelum screenshot (toast HELLO hilang)")
     t = sub.add_parser("press", help="SCREEN INPUT: gestur jarak jauh")
     t.add_argument("gesture", choices=sorted(GESTURE_ID))
     t = sub.add_parser("call", help="CALL: panggilan masuk")

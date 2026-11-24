@@ -395,11 +395,15 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP` (mis. Arduino-ESP32 3.x lewat pioarduino `custom_sdkconfig`),
     migrasi NimBLE-Arduino 2.x. Proyek terpisah, perlu OK Wayan.
 - **v0.6** Navigasi Google Maps: NAV (ikon panah dari notifikasi Maps → bitmap 1-bit), modul Navigasi.
-  Dikerjakan **bersama** dua permintaan Wayan (2026-11-21):
-  - Saat USB Super Mini tersambung ke laptop (port COM terdeteksi host, `HWCDC::isPlugged()`), OLED menampilkan
-    tulisan **"mode developer"**.
-  - Saat charger (USB bawah, `battery::charging()`) tersambung, OLED menampilkan tulisan **"charging"** (sekarang baru
-    toast "Mengisi daya" + ikon). Tentukan bersama Wayan: lencana permanen atau layar sendiri saat layar mati.
+  Dikerjakan **bersama** dua permintaan Wayan (2026-11-21). Keputusan Wayan: layar navigasi **menyala saat belokan**
+  (instruksi baru / < 300 m, lalu ikut batas waktu), "mode developer" = **toast + label DEV + Info**, "charging" =
+  **teks di lencana**. Langkah (satu commit per langkah, uji di unit 1, tunggu OK Wayan):
+  - ✅ 1 Penanda (2026-11-21): `usb::host()` (`HWCDC::isPlugged()`, hanya komputer), toast "mode developer" (stabil
+    1 dtk, tidak saat boot), label DEV kiri atas, "DEV" di Info; toast + lencana "charging", Jam bergantian
+    "charging 78%". Diuji Wayan di unit 1.
+  - 2 Ambil contoh notifikasi Google Maps asli dari HP (adb `dumpsys notification --noredact`) sebelum menulis parser.
+  - 3 Firmware NAV + modul Navigasi (`keepAwake` saat < 300 m, bangun saat instruksi baru), console `nav`, uji USB.
+  - 4 Aplikasi: baca notifikasi Maps (`NotifListener.kt`) → NAV.
 
 ## Cara berkomunikasi dengan pemilik proyek
 

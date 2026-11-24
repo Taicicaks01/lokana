@@ -48,7 +48,8 @@ static void shutdown(const char* why) {
 
 namespace power {
 
-static bool inited = false, wasLow = false, wasChg = false;
+static bool inited = false, wasLow = false, wasChg = false, wasDev = false, devInit = false;
+static uint32_t devSince = 0;
 static uint32_t lowAt = 0;
 
 void bootCheck(bool oled) {
@@ -65,14 +66,14 @@ void bootCheck(bool oled) {
 void update(uint32_t now) {
 #if PIN_BATT >= 0 || PIN_CHG >= 0
   bool chg = battery::charging(), low = battery::low();
-  if (!inited) { inited = true; wasChg = chg; wasLow = low; lowAt = now; return; }
+  if (!inited) { inited = true; wasChg = chg; wasLow = low; lowAt = now; }
 
   if (chg != wasChg) {
     wasChg = chg;
     Serial.printf("[daya] charger %s\r\n", chg ? "dicolok" : "dicabut");
     if (chg) {
       core::wake();
-      core::toast("Mengisi daya", 1500);
+      core::toast("charging", 1500);
       buzzer::play(MEL_ROLL_DONE);
     }
   }
@@ -90,9 +91,20 @@ void update(uint32_t now) {
   wasLow = low;
 
   if (battery::critical() && !ota::active()) shutdown("baterai kritis");
-#else
-  (void)now;
 #endif
+
+  // Mode developer: USB tersambung ke komputer (stabil 1 dtk supaya tidak berkedip saat enumerasi).
+  // Saat boot tidak ada toast (splash sedang tampil); label DEV tetap muncul.
+  bool dev = usb::host();
+  if (!devInit) { devInit = true; wasDev = dev; return; }
+  if (dev != wasDev) {
+    if (!devSince) devSince = now ? now : 1;
+    if ((int32_t)(now - devSince) >= 1000) {
+      wasDev = dev; devSince = 0;
+      Serial.printf("[daya] USB ke komputer: %s\r\n", dev ? "tersambung (mode developer)" : "lepas");
+      if (dev) { core::wake(); core::toast("mode developer", 2000); }
+    }
+  } else devSince = 0;
 }
 
 }  // namespace power

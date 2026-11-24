@@ -51,6 +51,14 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 | Deteksi charge (ADC) | GPIO4, IN+ TP4056 → 100k → GPIO4 → 100k → GND (`-DPIN_CHG=4`) |
 | LED bawaan | GPIO8 = SCL, tidak dipakai firmware |
 
+## Penanda di layar
+
+| Penanda | Kapan | Tampilan |
+|---|---|---|
+| **mode developer** | USB Super Mini tersambung ke komputer (host mengirim SOF, `usb::host()`); charger biasa tidak dihitung | Toast "mode developer" 2 dtk saat tersambung (stabil 1 dtk; tidak saat boot), label **DEV** di pojok kiri atas modul biasa, "DEV" di baris versi layar Info |
+| **charging** | Charger TP4056 (USB bawah) dicolok, `battery::charging()` | Toast "charging" + nada saat dicolok; lencana "charging" + ikon mengisi di pojok kanan atas; di Jam baris tanggal bergantian tiap 3 dtk dengan "charging 78%" |
+| Baterai lemah | Sel < 3,55 V | Toast "Baterai lemah" + nada, ikon berkedip |
+
 ## Cara pakai (satu tombol)
 
 | Gestur | Fungsi |

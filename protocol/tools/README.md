@@ -39,6 +39,7 @@ python lokana_link.py anim --gif kucing.gif --duration 10     # GIF -> animasi (
 python lokana_link.py gallery         # isi galeri slot 1-8 sebagai gambar teks
 python lokana_link.py screen          # layar Lokana langsung di terminal (Ctrl+C keluar)
 python lokana_link.py screen --shot layar.png                # screenshot untuk dokumentasi (pillow)
+python lokana_link.py screen --delay 3 --shot layar.png      # tunggu toast HELLO hilang dulu
 python lokana_link.py press double    # gestur jarak jauh: tap / double / triple / tahan
 python lokana_link.py settings --name "Lokana_लोचन-01"       # nama Bluetooth
 python lokana_link.py monitor         # lihat log & frame dari device

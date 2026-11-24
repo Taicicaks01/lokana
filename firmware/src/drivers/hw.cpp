@@ -57,6 +57,10 @@ static bool usbHost() {
 #endif
 }
 
+namespace usb {
+bool host() { return usbHost(); }
+}
+
 static void readChg() {
 #if PIN_CHG >= 0
   uint16_t mv = avgMv(PIN_CHG, 4);

@@ -110,6 +110,11 @@ void ClockModule::render(Adafruit_GFX& g, uint32_t now) {
   g.setTextSize(1);
   char d[24];
   snprintf(d, sizeof(d), "%s, %d %s %d", DAYS_LONG[t.tm_wday], t.tm_mday, MONTHS[t.tm_mon], t.tm_year + 1900);
+  if (battery::charging() && (now / 3000) % 2) {          // mengisi: tanggal bergantian dengan "charging 78%"
+    int cp = battery::percent();
+    if (cp >= 0) snprintf(d, sizeof(d), "charging %d%%", cp);
+    else strlcpy(d, "charging", sizeof(d));
+  }
   display::centerText(d, DATE_Y);
   // Bilah detik; ikon baterai di ujung kanan jika baterai terbaca / sedang mengisi
   const int pct = battery::percent();

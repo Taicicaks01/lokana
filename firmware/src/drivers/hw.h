@@ -8,6 +8,11 @@ void pulse(uint16_t ms);
 void update(uint32_t now);
 }
 
+// USB Super Mini tersambung ke komputer (host mengirim SOF; charger biasa tidak) = "mode developer"
+namespace usb {
+bool host();
+}
+
 namespace battery {
 void begin();
 void update(uint32_t now);
