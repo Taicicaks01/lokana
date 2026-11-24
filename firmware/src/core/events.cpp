@@ -17,6 +17,8 @@ bool post(EventType type, int32_t value, const char* text) {
   return true;
 }
 
+bool pending() { return tail != head; }
+
 bool poll(Event& out) {
   if (tail == head) return false;
   out = q[tail];

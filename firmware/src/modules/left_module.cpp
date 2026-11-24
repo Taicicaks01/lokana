@@ -35,10 +35,13 @@ void LeftModule::event(const Event& e) {
 }
 
 void LeftModule::update(uint32_t now) {
-  uint32_t t = now - _since;
-  if (_ringing && t >= RING_MS) { _ringing = false; buzzer::stop(); }
+  // Bertanda: enter() memakai millis() yang bisa 1 ms lebih baru dari `now` loop ini. Dulu unsigned -> meluap
+  // jadi angka raksasa -> layar langsung ditutup (pengingat tidak sempat terlihat; makin sering di CPU 80 MHz).
+  int32_t t = (int32_t)(now - _since);
+  if (t < 0) t = 0;
+  if (_ringing && t >= (int32_t)RING_MS) { _ringing = false; buzzer::stop(); }
   if (_ringing && !buzzer::playing()) buzzer::play(MEL_FIND, true);   // bunyi walau suara dimatikan
-  if (t >= SHOW_MS) close(nullptr);
+  if (t >= (int32_t)SHOW_MS) close(nullptr);
 }
 
 // HP dengan tanda tanya di layarnya, bergetar selama berbunyi

@@ -166,6 +166,18 @@ def p_nav(dist=200, text="", instr="Belok kanan", street="Jl. Udayana", eta=12, 
     return bytes(out)
 
 
+def p_pcstats(metrics):
+    """PC_STATS: [(kind, label, value, unit)] -> count + metrik (value dikali 10, i32)."""
+    out = bytearray([len(metrics)])
+    for kind, label, value, unit in metrics:
+        out += bytes([kind]) + s(label) + struct.pack("<i", int(round(value * 10))) + s(unit)
+    return bytes(out)
+
+
+DEMO_STATS = [(1, "CPU", 37.5, "%"), (1, "RAM", 62.0, "%"), (2, "CPU", 58.0, "C"), (2, "GPU", 47.0, "C"),
+              (0, "Unduh", 12.4, "MB/s"), (0, "Unggah", 0.8, "MB/s"), (0, "Disk", 3.2, "MB/s"), (1, "Batre", 81, "%")]
+
+
 def p_settings_get():
     return bytes([0])
 
@@ -867,6 +879,21 @@ def cmd_gallery(a):
     return 0
 
 
+def cmd_pcstats(a):
+    import random
+    lk = Link(a.port, verbose=False)
+    lk.request(T["HELLO"], p_hello("lokana_link.py pcstats"))
+    end = time.time() + a.seconds
+    while time.time() < end:
+        st = [(k, l, max(0, v + random.uniform(-5, 5)) if k != 0 else v * random.uniform(0.5, 1.5), u)
+              for k, l, v, u in DEMO_STATS]
+        lk.request(T["PC_STATS"], p_pcstats(st), ack=False)
+        lk.poll(2.0)
+    lk.close()
+    print("selesai; Monitor menutup sendiri 10 dtk lagi")
+    return 0
+
+
 def cmd_screen(a):
     sys.stdout.reconfigure(encoding="utf-8")
     lk = Link(a.port, verbose=False)
@@ -1140,6 +1167,36 @@ def test_v06(lk, expect):
     expect("NAV state 2 = NOT_SUPPORTED", lk.request(N, b"\x02"), 4)
     expect("NAV selesai", lk.request(N, b"\x01"), 0)
     expect("GOTO Navigasi setelah selesai = ERROR", lk.request(T["GOTO"], s("Navigasi")), 6)
+
+
+def test_v07(lk, expect):
+    """v0.7: PC_STATS (monitor PC) - validasi, GOTO Monitor hanya saat data masuk, kedaluwarsa 10 dtk."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps PC_STATS", bool(caps >> CAPS.index("PC_STATS") & 1), True)
+    P = T["PC_STATS"]
+    expect("PC_STATS 8 metrik", lk.request(P, p_pcstats(DEMO_STATS)), 0)
+    expect("GOTO Monitor saat data masuk", lk.request(T["GOTO"], s("Monitor")), 0)
+    expect("PC_STATS 12 metrik (maks)", lk.request(P, p_pcstats(DEMO_STATS + DEMO_STATS[:4])), 0)
+    expect("PC_STATS 13 metrik = BAD_PAYLOAD", lk.request(P, p_pcstats(DEMO_STATS + DEMO_STATS[:5])), 2)
+    expect("PC_STATS terpotong = BAD_PAYLOAD", lk.request(P, p_pcstats(DEMO_STATS)[:-3]), 2)
+    expect("PC_STATS label panjang + kind 7 + negatif", lk.request(P, p_pcstats([(7, "Label-panjang", -12.5, "satuan")])), 0)
+    expect("PC_STATS 0 metrik", lk.request(P, bytes([0])), 0)
+    lk.poll(11)                                                   # 10 dtk tanpa data -> Monitor berhenti
+    expect("GOTO Monitor setelah 10 dtk tanpa data = ERROR", lk.request(T["GOTO"], s("Monitor")), 6)
+
+    # Regresi 0.7: event saat layar mati dulu hanya menyalakan layar (GOTO/toast/SETTINGS hilang)
+    # Ciri Jam: bilah detik di baris bawah (y 56..59); wajah tidak pernah menggambar di sana
+    def clock_bar(d): return d is not None and sum(bin(b).count("1") for b in d[56 * 16:60 * 16]) > 40
+    lk.request(T["GOTO"], s("lokana"))
+    time.sleep(0.8)
+    expect("wajah tampil (tanpa bilah detik)", clock_bar(_capture(lk)), False)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 4]))            # tahan di wajah = layar mati
+    time.sleep(0.6)
+    expect("GOTO Jam saat layar mati", lk.request(T["GOTO"], s("jam")), 0)
+    time.sleep(0.8)
+    expect("GOTO saat layar mati membuka Jam (bilah detik)", clock_bar(_capture(lk)), True)
 
 
 def test_v056(lk, expect):
@@ -1481,9 +1538,9 @@ def cmd_test(a):
     expect("FIND_KEYS mulai 3 dtk", lk.request(T["FIND_KEYS"], p_find(True, 3)), 0)
     time.sleep(1.0)
     expect("FIND_KEYS berhenti", lk.request(T["FIND_KEYS"], p_find(False)), 0)
-    expect("PC_STATS (dikenal, belum didukung)", lk.request(T["PC_STATS"], b"\x00"), 4)
+    expect("PHONE_STATS (dikenal, belum didukung)", lk.request(T["PHONE_STATS"], b"\x00"), 4)
     expect("type 0x7E (tidak dikenal)", lk.request(0x7E, b"abc"), 1)
-    expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["PC_STATS"], bytes(1200)), 4)
+    expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["PHONE_STATS"], bytes(1200)), 4)
     big = lk.request(0x30, bytes(1300))
     expect("payload 1300 B (> 1200)", big, 2)
 
@@ -1519,6 +1576,7 @@ def cmd_test(a):
     test_v055(lk, expect)
     test_v056(lk, expect)
     test_v06(lk, expect)
+    test_v07(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1574,6 +1632,8 @@ def main():
     t.add_argument("--eta-text", default="", help="contoh 'Tiba 01.02'")
     t.add_argument("--icon", default="kanan", choices=["kanan", "kiri", "lurus", "none"])
     t.add_argument("--stop", action="store_true", help="state 1: navigasi selesai")
+    t = sub.add_parser("pcstats", help="PC_STATS: kirim metrik contoh (Monitor PC) tiap 2 dtk")
+    t.add_argument("--seconds", type=int, default=20, help="lama mengirim; berhenti -> Monitor tutup 10 dtk kemudian")
     t = sub.add_parser("find", help="FIND_KEYS")
     t.add_argument("--duration", type=int, default=30)
     t.add_argument("--stop", action="store_true")
@@ -1658,6 +1718,7 @@ def main():
         "anim": cmd_anim,
         "gallery": cmd_gallery,
         "screen": cmd_screen,
+        "pcstats": cmd_pcstats,
         "press": cmd_press,
         "test": cmd_test,
         "monitor": cmd_monitor,

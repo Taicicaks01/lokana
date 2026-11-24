@@ -27,6 +27,7 @@ python lokana_link.py goto jam
 python lokana_link.py find --duration 5
 python lokana_link.py nav --dist 180 --text "180 m" --instr "Belok kanan" --street "Jl. Udayana" --eta-text "Tiba 01.02"
 python lokana_link.py nav --stop                             # NAV state 1: navigasi selesai
+python lokana_link.py pcstats --seconds 20                   # PC_STATS: metrik contoh tiap 2 dtk (Monitor PC)
 python lokana_link.py settings        # baca pengaturan
 python lokana_link.py settings --brightness 2 --timeout 60 --name "Lokana Wayan"
 python lokana_link.py dice d20        # lempar dadu, tunggu hasilnya

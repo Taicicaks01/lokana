@@ -23,6 +23,7 @@ enum EventType : uint8_t {
   EV_OTA,          // pembaruan firmware: 1 mulai, 2 terpasang (restart), 3 ditandai valid, -alasan gagal,
                    // -100 firmware baru gagal boot dan sudah kembali ke versi lama
   EV_NAV,          // navigasi (navstore): 1 mulai, 2 belokan baru, 3 < 300 m ke belokan, 0 selesai (text = pesan)
+  EV_STATS,        // monitor PC (statsstore): 1 data mulai masuk, 0 berhenti (10 dtk tanpa data)
 };
 
 struct Event {
@@ -34,4 +35,5 @@ struct Event {
 namespace events {
 bool post(EventType type, int32_t value = 0, const char* text = nullptr);
 bool poll(Event& out);
+bool pending();                              // ada event di antrian (tanpa mengambilnya)
 }

@@ -415,6 +415,15 @@ Setiap metrik:
 Host mengirim setiap **2–3 detik**. Jika tidak ada data selama **10 detik**, device
 menganggap PC/HP terputus dan kembali ke tampilan jam.
 
+Aturan `PC_STATS` (firmware 0.7):
+- `count` > 12, atau payload terpotong = `BAD_PAYLOAD`. `count = 0` diterima (Monitor tampil "Menunggu data PC").
+- `label` dipotong ke 6 byte, `unit` ke 4 byte, ditampilkan ASCII. `kind` lain dari 0–2 ditampilkan sebagai angka.
+- Persen dan suhu ditampilkan bulat dengan bar 0–100; angka lain 1 desimal bila < 100.
+- Pesan pertama setelah tidak aktif membuka modul `"Monitor"` dan menyalakan layar; selama data masuk layar tetap
+  menyala (Mode Meja, daya USB) dengan isi digeser 1 px tiap 2 menit (anti *burn-in* OLED). Pembaruan berikutnya
+  tidak membuat event. `GOTO "Monitor"` hanya berhasil selama data masuk.
+- Device yang mendukung `PC_STATS` menyalakan bit `caps` 2.
+
 ### `0x13` MEETING (H→D)
 
 | Field | Tipe | Keterangan |
@@ -749,6 +758,7 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-25 | Untuk firmware 0.7 (format lama tetap): `PC_STATS` diaktifkan (bit `caps` 2), aturan tampilan & batas, `GOTO "Monitor"` |
 | v1 | 2026-11-24 | Untuk firmware 0.6 (tambahan, format lama tetap): `NAV` diaktifkan (bit `caps` 1), format bitmap ikon, field akhir opsional `eta_text`, aturan layar & kedaluwarsa, `GOTO "Navigasi"` hanya saat aktif |
 | v1 | 2026-11-21 | Untuk firmware 0.5.6 (tambahan, format lama tetap): `DEVICE_INFO` bit `flags` 3 (charger terdeteksi) dan 4 (baterai lemah), field akhir opsional `battery_mv`, dikirim tanpa diminta saat status daya berubah; `OTA END` ulang setelah image terpasang dibalas `OK` |
 | v1 | 2026-11-18 | Untuk firmware 0.5.5 (format lama tetap): aturan rinci `OTA` (CHUNK berurutan + kiriman ulang, kode `reason` ABORT, PROGRESS tiap 64 KB, batas waktu 30 dtk, masa uji & rollback); bit `caps` 6 `OTA` dinyalakan |

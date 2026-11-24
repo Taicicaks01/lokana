@@ -7,6 +7,18 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Firmware: Monitor PC (v0.7, langkah 1)
+- Pesan `PC_STATS` diaktifkan (bit `caps` 2): sampai 12 metrik dari PC, 4 per halaman dengan bar untuk persen & suhu.
+  Modul **Monitor** hanya ikut giliran selama data masuk; layar tetap menyala dengan geser piksel anti *burn-in*;
+  10 detik tanpa data → kembali.
+- Alat PC `lokana_link.py pcstats`; uji `test_v07`.
+
+### Perbaikan
+- Layar **"HP-mu tertinggal?"** bisa langsung tertutup sebelum terlihat (selisih waktu tanpa tanda meluap; makin
+  sering sejak CPU 80 MHz). Hal yang sama diperbaiki di gulir teks Notif.
+- Pesan dari HP/PC saat layar Lokana mati hanya menyalakan layar: GOTO, toast, dan **pengaturan kecerahan / putar
+  180°** dari aplikasi hilang. Sekarang diproses seperti biasa. Uji regresi baru di `test_v07`.
+
 ## [0.6.0] - 2026-11-25
 
 **Navigasi Google Maps** di Lokana: panah belokan, jarak, instruksi, jalan, dan waktu tiba dari notifikasi Maps di HP.

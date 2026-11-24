@@ -294,14 +294,14 @@ void loop() {
   battery::update(now);
   clockx::update(now);
 
-  // Layar mati: tekanan apa pun membangunkan
+  // Layar mati: tekanan apa pun membangunkan (gestur itu sendiri tidak diteruskan)
   if (!screenIsOn) {
-    if (g != G_NONE || button::pressed()) wake();
-    Event e;
-    // Event (pesan dari HP/PC) membangunkan layar; sentuhan berikutnya tidak ditelan
-    while (events::poll(e)) { wake(); swallowNext = false; for (uint8_t i = 0; i < count; i++) mods[i]->event(e); }
-    delay(10);
-    return;
+    if (g != G_NONE || button::pressed()) { wake(); delay(10); return; }
+    if (!events::pending()) { delay(10); return; }
+    // Event (pesan dari HP/PC) membangunkan layar lalu diproses seperti biasa di bawah. Dulu event di sini hanya
+    // diteruskan ke modul, sehingga GOTO / toast / SETTINGS (kecerahan, putar) dari HP hilang saat layar mati.
+    wake();
+    swallowNext = false;                           // sentuhan berikutnya tidak ditelan
   }
   if (swallowNext && g != G_NONE) { swallowNext = false; g = G_NONE; }
   if (swallowNext && (int32_t)(now - lastInput) > 1500) swallowNext = false;

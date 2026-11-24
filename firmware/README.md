@@ -118,6 +118,18 @@ Baterai: `batt` (tegangan, persen, charger, lemah/kritis). Kalibrasi per unit: u
 
 Navigasi (v0.6) tanpa HP: `nav 250 Belok kanan|Jl. Udayana` (meter, instruksi `|` jalan; panah bawaan), `nav stop`.
 
+## Modul Monitor PC (v0.7, Mode Meja)
+
+Data dari pesan `PC_STATS` (dikirim Lokana Desktop tiap ±2 dtk) disimpan di `services/stats_store`. Modul `Monitor`
+(`modules/monitor_module`) hanya ikut giliran double-tap selama data masuk, setelah Navigasi.
+
+- 4 metrik per halaman (128×64): label kiri, nilai kanan; persen & suhu dengan bar 0–100. Halaman berganti tiap
+  5 dtk, **tap** = halaman berikutnya, titik penanda halaman di kanan bawah.
+- Data pertama menyalakan layar dan membuka Monitor; selama data masuk layar **tetap menyala** (dapat daya USB),
+  isi digeser 1 px tiap 2 menit supaya OLED tidak *burn-in*. **Tahan** = layar mati seperti biasa.
+- 10 dtk tanpa data → kembali ke modul sebelumnya.
+- Uji tanpa Desktop: `python lokana_link.py pcstats --seconds 20` (metrik contoh).
+
 ## Modul Navigasi (v0.6)
 
 Data dari pesan `NAV` disimpan di `services/nav_store` (bukan event, supaya pembaruan jarak tidak menyalakan layar).

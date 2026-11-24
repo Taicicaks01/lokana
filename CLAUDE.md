@@ -171,6 +171,8 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | Uji Lokana tanpa BLE (pengingat ketinggalan di HP) | — | `python -m esptool --port COM9 --after no_reset read_mac` menahan Lokana di bootloader; `--after hard_reset` menjalankannya lagi |
 | Versi di header firmware = "esp-idf: v4.4.7…", bukan versi Lokana | Pustaka Arduino prebuilt mengisi `esp_app_desc_t.version` | Pakai penanda `LOKANA_OS_VERSION:` (`services/ota.cpp`); simbol harus **dipakai** kode (linker `--gc-sections` membuang simbol tak terpakai walau `used`) |
 | OTA: data acak ditolak di CHUNK pertama, bukan di END | `esp_ota_write` memeriksa byte `0xE9` di tulisan pertama | Sudah dipetakan ke ABORT alasan 6; data uji harus diawali `0xE9` untuk menguji pemeriksaan di END |
+| Layar sistem (Tertinggal) langsung tertutup, kadang-kadang | `uint32_t t = now - _since` di `update(now)`: `enter()` memakai `millis()` yang bisa 1 ms lebih baru dari `now` loop → meluap → `t >= SHOW_MS`. Makin sering di CPU 80 MHz | Selalu `int32_t t = (int32_t)(now - x)` dan anggap negatif = 0 (diperbaiki 0.7 di `left_module`, `notif_module`) |
+| Pengaturan / GOTO / toast dari HP hilang saat layar Lokana mati | Jalur layar-mati di `core::loop` dulu hanya meneruskan event ke modul lalu `return` | Sejak 0.7: event membangunkan layar lalu diproses jalur biasa (`events::pending()`); uji regresi di `test_v07` |
 | Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
 | OTA lewat BLE 8 menit (±2,4 KB/s) | Kotlin menulis dengan *write with response* + interval koneksi bawaan | Sejak 0.5.6: `WRITE_TYPE_NO_RESPONSE` (karakteristik RX punya `WRITE_NR`) + `requestConnectionPriority(HIGH)` selama OTA → ±90 dtk |
 | Aplikasi bilang OTA "gagal menyala" padahal firmware baru sehat | `link.info` tidak dikosongkan saat putus; halaman Update membaca versi lama begitu tersambung lagi | Sejak 0.5.6 tunggu `link.infoCount` naik (DEVICE_INFO baru) sesudah putus. END ulang dibalas OK oleh firmware |
@@ -394,6 +396,16 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   - Light sleep sungguhan (perkiraan ±3–6 mA saat layar mati, beberapa hari per isi): framework dengan
     `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP` (mis. Arduino-ESP32 3.x lewat pioarduino `custom_sdkconfig`),
     migrasi NimBLE-Arduino 2.x. Proyek terpisah, perlu OK Wayan.
+- **v0.7 🚧 Lokana Desktop / Monitor PC** (mulai 2026-11-25). Keputusan Wayan: **Python + system tray** (lanjut dari
+  `lokana_link.py`, psutil, `.exe` PyInstaller), layar **menyala terus + geser piksel** selama data masuk, metrik
+  CPU/RAM %, suhu CPU/GPU (LibreHardwareMonitor), jaringan & disk, baterai laptop + jam. Langkah:
+  - ✅ 1 Firmware (2026-11-25): `services/stats_store` + `modules/monitor_module` (4 metrik/halaman, bar, halaman 5 dtk,
+    tap = berikutnya, geser 1 px tiap 2 menit, `keepAwake` selama data, 10 dtk tanpa data → kembali), `PC_STATS`
+    bit caps 2, `lokana_link.py pcstats`, `test_v07`. Ikut diperbaiki: Tertinggal langsung tertutup (unsigned) dan
+    event saat layar mati hilang (lihat tabel jebakan). 202/202 uji USB.
+  - 2 Aplikasi Desktop Python (`desktop/`): cari Lokana lewat HELLO (jangan ganggu COM FC), TIME_SYNC, PC_STATS tiap 2 dtk,
+    tray, `.exe`.
+  - 3 Dokumentasi & rilis.
 - **v0.6 ✅ Navigasi Google Maps — dirilis v0.6.0 (2026-11-25)** di GitHub Releases. NAV (ikon panah dari notifikasi
   Maps → bitmap 1-bit), modul Navigasi. **OTA dari GitHub Releases terbukti** (2026-11-25): aplikasi 0.6.0 → cek
   pembaruan → unduh `lokana-os-0.6.0.bin` → BLE → unit 1 naik ke 0.6.0 dan ditandai sehat (uji Wayan).

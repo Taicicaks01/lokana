@@ -103,8 +103,8 @@ void NotifModule::render(Adafruit_GFX& g, uint32_t now) {
   // Isi: bergulir per baris jika lebih panjang dari layar
   uint8_t first = 0;
   if (_n > BODY_ROWS) {
-    uint32_t t0 = now - _shownAt;
-    if (t0 > SCROLL_DELAY) first = ((t0 - SCROLL_DELAY) / SCROLL_STEP) % (_n - BODY_ROWS + 1);
+    int32_t t0 = (int32_t)(now - _shownAt);       // bertanda: _shownAt dari millis() bisa lebih baru dari now
+    if (t0 > (int32_t)SCROLL_DELAY) first = ((t0 - SCROLL_DELAY) / SCROLL_STEP) % (_n - BODY_ROWS + 1);
   }
   for (uint8_t r = 0; r < BODY_ROWS && first + r < _n; r++) {
     const Line& l = _lines[first + r];

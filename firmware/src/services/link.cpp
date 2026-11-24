@@ -5,6 +5,7 @@
 #include "ota.h"
 #include "notif_store.h"
 #include "nav_store.h"
+#include "stats_store.h"
 #include "config.h"
 #include "core/core.h"
 #include "core/events.h"
@@ -122,7 +123,7 @@ static uint16_t buildDeviceInfo(uint8_t* p, uint16_t cap) {
   int bat = battery::percent();
   uint8_t flags = infoFlags();
   infoPct = bat; infoFl = flags & BATT_FLAGS; infoAt = millis();
-  uint32_t caps = CAP_NOTIF | CAP_NAV | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
+  uint32_t caps = CAP_NOTIF | CAP_NAV | CAP_PC_STATS | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
   caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA;
 #if PIN_BUZZER >= 0
@@ -355,6 +356,22 @@ static uint8_t onNav(Reader& r) {
   if (!r.ok()) return ST_BAD_PAYLOAD;
   uint8_t ch = navstore::update(n);
   if (ch != navstore::NV_NONE) events::post(EV_NAV, ch);
+  return ST_OK;
+}
+
+// PC_STATS (v0.7): daftar metrik dari Lokana Desktop. Data di statsstore; event hanya saat mulai.
+static uint8_t onPcStats(Reader& r) {
+  uint8_t cnt = r.u8();
+  if (!r.ok() || cnt > statsstore::MAX) return ST_BAD_PAYLOAD;
+  Metric m[statsstore::MAX];
+  for (uint8_t i = 0; i < cnt; i++) {
+    m[i].kind = r.u8();
+    r.str(m[i].label, sizeof(m[i].label));
+    m[i].v10 = (int32_t)r.u32();
+    r.str(m[i].unit, sizeof(m[i].unit));
+  }
+  if (!r.ok()) return ST_BAD_PAYLOAD;
+  if (statsstore::update(m, cnt)) events::post(EV_STATS, 1);
   return ST_OK;
 }
 
@@ -722,9 +739,10 @@ void dispatch(Transport t, uint8_t type, uint8_t seq, const uint8_t* p, uint16_t
       case T_TEXT_SLOT:   st = onTextSlot(t, r); break;
       case T_OTA:         st = onOta(t, r); break;
       case T_NAV:         st = onNav(r); break;
+      case T_PC_STATS:    st = onPcStats(r); break;
       // Dikenal, tapi belum ada di firmware ini / arahnya hanya D->H
       case T_DEVICE_INFO: case T_BUTTON:
-      case T_PC_STATS: case T_MEETING: case T_PHONE_STATS:
+      case T_MEETING: case T_PHONE_STATS:
       case T_WIFI_PROV: case T_WIFI_STATUS:
         st = ST_NOT_SUPPORTED; break;
       default: st = ST_UNKNOWN_TYPE; break;
@@ -844,6 +862,7 @@ void update(uint32_t now) {
   pumpMirror(now);
   pumpBattery(now);
   if (navstore::tick(now)) events::post(EV_NAV, navstore::NV_NONE, "Navigasi berhenti");
+  if (statsstore::tick(now)) events::post(EV_STATS, 0);
 #ifndef WOKWI_SIM
   // Hemat daya BLE: interval pendek hanya saat layar menyala, OTA, atau mirror layar berjalan
   bool mirroring = false;

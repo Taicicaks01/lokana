@@ -130,7 +130,7 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 
 | Fitur | Status | Penjelasan |
 |---|---|---|
-| Monitor PC lewat USB | 📋 | CPU, GPU, RAM, suhu, kipas, jaringan; colok langsung jalan |
+| Monitor PC lewat USB | 🔨 | CPU, GPU, RAM, suhu, kipas, jaringan; colok langsung jalan. Layar Monitor di Lokana siap (0.7), aplikasi PC sedang dikerjakan |
 | Monitor PC lewat WiFi | 📋 | Data dikirim lewat UDP dalam satu jaringan, tanpa kabel data |
 | Status rapat | 📋 | Lokana menunjukkan "sedang rapat" saat mikrofon/kamera aktif |
 | Remote presentasi & media keys | 📋 | Lokana menjadi keyboard Bluetooth (BLE HID): slide maju/mundur, volume |

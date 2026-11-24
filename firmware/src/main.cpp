@@ -28,6 +28,7 @@
 #include "modules/left_module.h"
 #include "modules/update_module.h"
 #include "modules/nav_module.h"
+#include "modules/monitor_module.h"
 #include "services/ota.h"
 
 // Daftar modul. Modul pertama = layar utama.
@@ -47,6 +48,7 @@ static SplashModule splashModule(faceModule.face());   // splash boot लोच�
 static GuideModule guideModule;                         // panduan cara pakai (tersembunyi)
 static LeftModule leftModule;                           // pengingat HP tertinggal (tersembunyi)
 static NavModule navModule;                             // navigasi (hanya ikut giliran saat aktif)
+static MonitorModule monitorModule;                     // monitor PC (hanya ikut giliran saat data masuk)
 static UpdateModule updateModule;                       // layar pembaruan firmware (tersembunyi)
 
 static const char* resetReason() {
@@ -104,6 +106,7 @@ void setup() {
   led::pulse(300);
   core::addModule(&faceModule);
   core::addModule(&navModule);       // tepat setelah wajah: double-tap pertama saat navigasi
+  core::addModule(&monitorModule);   // Mode Meja: data dari Lokana Desktop
   core::addModule(&clockModule);
   core::addModule(&notifModule);
   core::addModule(&phoneModule);
