@@ -9,7 +9,7 @@ dan di meja sebagai asisten kerja. Lokana memantau HP, kunci, dan komputermu,
 lalu memberi kabar lewat sepasang matanya.
 
 ![Status](https://img.shields.io/badge/status-pengembangan%20awal-orange)
-![Versi](https://img.shields.io/badge/Lokana%20OS-v0.5.7-blue) ![CI](https://github.com/Taicicaks01/lokana/actions/workflows/ci.yml/badge.svg)
+![Versi](https://img.shields.io/badge/Lokana%20OS-v0.6.0-blue) ![CI](https://github.com/Taicicaks01/lokana/actions/workflows/ci.yml/badge.svg)
 ![Platform](https://img.shields.io/badge/MCU-ESP32--C3-red)
 ![Layar](https://img.shields.io/badge/OLED-128%C3%9764-lightgrey)
 ![Lisensi kode](https://img.shields.io/badge/kode-MIT-green)
@@ -26,8 +26,9 @@ lalu memberi kabar lewat sepasang matanya.
 
 ---
 
-> **Status proyek:** Lokana Cube pertama sudah dirakit dan diuji. **Lokana OS v0.5.7** (rilis pertama di GitHub Releases)
-> menambahkan **baterai** (persen asli, peringatan, *deep sleep*), **pembaruan firmware lewat aplikasi (OTA + rollback)**,
+> **Status proyek:** Lokana Cube pertama sudah dirakit dan diuji. **Lokana OS v0.6.0** menambahkan **navigasi Google Maps**
+> (panah belokan + jarak, layar menyala saat mendekati belokan), di atas v0.5.7: **baterai** (persen asli, peringatan,
+> *deep sleep*), **pembaruan firmware lewat aplikasi (OTA + rollback)**,
 > dan **hemat daya** (perkiraan ±27 jam pemakaian biasa, uji tahan baterai berjalan), di atas **notifikasi HP**, **panggilan masuk**, splash boot **लोचन**,
 > **Panduan cara pakai**, **pengingat ketinggalan** dua arah,
 > pengaturan, dadu, teks (5 font), gambar/emoji, dan Cari HP lewat **Lokana Link** (USB & BLE). **Aplikasi Lokana**
@@ -360,7 +361,7 @@ Supaya pembaruan aman:
 | **v0.3** | BLE & Lokana Link | GATT service RX/TX, pairing kode 6 digit, `TIME_SYNC`, `DEVICE_INFO`, `FIND_KEYS`, modul Teks | ✅ selesai |
 | **v0.4** | Aplikasi MVP | Flutter: sambungkan, pengaturan, teks/emoji custom, ekspresi, cari kunci ↔ cari HP | ✅ selesai |
 | **v0.5** | Notifikasi | *NotificationListener*, filter aplikasi, panggilan masuk, modul Notif | ✅ |
-| **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | ✅ diuji di jalan (belum dirilis) |
+| **v0.6** | Navigasi | Ikon panah + jarak + jalan dari Google Maps, modul Navigasi | ✅ rilis v0.6.0 |
 | **v0.7** | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro | 📋 |
 | **v0.8** | Jaringan | Monitor PC via WiFi UDP, *BLE provisioning*, Mode Update | 📋 |
 | **v0.9** | Integrasi | BLE HID (presentasi, media, Win+L), OTA lewat aplikasi, cuaca, musik | 📋 |

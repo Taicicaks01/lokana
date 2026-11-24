@@ -7,6 +7,11 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+## [0.6.0] - 2026-11-25
+
+**Navigasi Google Maps** di Lokana: panah belokan, jarak, instruksi, jalan, dan waktu tiba dari notifikasi Maps di HP.
+Diuji di perjalanan sungguhan dengan Lokana Cube. Butuh Lokana OS 0.6.0 **dan** Aplikasi Lokana 0.6.0.
+
 ### Firmware: penanda "mode developer" & "charging" (v0.6, langkah 1)
 - USB tersambung ke komputer: toast **"mode developer"** + label **DEV** di pojok kiri atas (dan di layar Info).
 - Charger dicolok: toast dan lencana **"charging"** + ikon mengisi; di Jam tanggal bergantian dengan "charging 78%".
