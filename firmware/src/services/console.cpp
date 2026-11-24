@@ -13,6 +13,7 @@
 #include "services/image_store.h"
 #include "core/settings.h"
 #include "services/notif_store.h"
+#include "services/nav_store.h"
 #include <Wire.h>
 #include <esp_adc_cal.h>
 
@@ -44,6 +45,7 @@ static void help() {
     "adc                  tegangan mentah GPIO1 (baterai) & GPIO4 (charge)\r\n"
     "btnraw [dtk]         rekam level mentah pin tombol + lamanya (bawaan 10 dtk)\r\n"
     "batt [cal <V>|cal reset]  status baterai; kalibrasi pembagi dari volt multimeter\r\n"
+    "nav <m> <instr>|<jalan>  uji navigasi tanpa HP; nav stop\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
     "tap|double|triple|long   simulasi tombol\r\n"
@@ -102,6 +104,29 @@ static void adcReport() {
   Serial.printf("GPIO1 mentah %lu/4095 | kalibrasi %s (eFuse TP %s) | rev chip %d\r\n", (unsigned long)r,
                 v == ESP_ADC_CAL_VAL_EFUSE_TP ? "eFuse two-point" : v == ESP_ADC_CAL_VAL_EFUSE_VREF ? "eFuse Vref" : "Vref bawaan",
                 esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_TP) == ESP_OK ? "ada" : "tidak ada", ESP.getChipRevision());
+}
+
+// Uji navigasi tanpa HP: `nav 250 Belok kanan|Jl. Udayana`, `nav stop`. Tanpa ikon (panah bawaan).
+static void navCmd(char* arg) {
+  if (!strcasecmp(arg, "stop")) {
+    if (navstore::stop()) events::post(EV_NAV, navstore::NV_NONE, "Navigasi selesai");
+    Serial.println("navigasi berhenti");
+    return;
+  }
+  NavInfo n = navstore::get();
+  char* sp = strchr(arg, ' ');
+  n.distM = atoi(arg);
+  n.distText[0] = 0;
+  if (sp) {
+    char* bar = strchr(sp + 1, '|');
+    if (bar) { *bar = 0; strlcpy(n.street, bar + 1, sizeof(n.street)); }
+    strlcpy(n.instr, sp + 1, sizeof(n.instr));
+  }
+  if (!n.instr[0]) strlcpy(n.instr, "Lurus", sizeof(n.instr));
+  n.iconW = n.iconH = 0;
+  uint8_t ch = navstore::update(n);
+  if (ch != navstore::NV_NONE) events::post(EV_NAV, ch);
+  Serial.printf("navigasi: %lu m, \"%s\" / \"%s\" (perubahan %u)\r\n", (unsigned long)n.distM, n.instr, n.street, ch);
 }
 
 // Status baterai + kalibrasi pembagi terhadap multimeter: `batt cal 4.20` (tegangan sel, saklar ON)
@@ -230,6 +255,7 @@ static void handle(char* line) {
   else if (!strcasecmp(line, "adc")) adcReport();
   else if (!strcasecmp(line, "btnraw")) btnRaw(arg);
   else if (!strcasecmp(line, "batt")) battCmd(arg);
+  else if (!strcasecmp(line, "nav")) navCmd(arg);
   else if (!strcasecmp(line, "forget")) lklink::forgetBonds();
   else if (!strcasecmp(line, "time")) {
     int h, m;

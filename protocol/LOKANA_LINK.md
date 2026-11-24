@@ -376,8 +376,22 @@ dan tidak menyimpannya ke flash.
 | `street` | str | Nama jalan, contoh `"Jl. Udayana"` |
 | `eta_min` | u16 | Sisa waktu ke tujuan, `0xFFFF` = tidak diketahui |
 | `icon_w` | u8 | Lebar ikon panah (0 = tanpa ikon, maks 32) |
-| `icon_h` | u8 | Tinggi ikon (maks 32) |
-| `icon` | bitmap | Ikon panah 1-bit dari notifikasi Google Maps |
+| `icon_h` | u8 | Tinggi ikon (maks 32; 0 jika `icon_w` = 0) |
+| `icon` | bitmap | Ikon panah 1-bit: baris demi baris, MSB = kiri, `ceil(icon_w/8) × icon_h` byte |
+| `eta_text` | str | *Opsional (0.6+)*. Teks waktu tiba dari Maps, contoh `"Tiba 01.02"`; device menampilkannya bila ada |
+
+Aturan (firmware 0.6):
+- `state 0` mengirim **seluruh** isi navigasi terbaru (bukan selisih). Host boleh mengirim sesering notifikasi
+  Maps berubah (biasanya tiap beberapa detik), sebaiknya tanpa ACK (`seq = 0`) untuk pembaruan jarak saja.
+- `state 1` cukup 1 byte; device menutup layar Navigasi. `state` lain = `NOT_SUPPORTED`.
+- Teks dipotong ke batas device (Lokana: `distance_text` 15, `instruction`/`street` 63, `eta_text` 15 byte) dan
+  ditampilkan sebagai ASCII. `icon_w`/`icon_h` > 32, atau salah satu 0 sedangkan yang lain tidak, atau bitmap kurang
+  = `BAD_PAYLOAD`.
+- Perilaku layar Lokana (keputusan pemilik): layar menyala dan membuka Navigasi saat navigasi **mulai**, **belokan
+  baru** (instruksi/jalan/ikon berubah), atau jarak masuk **≤ 300 m**; selama ≤ 300 m layar tetap menyala. Pembaruan
+  jarak biasa tidak menyalakan layar. Tanpa `NAV` selama 3 menit, atau HP (BLE) terputus, navigasi dianggap berhenti.
+- Modul `"Navigasi"` hanya bisa dibuka (GOTO, giliran double-tap) selama navigasi berjalan; di luar itu GOTO = `ERROR`.
+- Device yang mendukung `NAV` menyalakan bit `caps` 1 `NAV`.
 
 ### `0x12` PC_STATS · `0x14` PHONE_STATS (H→D)
 
@@ -735,5 +749,6 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-24 | Untuk firmware 0.6 (tambahan, format lama tetap): `NAV` diaktifkan (bit `caps` 1), format bitmap ikon, field akhir opsional `eta_text`, aturan layar & kedaluwarsa, `GOTO "Navigasi"` hanya saat aktif |
 | v1 | 2026-11-21 | Untuk firmware 0.5.6 (tambahan, format lama tetap): `DEVICE_INFO` bit `flags` 3 (charger terdeteksi) dan 4 (baterai lemah), field akhir opsional `battery_mv`, dikirim tanpa diminta saat status daya berubah; `OTA END` ulang setelah image terpasang dibalas `OK` |
 | v1 | 2026-11-18 | Untuk firmware 0.5.5 (format lama tetap): aturan rinci `OTA` (CHUNK berurutan + kiriman ulang, kode `reason` ABORT, PROGRESS tiap 64 KB, batas waktu 30 dtk, masa uji & rollback); bit `caps` 6 `OTA` dinyalakan |

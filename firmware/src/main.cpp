@@ -27,6 +27,7 @@
 #include "modules/guide_module.h"
 #include "modules/left_module.h"
 #include "modules/update_module.h"
+#include "modules/nav_module.h"
 #include "services/ota.h"
 
 // Daftar modul. Modul pertama = layar utama.
@@ -45,6 +46,7 @@ static CallModule  callModule;     // sistem (tersembunyi)
 static SplashModule splashModule(faceModule.face());   // splash boot लोचन (tersembunyi)
 static GuideModule guideModule;                         // panduan cara pakai (tersembunyi)
 static LeftModule leftModule;                           // pengingat HP tertinggal (tersembunyi)
+static NavModule navModule;                             // navigasi (hanya ikut giliran saat aktif)
 static UpdateModule updateModule;                       // layar pembaruan firmware (tersembunyi)
 
 static const char* resetReason() {
@@ -101,6 +103,7 @@ void setup() {
 
   led::pulse(300);
   core::addModule(&faceModule);
+  core::addModule(&navModule);       // tepat setelah wajah: double-tap pertama saat navigasi
   core::addModule(&clockModule);
   core::addModule(&notifModule);
   core::addModule(&phoneModule);

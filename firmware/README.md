@@ -55,7 +55,7 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 
 | Penanda | Kapan | Tampilan |
 |---|---|---|
-| **mode developer** | USB Super Mini tersambung ke komputer (host mengirim SOF, `usb::host()`); charger biasa tidak dihitung | Toast "mode developer" 2 dtk saat tersambung (stabil 1 dtk; tidak saat boot), label **DEV** di pojok kiri atas modul biasa, "DEV" di baris versi layar Info |
+| **mode developer** | USB Super Mini tersambung ke komputer (host mengirim SOF, `usb::host()`); charger biasa tidak dihitung | Toast "mode developer" 2 dtk saat tersambung (stabil 1 dtk; tidak saat boot), label **DEV** di pojok kiri atas layar wajah, "DEV" di baris versi layar Info |
 | **charging** | Charger TP4056 (USB bawah) dicolok, `battery::charging()` | Toast "charging" + nada saat dicolok; lencana "charging" + ikon mengisi di pojok kanan atas; di Jam baris tanggal bergantian tiap 3 dtk dengan "charging 78%" |
 | Baterai lemah | Sel < 3,55 V | Toast "Baterai lemah" + nada, ikon berkedip |
 
@@ -115,6 +115,25 @@ Baterai: `batt` (tegangan, persen, charger, lemah/kritis). Kalibrasi per unit: u
 (saklar ON), lalu `batt cal 4.12` → faktor pembagi disimpan di NVS. `batt cal reset` kembali ke bawaan 2,0.
 
 `guide [ms]` memutar Panduan (ms = bekukan di waktu itu, untuk screenshot).
+
+Navigasi (v0.6) tanpa HP: `nav 250 Belok kanan|Jl. Udayana` (meter, instruksi `|` jalan; panah bawaan), `nav stop`.
+
+## Modul Navigasi (v0.6)
+
+Data dari pesan `NAV` disimpan di `services/nav_store` (bukan event, supaya pembaruan jarak tidak menyalakan layar).
+Modul `Navigasi` (`modules/nav_module`) hanya ikut giliran double-tap selama navigasi berjalan (`Module::available()`),
+tepat setelah wajah.
+
+| Kejadian | Layar |
+|---|---|
+| Navigasi mulai | Menyala, buka Navigasi (label nama modul) |
+| Belokan baru (instruksi / jalan / ikon berubah) | Menyala, buka Navigasi, bunyi notifikasi |
+| Jarak masuk ≤ 300 m | Menyala + bunyi, bilah mendekat; layar **tetap menyala** selama ≤ 300 m |
+| Pembaruan jarak biasa | Tidak menyalakan layar (ikut batas waktu) |
+| Selesai (`state 1`), HP terputus, atau 3 menit tanpa `NAV` | Toast, kembali ke modul sebelumnya |
+
+Layar: panah 32×32 (dari HP, atau panah lurus bawaan), jarak besar, instruksi & jalan (teks panjang berjalan),
+waktu tiba. Pairing, cari kunci, panggilan, dan update tidak ditimpa; Panduan dan Tertinggal boleh ditimpa.
 `splash` memutar ulang splash boot; `splash <ms>` membekukannya di waktu itu (untuk screenshot lewat
 Layar Lokana / `lokana_link.py screen --shot`). Bitmap लोचन dibuat ulang dengan
 `python firmware/tools/gen_splash.py` (Pillow, font Baloo 2 dari `app/assets/fonts/`).

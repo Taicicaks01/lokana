@@ -245,7 +245,7 @@ bool goTo(const char* name, bool announce) {
 
 void next() {
   uint8_t i = active;
-  do { i = (i + 1) % count; } while (mods[i]->hidden() && i != active);
+  do { i = (i + 1) % count; } while ((mods[i]->hidden() || !mods[i]->available()) && i != active);
   switchTo(i, true);
   buzzer::play(MEL_MENU);
 }
@@ -349,7 +349,8 @@ void loop() {
     if (menuOpen) { if (infoOpen) drawInfo(gfx); else drawMenu(gfx); }
     else {
       mods[active]->render(gfx, now);
-      if (!mods[active]->hidden() && !mods[active]->drawsBattery()) { drawBattBadge(gfx, now); drawDevBadge(gfx); }
+      if (!mods[active]->hidden() && !mods[active]->drawsBattery()) drawBattBadge(gfx, now);
+      if (active == 0) drawDevBadge(gfx);         // DEV hanya di layar utama (wajah): modul lain punya judul di kiri atas
       if ((int32_t)(tabUntil - now) > 0) drawTab(gfx);
       if ((int32_t)(toastUntil - now) > 0) drawToast(gfx);
     }

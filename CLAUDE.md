@@ -409,7 +409,12 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     Perekam: `NavCapture.kt` (aktif hanya jika ada file `ON`):
     `adb shell touch /sdcard/Android/data/io.github.taicicaks01.lokana/files/nav_capture/ON` (Git Bash: `MSYS_NO_PATHCONV=1`),
     ambil `adb pull /sdcard/Android/data/io.github.taicicaks01.lokana/files/nav_capture`. Sisa: rekam perjalanan sungguhan.
-  - 3 Firmware NAV + modul Navigasi (`keepAwake` saat < 300 m, bangun saat instruksi baru), console `nav`, uji USB.
+  - ✅ 3 Firmware NAV (2026-11-24): `services/nav_store` (data RAM; event `EV_NAV` hanya mulai/belokan baru/≤ 300 m/
+    selesai, karena setiap event menyalakan layar & mereset batas waktu), `modules/nav_module` (`available()` baru di
+    `Module`: dilewati giliran & GOTO saat tidak aktif; `keepAwake` ≤ 300 m; `drawsBattery` = layar penuh),
+    kedaluwarsa 3 menit / HP putus, field opsional `eta_text`, console `nav`, `lokana_link.py nav`, `test_v06`.
+    191/191 uji USB; skenario layar (mulai → mati saat jauh → menyala di 280 m → belokan baru → selesai) dicek Wayan.
+    Label DEV dibatasi ke layar wajah (menutupi judul Notif).
   - 4 Aplikasi: baca notifikasi Maps (`NotifListener.kt`) → NAV.
 
 ## Cara berkomunikasi dengan pemilik proyek

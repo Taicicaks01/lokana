@@ -22,6 +22,7 @@ enum EventType : uint8_t {
   EV_LEFT,         // pengingat ketinggalan: value 1 = HP tertinggal, 0 = HP tersambung lagi
   EV_OTA,          // pembaruan firmware: 1 mulai, 2 terpasang (restart), 3 ditandai valid, -alasan gagal,
                    // -100 firmware baru gagal boot dan sudah kembali ke versi lama
+  EV_NAV,          // navigasi (navstore): 1 mulai, 2 belokan baru, 3 < 300 m ke belokan, 0 selesai (text = pesan)
 };
 
 struct Event {

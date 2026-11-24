@@ -4,6 +4,7 @@
 #include "image_store.h"
 #include "ota.h"
 #include "notif_store.h"
+#include "nav_store.h"
 #include "config.h"
 #include "core/core.h"
 #include "core/events.h"
@@ -121,7 +122,7 @@ static uint16_t buildDeviceInfo(uint8_t* p, uint16_t cap) {
   int bat = battery::percent();
   uint8_t flags = infoFlags();
   infoPct = bat; infoFl = flags & BATT_FLAGS; infoAt = millis();
-  uint32_t caps = CAP_NOTIF | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
+  uint32_t caps = CAP_NOTIF | CAP_NAV | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
   caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA;
 #if PIN_BUZZER >= 0
@@ -305,7 +306,7 @@ static uint8_t onGoto(Reader& r) {
   if (!r.ok() || !name[0]) return ST_BAD_PAYLOAD;
   for (uint8_t i = 0; i < core::moduleCount(); i++) {
     Module* m = core::moduleAt(i);
-    if (m->remoteOpen() && !strcasecmp(m->name(), name)) { events::post(EV_GOTO, 0, m->name()); return ST_OK; }
+    if (m->remoteOpen() && m->available() && !strcasecmp(m->name(), name)) { events::post(EV_GOTO, 0, m->name()); return ST_OK; }
   }
   return ST_ERROR;                                // modul tidak ada
 }
@@ -323,6 +324,37 @@ static uint8_t onFindPhone(Reader& r) {
   uint8_t op = r.u8();
   if (!r.ok() || op != 0) return ST_BAD_PAYLOAD;  // dari HP hanya "sudah ditemukan"
   events::post(EV_FIND_PHONE, 0);
+  return ST_OK;
+}
+
+// NAV (v0.6): navigasi dari HP. Data disimpan di navstore; event hanya untuk perubahan penting.
+static uint8_t onNav(Reader& r) {
+  uint8_t state = r.u8();
+  if (!r.ok()) return ST_BAD_PAYLOAD;
+  if (state == 1) {                               // selesai / berhenti
+    if (navstore::stop()) events::post(EV_NAV, navstore::NV_NONE, "Navigasi selesai");
+    return ST_OK;
+  }
+  if (state != 0) return ST_NOT_SUPPORTED;
+  NavInfo n;
+  n.distM = r.u32();
+  r.str(n.distText, sizeof(n.distText));
+  r.str(n.instr, sizeof(n.instr));
+  r.str(n.street, sizeof(n.street));
+  n.etaMin = r.u16();
+  n.iconW = r.u8();
+  n.iconH = r.u8();
+  if (!r.ok() || n.iconW > 32 || n.iconH > 32 || (n.iconW == 0) != (n.iconH == 0)) return ST_BAD_PAYLOAD;
+  const uint16_t bytes = ((n.iconW + 7) / 8) * n.iconH;
+  if (bytes) {
+    const uint8_t* b = r.bytes(bytes);
+    if (!b) return ST_BAD_PAYLOAD;
+    memcpy(n.icon, b, bytes);
+  }
+  if (r.has()) r.str(n.etaText, sizeof(n.etaText));   // field akhir opsional (0.6)
+  if (!r.ok()) return ST_BAD_PAYLOAD;
+  uint8_t ch = navstore::update(n);
+  if (ch != navstore::NV_NONE) events::post(EV_NAV, ch);
   return ST_OK;
 }
 
@@ -689,9 +721,10 @@ void dispatch(Transport t, uint8_t type, uint8_t seq, const uint8_t* p, uint16_t
       case T_SCREEN:      st = onScreen(t, r); break;
       case T_TEXT_SLOT:   st = onTextSlot(t, r); break;
       case T_OTA:         st = onOta(t, r); break;
+      case T_NAV:         st = onNav(r); break;
       // Dikenal, tapi belum ada di firmware ini / arahnya hanya D->H
       case T_DEVICE_INFO: case T_BUTTON:
-      case T_NAV: case T_PC_STATS: case T_MEETING: case T_PHONE_STATS:
+      case T_PC_STATS: case T_MEETING: case T_PHONE_STATS:
       case T_WIFI_PROV: case T_WIFI_STATUS:
         st = ST_NOT_SUPPORTED; break;
       default: st = ST_UNKNOWN_TYPE; break;
@@ -782,6 +815,7 @@ void update(uint32_t now) {
       if (arm) { leaveAt = now + LEAVE_GRACE_MS; if (!leaveAt) leaveAt = 1; }
     }
     endSession(TR_BLE);
+    if (navstore::stop()) events::post(EV_NAV, navstore::NV_NONE, "HP terputus");   // data jarak basi
     if (out.active && out.t == TR_BLE) { out.active = false; out.a.release(); }
     if (textOut.active && textOut.t == TR_BLE) textOut.active = false;
     ota::transportLost(TR_BLE);
@@ -809,6 +843,7 @@ void update(uint32_t now) {
   ota::update(now);
   pumpMirror(now);
   pumpBattery(now);
+  if (navstore::tick(now)) events::post(EV_NAV, navstore::NV_NONE, "Navigasi berhenti");
 #ifndef WOKWI_SIM
   // Hemat daya BLE: interval pendek hanya saat layar menyala, OTA, atau mirror layar berjalan
   bool mirroring = false;

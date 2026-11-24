@@ -13,6 +13,14 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
   Toast lama "Mengisi daya" diganti "charging" supaya seragam.
 - Alat PC: `lokana_link.py screen --delay N` (screenshot setelah toast HELLO hilang).
 
+### Firmware: Navigasi (v0.6, langkah 3)
+- Pesan `NAV` diaktifkan (bit `caps` 1): panah 32×32, jarak, instruksi, jalan, waktu tiba (field akhir opsional
+  `eta_text`). Modul **Navigasi** hanya ikut giliran saat navigasi berjalan.
+- Layar menyala sendiri saat navigasi mulai, belokan baru, atau ≤ 300 m ke belokan (lalu tetap menyala sampai
+  belokan lewat); pembaruan jarak biasa tidak menyalakan layar. Berhenti saat selesai, HP terputus, atau 3 menit tanpa data.
+- Label DEV hanya di layar wajah (tidak menutupi judul modul lain).
+- Console `nav`; alat PC `lokana_link.py nav`; uji `test_v06` (191/191 lulus).
+
 ## [0.5.7] - 2026-11-21
 
 Rilis pertama di GitHub Releases: `lokana-os-0.5.7.bin` (firmware ESP32-C3 Super Mini, untuk OTA dari aplikasi atau

@@ -123,6 +123,49 @@ def p_find(on=True, duration=30):
     return bytes([1 if on else 0, duration])
 
 
+def nav_icon(kind):
+    """Ikon panah uji 32x32 (1-bit, baris demi baris, MSB = kiri): lurus / kanan / kiri."""
+    px = [[0] * 32 for _ in range(32)]
+
+    def fill(x0, y0, x1, y1):
+        for y in range(max(0, y0), min(32, y1)):
+            for x in range(max(0, x0), min(32, x1)):
+                px[y][x] = 1
+
+    if kind == "lurus":
+        fill(13, 12, 19, 31)
+        for i in range(11):                       # kepala segitiga ke atas
+            fill(15 - i, 2 + i, 17 + i, 3 + i)
+    else:
+        fill(8, 14, 14, 31)                       # batang naik lalu belok
+        fill(8, 14, 22, 20)
+        for i in range(9):                        # kepala ke kanan
+            fill(22 + i, 8 + i, 23 + i, 26 - i)
+        if kind == "kiri":
+            px = [row[::-1] for row in px]
+    out = bytearray()
+    for row in px:
+        for b in range(4):
+            v = 0
+            for k in range(8):
+                v = v << 1 | row[b * 8 + k]
+            out.append(v)
+    return bytes(out)
+
+
+def p_nav(dist=200, text="", instr="Belok kanan", street="Jl. Udayana", eta=12, icon="kanan", eta_text=""):
+    """NAV state 0. icon: lurus/kanan/kiri/none."""
+    out = bytearray([0]) + struct.pack("<I", 0xFFFFFFFF if dist < 0 else dist) + s(text) + s(instr) + s(street)
+    out += struct.pack("<H", 0xFFFF if eta < 0 else eta)
+    if icon and icon != "none":
+        out += bytes([32, 32]) + nav_icon(icon)
+    else:
+        out += bytes([0, 0])
+    if eta_text:
+        out += s(eta_text)
+    return bytes(out)
+
+
 def p_settings_get():
     return bytes([0])
 
@@ -1075,6 +1118,30 @@ def test_v052(lk, expect):
     lk.request(T["GOTO"], s("lokana"))
 
 
+def test_v06(lk, expect):
+    """v0.6: NAV (navigasi) — validasi payload, GOTO hanya saat aktif, selesai."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps NAV", bool(caps >> CAPS.index("NAV") & 1), True)
+    N = T["NAV"]
+    lk.request(N, b"\x01")                                         # mulai bersih
+    expect("GOTO Navigasi saat tidak aktif = ERROR", lk.request(T["GOTO"], s("Navigasi")), 6)
+    expect("NAV tanpa ikon", lk.request(N, p_nav(450, "450 m", icon="none")), 0)
+    expect("GOTO Navigasi saat aktif", lk.request(T["GOTO"], s("Navigasi")), 0)
+    expect("NAV ikon 32x32 + eta_text", lk.request(N, p_nav(180, "180 m", icon="kanan", eta_text="Tiba 01.02")), 0)
+    expect("NAV jarak tidak diketahui", lk.request(N, p_nav(-1, "", "Lurus", "Jl. Raya", -1, icon="lurus")), 0)
+    bad_w = bytearray(p_nav(icon="none")); bad_w[-2:] = bytes([33, 1])
+    expect("NAV ikon lebar 33 = BAD_PAYLOAD", lk.request(N, bytes(bad_w) + bytes(5)), 2)
+    expect("NAV bitmap kurang = BAD_PAYLOAD", lk.request(N, p_nav(icon="kanan")[:-10]), 2)
+    half = bytearray(p_nav(icon="none")); half[-2:] = bytes([8, 0])
+    expect("NAV icon_h 0 dengan icon_w 8 = BAD_PAYLOAD", lk.request(N, bytes(half)), 2)
+    expect("NAV terpotong = BAD_PAYLOAD", lk.request(N, b"\x00\x01\x02"), 2)
+    expect("NAV state 2 = NOT_SUPPORTED", lk.request(N, b"\x02"), 4)
+    expect("NAV selesai", lk.request(N, b"\x01"), 0)
+    expect("GOTO Navigasi setelah selesai = ERROR", lk.request(T["GOTO"], s("Navigasi")), 6)
+
+
 def test_v056(lk, expect):
     """v0.5.6: baterai di DEVICE_INFO (battery_mv, bit mengisi/lemah) konsisten dengan persen."""
     lk.request(T["HELLO"], p_hello("lokana_link.py test"))
@@ -1414,9 +1481,9 @@ def cmd_test(a):
     expect("FIND_KEYS mulai 3 dtk", lk.request(T["FIND_KEYS"], p_find(True, 3)), 0)
     time.sleep(1.0)
     expect("FIND_KEYS berhenti", lk.request(T["FIND_KEYS"], p_find(False)), 0)
-    expect("NAV (dikenal, belum didukung v0.5)", lk.request(T["NAV"], b"\x00"), 4)
+    expect("PC_STATS (dikenal, belum didukung)", lk.request(T["PC_STATS"], b"\x00"), 4)
     expect("type 0x7E (tidak dikenal)", lk.request(0x7E, b"abc"), 1)
-    expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["NAV"], bytes(1200)), 4)
+    expect("payload 1200 B (batas maks) diterima utuh", lk.request(T["PC_STATS"], bytes(1200)), 4)
     big = lk.request(0x30, bytes(1300))
     expect("payload 1300 B (> 1200)", big, 2)
 
@@ -1451,6 +1518,7 @@ def cmd_test(a):
     test_v054(lk, expect)
     test_v055(lk, expect)
     test_v056(lk, expect)
+    test_v06(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1497,6 +1565,15 @@ def main():
     t.add_argument("--hold", type=int, default=0, help="ms, 0 = default 4000")
     t = sub.add_parser("goto", help="GOTO modul (lokana, jam, dadu, teks)")
     t.add_argument("module")
+    t = sub.add_parser("nav", help="NAV: uji layar navigasi (contoh: nav --dist 180 --text '180 m')")
+    t.add_argument("--dist", type=int, default=200, help="meter ke belokan, -1 = tidak diketahui")
+    t.add_argument("--text", default="", help="teks jarak, contoh '200 m' (kosong = dihitung Lokana)")
+    t.add_argument("--instr", default="Belok kanan")
+    t.add_argument("--street", default="Jl. Udayana")
+    t.add_argument("--eta", type=int, default=12, help="menit ke tujuan, -1 = tidak diketahui")
+    t.add_argument("--eta-text", default="", help="contoh 'Tiba 01.02'")
+    t.add_argument("--icon", default="kanan", choices=["kanan", "kiri", "lurus", "none"])
+    t.add_argument("--stop", action="store_true", help="state 1: navigasi selesai")
     t = sub.add_parser("find", help="FIND_KEYS")
     t.add_argument("--duration", type=int, default=30)
     t.add_argument("--stop", action="store_true")
@@ -1569,6 +1646,7 @@ def main():
         "expr": simple("EXPRESSION", lambda a: p_expr(expr_id(a.expr), a.hold)),
         "goto": simple("GOTO", lambda a: s(a.module)),
         "find": simple("FIND_KEYS", lambda a: p_find(not a.stop, a.duration)),
+        "nav": simple("NAV", lambda a: b"\x01" if a.stop else p_nav(a.dist, a.text, a.instr, a.street, a.eta, a.icon, a.eta_text)),
         "settings": cmd_settings,
         "textslots": cmd_textslots,
         "ota": cmd_ota,
