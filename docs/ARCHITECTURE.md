@@ -298,7 +298,7 @@ navigasi memakai rute sendiri karena aplikasi lain tidak bisa dibaca.
 | Tahap | Bentuk | Isi |
 |---|---|---|
 | v0.3 | Skrip Python (`protocol/tools/`) | Penguji protokol lewat USB: `HELLO`, `TIME_SYNC`, teks, ekspresi |
-| v0.7 | Lokana Desktop awal | Monitor PC lewat USB, status rapat |
+| v0.7 ✅ | Lokana Desktop 0.7.0 (`desktop/`, rilis 0.7.0) | Monitor PC lewat USB dari system tray Windows (status rapat ditunda) |
 | v0.8 | Lokana Desktop + WiFi | Monitor PC lewat UDP, mDNS untuk menemukan Lokana |
 
 Data sensor diambil dari **LibreHardwareMonitor** (suhu, kipas, GPU, daya) dan `psutil`
@@ -336,8 +336,8 @@ lokana/
 | v0.3 ✅ | Lokana Link | Parser, transport USB + BLE, pairing passkey, skrip uji Python, modul Teks |
 | v0.4 ✅ | Aplikasi MVP | Sambung, pengaturan, teks/emoji, ekspresi, dadu, cari kunci ↔ HP |
 | v0.5 ✅ | Notifikasi | NotificationListener, panggilan, modul Notif |
-| v0.6 | Navigasi | Panah + jarak + jalan dari Google Maps, modul Navigasi |
-| v0.7 | Mode Meja | Lokana Desktop via USB, monitor HP, timer & pomodoro |
+| v0.6 ✅ | Navigasi | Panah + jarak + jalan dari Google Maps, modul Navigasi (rilis 0.6.0) |
+| v0.7 ✅ | Mode Meja | Lokana Desktop via USB + modul Monitor PC (rilis 0.7.0) |
 | v0.8 | Jaringan | WiFi provisioning, UDP, Mode Update |
-| v0.9 | Integrasi | BLE HID, OTA lewat aplikasi, cuaca, musik |
+| v0.9 | Integrasi | BLE HID, cuaca, musik, monitor HP, timer & pomodoro (OTA lewat aplikasi sudah sejak 0.5.5) |
 | v1.0 | Siap jual | Hemat daya, casing, kemasan, quick start |

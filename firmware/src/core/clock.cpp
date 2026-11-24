@@ -51,7 +51,7 @@ void update(uint32_t now) {
     if (WiFi.status() == WL_CONNECTED) {
       configTzTime(tzStr, NTP_SERVER1, NTP_SERVER2);
       setState(ST_NTP);
-    } else if (now - since > 15000) {
+    } else if ((int32_t)(now - since) > 15000) {
       Serial.println("[jam] WiFi gagal");
       wifiOff();
       setState(ST_FAIL);
@@ -64,7 +64,7 @@ void update(uint32_t now) {
       Serial.println("[jam] NTP ok, WiFi dimatikan");
       wifiOff();
       setState(ST_OK);
-    } else if (now - since > 20000) {
+    } else if ((int32_t)(now - since) > 20000) {
       Serial.println("[jam] NTP timeout");
       wifiOff();
       setState(ST_FAIL);

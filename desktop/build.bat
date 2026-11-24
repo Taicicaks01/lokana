@@ -7,5 +7,10 @@ copy /y ..\brand\web\icon-192.png icon.png >nul
 .venv\Scripts\pyinstaller --noconfirm --clean --onefile --noconsole --name LokanaDesktop --icon icon.ico ^
   --paths ..\protocol\tools --hidden-import lokana_link --hidden-import pystray._win32 ^
   --add-data "icon.png;." lokana_desktop.py
+if errorlevel 1 (
+  echo.
+  echo GAGAL. Kalau LokanaDesktop.exe sedang berjalan, tutup dulu lewat tray ^(Keluar^) atau Task Manager.
+  exit /b 1
+)
 echo.
 echo Hasil: dist\LokanaDesktop.exe

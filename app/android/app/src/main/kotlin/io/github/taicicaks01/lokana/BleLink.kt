@@ -40,7 +40,7 @@ object BleLink {
     private const val ACK_TIMEOUT_MS = 2000L
     private const val RETRIES = 3
     private const val PREFS = "lokana"
-    const val CLIENT_NAME = "Lokana Android 0.6.0"
+    const val CLIENT_NAME = "Lokana Android 0.7.0"
 
     enum class State(val id: String) {
         IDLE("idle"), SCANNING("scanning"), CONNECTING("connecting"), PAIRING("pairing"),

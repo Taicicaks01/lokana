@@ -1,7 +1,7 @@
 # Lokana Desktop
 
 Aplikasi kecil di **system tray Windows** yang menampilkan kondisi PC di layar Lokana lewat **USB**
-(Mode Meja). Versi **0.7.0**, butuh **Lokana OS 0.7** atau lebih baru.
+(Mode Meja). Versi **0.7.0**, butuh **Lokana OS 0.7.0** atau lebih baru.
 
 Yang dikirim tiap 2 detik (pesan `PC_STATS`, lihat `protocol/LOKANA_LINK.md`):
 
@@ -16,30 +16,63 @@ Yang dikirim tiap 2 detik (pesan `PC_STATS`, lihat `protocol/LOKANA_LINK.md`):
 Jam Lokana ikut disinkronkan dengan jam PC saat tersambung (dan tiap jam). Tidak ada angka palsu: sensor yang
 tidak tersedia dilewati.
 
+## Pasang
+
+1. Perbarui Lokana ke **Lokana OS 0.7.0** dulu (aplikasi Lokana → Pengaturan → Pembaruan firmware).
+2. Unduh `LokanaDesktop.exe` dari [GitHub Releases](https://github.com/Taicicaks01/lokana/releases/latest).
+   Tidak perlu instalasi: simpan di folder mana saja (misalnya `Documents\Lokana`) lalu jalankan.
+3. Windows SmartScreen mungkin memperingatkan *"Windows protected your PC"* karena aplikasinya belum bertanda tangan
+   digital. Pilih **More info → Run anyway**. Kodenya terbuka di folder ini kalau ingin memeriksa.
+4. Supaya otomatis jalan: klik kanan ikon tray → **Jalankan saat Windows mulai**.
+
 ## Pakai
 
-1. Colok Lokana ke PC lewat USB-C **kanan** (port program).
-2. Jalankan `LokanaDesktop.exe` (dari GitHub Releases). Ikon Lokana muncul di system tray.
-3. Lokana membuka layar **Monitor** sendiri; tap = halaman berikutnya, tahan = layar mati.
+1. Colok Lokana ke PC lewat USB-C **kanan** (port program) dengan kabel **data** (bukan kabel charge saja).
+2. Dalam beberapa detik ikon tray menunjukkan **Tersambung: *nama Lokana* (COMx)** (arahkan kursor ke ikon).
+3. Lokana membuka layar **Monitor** sendiri dan layarnya tetap menyala selama data masuk (isi digeser 1 piksel tiap
+   2 menit supaya OLED tidak *burn-in*). Di Lokana: **tap** = halaman berikutnya, **tahan** = layar mati, **2× tap**
+   = modul lain.
+4. Cabut kabel atau pilih **Jeda kirim data**: Lokana kembali ke layar sebelumnya ±10 detik kemudian.
 
-Menu tray: status sambungan, **Jeda kirim data**, **Jalankan saat Windows mulai**, **Buka folder log**, **Keluar**.
+Menu tray (klik kanan): status sambungan, **Jeda kirim data**, **Jalankan saat Windows mulai**, **Buka folder log**,
+**Keluar**.
 
-Lokana dicari otomatis di semua port USB ESP32 (VID 303A) dengan pesan `HELLO`; hanya yang membalas sebagai
-Lokana yang dipakai. Port lain (mis. board ESP32 lain) dilewati 5 menit. Port dibuka tanpa DTR/RTS sehingga board
-tidak ter-reset. Pengaturan di `%APPDATA%\LokanaDesktop\config.json`:
+### Suhu CPU (opsional, termasuk CPU AMD Ryzen)
+
+Windows tidak menyediakan suhu CPU untuk aplikasi biasa, terutama CPU AMD. Untuk menampilkannya:
+
+1. Unduh **LibreHardwareMonitor** dari [github.com/LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases),
+   ekstrak, lalu jalankan `LibreHardwareMonitor.exe` **sebagai administrator** (perlu untuk membaca sensor CPU).
+2. Di LibreHardwareMonitor: **Options → Remote Web Server → Run** (port bawaan 8085). Centang juga
+   **Options → Start Minimized** dan **Run On Windows Startup** kalau ingin selalu ada.
+3. Dalam ±30 detik baris **CPU ..C** muncul di Lokana. Lokana Desktop membaca `http://127.0.0.1:8085/data.json`
+   (hanya dari PC sendiri) dan memakai suhu CPU tertinggi (Tctl/Tdie di AMD, Package di Intel).
+
+Suhu GPU NVIDIA tidak butuh LibreHardwareMonitor (dibaca lewat `nvidia-smi` bawaan driver).
+
+## Masalah yang sering muncul
+
+| Gejala | Penyebab | Solusi |
+|---|---|---|
+| Tray terus **Mencari Lokana...** | Kabel hanya untuk charge, colok di port **bawah** (charger), atau port COM sedang dipegang program lain | Pakai kabel data di port **kanan**. Tutup Arduino IDE / PlatformIO serial monitor / `lokana_link.py`, lalu tunggu ±5 dtk |
+| Port COM "Access is denied" / masih dipegang setelah aplikasi ditutup | Proses `LokanaDesktop.exe` lama masih berjalan (mis. ditutup paksa; versi .exe satu-file berjalan sebagai 2 proses) | Task Manager → **Details** → akhiri semua `LokanaDesktop.exe`, lalu jalankan lagi. Selalu tutup lewat menu tray **Keluar** |
+| Tray: **Perbarui Lokana OS ke 0.7** | Lokana masih memakai firmware lama (tanpa Monitor PC) | Perbarui firmware lewat aplikasi Lokana |
+| Board ESP32 lain (mis. proyek lain) ikut terdeteksi / ingin aman | Lokana dicari di semua port USB ESP32 (VID 303A) dengan pesan `HELLO`; board lain yang tidak membalas dilewati 5 menit | Tambahkan port itu ke `"exclude"` di `config.json` (lihat bawah), atau tetapkan `"port"` Lokana |
+| Dua Lokana tercolok | Yang pertama ditemukan yang dipakai | Isi `"port"` di `config.json` |
+| Baris suhu CPU tidak ada | LibreHardwareMonitor tidak berjalan, bukan administrator, atau Remote Web Server belum **Run** | Lihat bagian Suhu CPU di atas |
+| Baris GPU tidak ada | Bukan GPU NVIDIA, atau driver NVIDIA tanpa `nvidia-smi` | Untuk GPU AMD/Intel belum didukung |
+| Antivirus mengkarantina `LokanaDesktop.exe` | Positif palsu umum untuk .exe PyInstaller yang belum bertanda tangan | Pulihkan dari karantina, atau jalankan dari kode (bagian di bawah) |
+| Lokana kembali ke wajah walau tray tersambung | **Jeda kirim data** tercentang | Hilangkan centangnya |
+
+Pengaturan di `%APPDATA%\LokanaDesktop\config.json` (dibuat otomatis saat pertama jalan):
 
 ```json
 { "port": null, "exclude": ["COM7"], "interval": 2 }
 ```
 
-`port` = paksa port tertentu, `exclude` = port yang tidak boleh dicoba sama sekali, `interval` = detik antar kirim.
-Log: `%APPDATA%\LokanaDesktop\log.txt`.
-
-### Suhu CPU (opsional)
-
-Windows tidak menyediakan suhu CPU untuk aplikasi biasa. Pasang **LibreHardwareMonitor**, jalankan sebagai
-administrator, lalu aktifkan **Options → Remote Web Server → Run** (port 8085). Lokana Desktop membaca
-`http://127.0.0.1:8085/data.json` (hanya dari PC sendiri) dan memakai suhu CPU tertinggi (Tctl/Tdie / Package).
+`port` = paksa port tertentu (contoh `"COM10"`), `exclude` = port yang tidak boleh dicoba sama sekali,
+`interval` = detik antar kirim (minimal 1). Log: `%APPDATA%\LokanaDesktop\log.txt` (menu **Buka folder log**).
+Port dibuka tanpa DTR/RTS sehingga board tidak ter-reset.
 
 ## Dari kode
 

@@ -48,7 +48,12 @@ void SplashModule::enter() {
   _sfx = 0;
 }
 
-uint32_t SplashModule::elapsed(uint32_t now) const { return _freeze ? _freeze : now - _t0; }
+// Bertanda: _t0 dari millis() di enter() bisa lebih baru dari `now` loop (dulu meluap -> splash langsung selesai)
+uint32_t SplashModule::elapsed(uint32_t now) const {
+  if (_freeze) return _freeze;
+  int32_t d = (int32_t)(now - _t0);
+  return d > 0 ? (uint32_t)d : 0;
+}
 
 void SplashModule::finish() {
   _freeze = 0;

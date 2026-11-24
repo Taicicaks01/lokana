@@ -21,7 +21,12 @@ public:
   static const uint32_t CARD_MS = 2800;
 
 private:
-  uint32_t elapsed(uint32_t now) const { return _freeze ? _freeze : now - _t0; }
+  // Bertanda: _t0 dari millis() di enter() bisa lebih baru dari `now` loop -> dulu meluap -> Panduan langsung selesai
+  uint32_t elapsed(uint32_t now) const {
+    if (_freeze) return _freeze;
+    int32_t d = (int32_t)(now - _t0);
+    return d > 0 ? (uint32_t)d : 0;
+  }
   void finish();
   uint32_t _t0 = 0, _freeze = 0;
 };

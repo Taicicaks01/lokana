@@ -7,6 +7,12 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+## [0.7.0] - 2026-11-25
+
+**Monitor PC (Mode Meja)**: Lokana menampilkan CPU, RAM, suhu, jaringan, disk, dan baterai laptop lewat USB, dikirim
+aplikasi Windows baru **Lokana Desktop** dari system tray. Rilis ini berisi Lokana OS 0.7.0, Aplikasi Lokana 0.7.0, dan
+`LokanaDesktop.exe` 0.7.0, plus perbaikan layar Tertinggal dan pengaturan saat layar mati.
+
 ### Firmware: Monitor PC (v0.7, langkah 1)
 - Pesan `PC_STATS` diaktifkan (bit `caps` 2): sampai 12 metrik dari PC, 4 per halaman dengan bar untuk persen & suhu.
   Modul **Monitor** hanya ikut giliran selama data masuk; layar tetap menyala dengan geser piksel anti *burn-in*;
@@ -21,7 +27,8 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ### Perbaikan
 - Layar **"HP-mu tertinggal?" bisa langsung tertutup sebelum terlihat (selisih waktu tanpa tanda meluap; makin
-  sering sejak CPU 80 MHz). Hal yang sama diperbaiki di gulir teks Notif.
+  sering sejak CPU 80 MHz). Pola yang sama diperbaiki di **Panduan** (bisa langsung selesai), **splash boot**, gulir
+  teks Notif, dan sinkron jam.
 - Pesan dari HP/PC saat layar Lokana mati hanya menyalakan layar: GOTO, toast, dan **pengaturan kecerahan / putar
   180°** dari aplikasi hilang. Sekarang diproses seperti biasa. Uji regresi baru di `test_v07`.
 - Navigasi: saat HP diam, Google Maps bisa bolak-balik antara dua instruksi; Lokana dulu menyala dan berbunyi tiap
