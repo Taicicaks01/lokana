@@ -403,8 +403,12 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     tap = berikutnya, geser 1 px tiap 2 menit, `keepAwake` selama data, 10 dtk tanpa data → kembali), `PC_STATS`
     bit caps 2, `lokana_link.py pcstats`, `test_v07`. Ikut diperbaiki: Tertinggal langsung tertutup (unsigned) dan
     event saat layar mati hilang (lihat tabel jebakan). 202/202 uji USB.
-  - 2 Aplikasi Desktop Python (`desktop/`): cari Lokana lewat HELLO (jangan ganggu COM FC), TIME_SYNC, PC_STATS tiap 2 dtk,
-    tray, `.exe`.
+  - ✅ 2 Lokana Desktop 0.7.0 (2026-11-25, `desktop/`, lihat `desktop/README.md`): venv `desktop/.venv` (psutil, pyserial,
+    pystray, pillow, pyinstaller; **jangan** pasang ke Python sistem), `build.bat` → `dist\LokanaDesktop.exe` (14,6 MB).
+    Diuji di laptop Wayan (Ryzen 5 7535HS, RTX 2050): tersambung COM10 ±1 dtk, CPU/RAM, GPU 48 °C (nvidia-smi),
+    jaringan/disk, baterai `Batre+`; suhu CPU AMD butuh LibreHardwareMonitor (belum terpasang → baris dilewati, **belum
+    diuji**). Jebakan: `.exe` --noconsole → `sys.stdout` None (jangan `print` tanpa cek); `.exe` onefile = 2 proses
+    (matikan paksa → sisa proses memegang COM; keluar lewat tray bersih).
   - 3 Dokumentasi & rilis.
 - **v0.6 ✅ Navigasi Google Maps — dirilis v0.6.0 (2026-11-25)** di GitHub Releases. NAV (ikon panah dari notifikasi
   Maps → bitmap 1-bit), modul Navigasi. **OTA dari GitHub Releases terbukti** (2026-11-25): aplikasi 0.6.0 → cek

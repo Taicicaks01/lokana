@@ -33,7 +33,7 @@ lalu memberi kabar lewat sepasang matanya.
 > **Panduan cara pakai**, **pengingat ketinggalan** dua arah,
 > pengaturan, dadu, teks (5 font), gambar/emoji, dan Cari HP lewat **Lokana Link** (USB & BLE). **Aplikasi Lokana**
 > (Android) sudah jalan di HP, dengan pratinjau teks yang sama persis dengan layar Lokana.
-> Lokana Desktop belum dimulai.
+> **Lokana Desktop** (Windows, monitor PC lewat USB) dimulai di v0.7 (`desktop/`).
 > Dokumen ini adalah acuan utama proyek: apa yang dibangun, keputusan yang sudah diambil, dan urutan pengerjaannya.
 
 ## Daftar isi
@@ -130,7 +130,7 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 
 | Fitur | Status | Penjelasan |
 |---|---|---|
-| Monitor PC lewat USB | 🔨 | CPU, GPU, RAM, suhu, kipas, jaringan; colok langsung jalan. Layar Monitor di Lokana siap (0.7), aplikasi PC sedang dikerjakan |
+| Monitor PC lewat USB | ✅ | CPU, RAM, suhu CPU/GPU, jaringan, disk, baterai laptop. **Lokana Desktop** (`desktop/`, ikon tray Windows) + layar Monitor di Lokana (0.7) |
 | Monitor PC lewat WiFi | 📋 | Data dikirim lewat UDP dalam satu jaringan, tanpa kabel data |
 | Status rapat | 📋 | Lokana menunjukkan "sedang rapat" saat mikrofon/kamera aktif |
 | Remote presentasi & media keys | 📋 | Lokana menjadi keyboard Bluetooth (BLE HID): slide maju/mundur, volume |

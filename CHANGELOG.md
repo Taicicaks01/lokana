@@ -13,8 +13,14 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
   10 detik tanpa data → kembali.
 - Alat PC `lokana_link.py pcstats`; uji `test_v07`.
 
+### Lokana Desktop 0.7.0 (v0.7, langkah 2)
+- Aplikasi Windows baru di **system tray** (`desktop/`, `LokanaDesktop.exe`): mencari Lokana di USB sendiri,
+  menyinkronkan jam, lalu mengirim CPU/RAM, suhu GPU (NVIDIA) dan CPU (LibreHardwareMonitor, opsional), jaringan,
+  disk, dan baterai laptop tiap 2 detik. Menu: jeda, jalankan saat Windows mulai, folder log.
+- CI memeriksa sintaks kode Desktop.
+
 ### Perbaikan
-- Layar **"HP-mu tertinggal?"** bisa langsung tertutup sebelum terlihat (selisih waktu tanpa tanda meluap; makin
+- Layar **"HP-mu tertinggal?" bisa langsung tertutup sebelum terlihat (selisih waktu tanpa tanda meluap; makin
   sering sejak CPU 80 MHz). Hal yang sama diperbaiki di gulir teks Notif.
 - Pesan dari HP/PC saat layar Lokana mati hanya menyalakan layar: GOTO, toast, dan **pengaturan kecerahan / putar
   180°** dari aplikasi hilang. Sekarang diproses seperti biasa. Uji regresi baru di `test_v07`.

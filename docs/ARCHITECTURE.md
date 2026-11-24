@@ -305,6 +305,14 @@ Data sensor diambil dari **LibreHardwareMonitor** (suhu, kipas, GPU, daya) dan `
 (CPU, RAM, disk, jaringan). Browser tidak bisa membaca sensor hardware, jadi aplikasi PC
 tetap dibutuhkan.
 
+**v0.7 (2026-11-25, `desktop/`)**: Python + system tray (`pystray`), dibungkus PyInstaller jadi satu
+`LokanaDesktop.exe`. Kode protokol dipakai ulang dari `protocol/tools/lokana_link.py`; koneksi sendiri
+(`link_usb.py`): cari port VID 303A, `HELLO` (client_type 3) → hanya yang membalas `DEVICE_INFO`
+device_type 1, port lain dilewati 5 menit, buka tanpa DTR/RTS, sambung ulang otomatis. `TIME_SYNC` saat
+tersambung + tiap jam, `PC_STATS` tiap 2 dtk tanpa ACK. Sensor (`sensors.py`): psutil (CPU/RAM/jaringan/
+disk/baterai), `nvidia-smi` (suhu & pemakaian GPU NVIDIA), LibreHardwareMonitor lewat web server lokal
+`127.0.0.1:8085/data.json` (suhu CPU, opsional). Di Lokana: modul Monitor (§ firmware README).
+
 ## 6. Struktur repo
 
 ```

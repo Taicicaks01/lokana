@@ -50,6 +50,8 @@ jobs:
           python-version: "3.11"
       - name: CRC & contoh byte spesifikasi
         run: python protocol/tools/lokana_link.py selftest
+      - name: Sintaks Lokana Desktop
+        run: python -m py_compile desktop/lokana_desktop.py desktop/link_usb.py desktop/sensors.py
 
   app:
     name: Aplikasi (Flutter)
