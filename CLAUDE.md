@@ -353,7 +353,12 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
     SHA-256), hanya BLE terenkripsi/USB; timpa `verifyRollbackLater()` lalu `esp_ota_mark_app_valid_cancel_rollback()`
     setelah boot sehat (OLED + BLE siap); uji rollback dengan firmware yang sengaja crash. Aplikasi: halaman update
     (ambil rilis GitHub, tombol "Lihat perubahan & kode di GitHub"). Mode Update (WiFi AP / USB) masih menunggu keputusan Wayan.
-  - 🟡 **Kesiapan Play Store**: kunci rilis (bukan debug key), kebijakan privasi, deklarasi akses notifikasi &
+  - 🔴 **Kunci rilis APK (bukan debug key) WAJIB sebelum unit pertama dijual/pre-order dibuka**, supaya pembeli bisa
+    update tanpa uninstall. Rilis Play Store ditunda sampai semua fitur fix (keputusan Wayan 2026-11-25).
+    Catatan: APK yang sudah beredar (0.5.7–0.7.0) bertanda tangan debug; pindah ke kunci rilis = pengguna lama harus
+    uninstall sekali (tanda tangan beda). Keystore & kata sandinya **tidak boleh** masuk repo publik (simpan di luar
+    repo + cadangan; build lewat `key.properties` yang di-`.gitignore`).
+  - 🟡 **Kesiapan Play Store** (ditunda, lihat butir di atas): kebijakan privasi, deklarasi akses notifikasi &
     `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`; pertimbangkan **CompanionDeviceManager** (izin latar + dialog pairing
     yang lebih baik — sekaligus menutup backlog dialog PIN generik).
   - ✅ **CI GitHub Actions** (2026-11-21, `.github/workflows/ci.yml`): firmware 3 env, `flutter analyze/test`, `selftest`.
