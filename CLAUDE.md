@@ -408,9 +408,16 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   0.7.0; urutan di bawah = prioritas, satu commit per langkah, uji di unit 1, tunggu OK Wayan tiap langkah.
   Inspirasi: Keralots/SmallOLED-PCMonitor (ESP32-C3 + OLED 128×64). **Lisensinya tidak jelas → ambil idenya saja,
   jangan salin kode/aset** ke Lokana (MIT). **Tetap BLE + USB**: tanpa WiFi/web portal/web flasher di perangkat.
-  1. **Jendela pengaturan Lokana Desktop**: buka dari menu tray; pratinjau OLED 1:1 langsung (pakai data `PC_STATS`
-     yang sama), pilih metrik dengan nilai langsung, urutan halaman, template cepat. Simpan ke config Desktop
-     (bukan firmware). Tetap ringan: tkinter bawaan Python, **tanpa** dependensi GUI besar kecuali Wayan setuju.
+  1. ✅ **Jendela pengaturan Lokana Desktop** (2026-11-25): `settings_window.py` (tkinter), `oled_preview.py` (port
+     render `monitor_module.cpp`; `--compare COMx` = 0 piksel beda di unit 1 untuk 4 kasus), `oled_font.py` dari
+     `tools/gen_oled_font.py` (glcdfont BSD), `sensors.py` metrik ber-ID + `TEMPLATES`, config `"metrics"`, simpan
+     otomatis + `worker.kick` kirim seketika. tkinter di thread utama, pystray `run_detached`, antrian perintah.
+     Tanpa dependensi baru (.exe 14,6 → 17,7 MB). **Ubah `oled_preview.py` setiap kali tata letak Monitor berubah.**
+     Ikut diperbaiki: `log()` gagal di konsol cp1252 (nama Dewanagari) → koneksi batal saat dijalankan dari kode.
+     **Suhu CPU bawaan** (permintaan Wayan): `sensors.ThermalZone` = PDH `\Thermal Zone Information(*)\High Precision
+     Temperature` (0,1 K) lewat ctypes, tanpa admin; di laptop Wayan TZ01 mengikuti beban CPU (50 → 61 °C). Urutan
+     sumber: LibreHardwareMonitor → zona termal. Jebakan ctypes: buffer `PdhGetFormattedCounterArrayW` harus `size` byte
+     (string nama zona ikut di belakang larik), bukan `count × item` → segfault. WMI MSAcpi_ThermalZone butuh admin.
   2. **Label sendiri + dua metrik per baris** (mis. "CPU 34% 61°C"), format angka (desimal, satuan). Perluas
      `PC_STATS` secara kompatibel (field opsional; firmware lama mengabaikan field baru), perbarui `protocol/LOKANA_LINK.md` (sumber kebenaran) dulu
      + `test_v07`/uji baru.

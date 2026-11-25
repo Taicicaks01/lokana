@@ -7,6 +7,15 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Lokana Desktop: jendela pengaturan (v0.8, langkah 1)
+- Menu tray **Pengaturan…** (atau klik ganda ikon): pratinjau layar Monitor **1:1** dengan nilai langsung, pilih &
+  urutkan metrik (maks 12, 4 per halaman), template cepat (Ringkas, Gamer, Jaringan, Laptop, Semua), interval kirim.
+  Tersimpan otomatis, langsung berlaku di Lokana. tkinter bawaan Python, tanpa dependensi baru.
+- **Suhu CPU tanpa program tambahan**: dibaca dari zona termal Windows (tanpa admin), mengikuti suhu CPU di laptop.
+  LibreHardwareMonitor tetap dipakai bila berjalan (lebih presisi).
+- `oled_preview.py --compare COMx`: bandingkan pratinjau dengan layar Lokana asli per piksel (0 beda di unit 1).
+- Perbaikan: dijalankan dari kode di konsol Windows, nama Lokana berhuruf Dewanagari membuat log gagal dan koneksi batal.
+
 ### Quick start untuk pembeli
 - Halaman **GitHub Pages** `https://taicicaks01.github.io/lokana/` (`docs/index.html`): isi daya & nyalakan, pasang
   aplikasi, sambungkan (kode 6 digit), gerakan sentuh, fitur dengan screenshot layar asli, pembaruan firmware,

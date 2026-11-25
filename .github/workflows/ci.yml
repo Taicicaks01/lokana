@@ -51,7 +51,7 @@ jobs:
       - name: CRC & contoh byte spesifikasi
         run: python protocol/tools/lokana_link.py selftest
       - name: Sintaks Lokana Desktop
-        run: python -m py_compile desktop/lokana_desktop.py desktop/link_usb.py desktop/sensors.py
+        run: python -m py_compile desktop/lokana_desktop.py desktop/link_usb.py desktop/sensors.py desktop/settings_window.py desktop/oled_preview.py desktop/oled_font.py
 
   app:
     name: Aplikasi (Flutter)

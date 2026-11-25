@@ -8,7 +8,7 @@ Yang dikirim tiap 2 detik (pesan `PC_STATS`, lihat `protocol/LOKANA_LINK.md`):
 | Metrik | Sumber | Catatan |
 |---|---|---|
 | CPU %, RAM % | `psutil` | Selalu ada |
-| Suhu CPU | **LibreHardwareMonitor** | Opsional, lihat di bawah. Tanpa itu baris ini tidak tampil |
+| Suhu CPU | Zona termal Windows (bawaan) atau **LibreHardwareMonitor** | Bawaan: tanpa admin & tanpa program lain (laptop). LibreHardwareMonitor lebih presisi, lihat di bawah |
 | Suhu & pemakaian GPU | `nvidia-smi` | Hanya GPU NVIDIA (ikut driver) |
 | Unduh, Unggah, Disk | `psutil` | KB/s di bawah 1 MB/s |
 | Baterai laptop | `psutil` | Label `Batre+` saat sedang mengisi |
@@ -34,12 +34,31 @@ tidak tersedia dilewati.
    = modul lain.
 4. Cabut kabel atau pilih **Jeda kirim data**: Lokana kembali ke layar sebelumnya ±10 detik kemudian.
 
-Menu tray (klik kanan): status sambungan, **Jeda kirim data**, **Jalankan saat Windows mulai**, **Buka folder log**,
-**Keluar**.
+Menu tray (klik kanan): status sambungan, **Pengaturan…**, **Jeda kirim data**, **Jalankan saat Windows mulai**,
+**Buka folder log**, **Keluar**.
 
-### Suhu CPU (opsional, termasuk CPU AMD Ryzen)
+### Jendela pengaturan (sejak 0.8)
 
-Windows tidak menyediakan suhu CPU untuk aplikasi biasa, terutama CPU AMD. Untuk menampilkannya:
+Klik ganda ikon tray (atau menu **Pengaturan…**):
+
+- **Pratinjau OLED 1:1**: gambar layar Monitor persis seperti di Lokana (piksel demi piksel), dengan nilai langsung
+  dari PC. Halaman berganti sendiri tiap 5 detik seperti di Lokana; ◀ ▶ = tap.
+- **Metrik yang tampil**: centang untuk menampilkan, ↑ ↓ untuk mengurutkan (4 per halaman, maks 12). Nilai langsung
+  tampil di samping nama. Metrik yang tidak tersedia di PC ini tampil abu-abu dengan alasannya.
+- **Template cepat**: Ringkas, Gamer, Jaringan, Laptop, Semua.
+- **Kirim tiap** 1–10 detik.
+
+Semua perubahan langsung dikirim ke Lokana dan **disimpan otomatis** di `config.json` (tanpa tombol Simpan).
+
+### Suhu CPU
+
+**Bawaan (sejak 0.8)**: Lokana Desktop membaca zona termal ACPI dari penghitung kinerja Windows
+(*Thermal Zone Information*), tanpa admin dan tanpa program lain. Di laptop zona ini mengikuti suhu CPU/APU (diuji di
+Ryzen 5 7535HS: diam ±50 °C, beban penuh ±61 °C, resolusi ±1 °C). Banyak PC desktop tidak punya zona termal ACPI;
+di situ baris suhu CPU tidak tampil. Sumber yang dipakai tertulis di jendela pengaturan.
+
+**Lebih presisi (opsional)**: LibreHardwareMonitor membaca sensor CPU langsung (Tctl/Tdie AMD, Package Intel) dan
+otomatis dipakai bila berjalan:
 
 1. Unduh **LibreHardwareMonitor** dari [github.com/LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases),
    ekstrak, lalu jalankan `LibreHardwareMonitor.exe` **sebagai administrator** (perlu untuk membaca sensor CPU).
@@ -59,7 +78,7 @@ Suhu GPU NVIDIA tidak butuh LibreHardwareMonitor (dibaca lewat `nvidia-smi` bawa
 | Tray: **Perbarui Lokana OS ke 0.7** | Lokana masih memakai firmware lama (tanpa Monitor PC) | Perbarui firmware lewat aplikasi Lokana |
 | Board ESP32 lain (mis. proyek lain) ikut terdeteksi / ingin aman | Lokana dicari di semua port USB ESP32 (VID 303A) dengan pesan `HELLO`; board lain yang tidak membalas dilewati 5 menit | Tambahkan port itu ke `"exclude"` di `config.json` (lihat bawah), atau tetapkan `"port"` Lokana |
 | Dua Lokana tercolok | Yang pertama ditemukan yang dipakai | Isi `"port"` di `config.json` |
-| Baris suhu CPU tidak ada | LibreHardwareMonitor tidak berjalan, bukan administrator, atau Remote Web Server belum **Run** | Lihat bagian Suhu CPU di atas |
+| Baris suhu CPU tidak ada | PC tanpa zona termal ACPI (umum di PC desktop), dan LibreHardwareMonitor tidak berjalan / bukan administrator / Remote Web Server belum **Run** | Lihat bagian Suhu CPU di atas |
 | Baris GPU tidak ada | Bukan GPU NVIDIA, atau driver NVIDIA tanpa `nvidia-smi` | Untuk GPU AMD/Intel belum didukung |
 | Antivirus mengkarantina `LokanaDesktop.exe` | Positif palsu umum untuk .exe PyInstaller yang belum bertanda tangan | Pulihkan dari karantina, atau jalankan dari kode (bagian di bawah) |
 | Lokana kembali ke wajah walau tray tersambung | **Jeda kirim data** tercentang | Hilangkan centangnya |
@@ -67,11 +86,12 @@ Suhu GPU NVIDIA tidak butuh LibreHardwareMonitor (dibaca lewat `nvidia-smi` bawa
 Pengaturan di `%APPDATA%\LokanaDesktop\config.json` (dibuat otomatis saat pertama jalan):
 
 ```json
-{ "port": null, "exclude": ["COM7"], "interval": 2 }
+{ "port": null, "exclude": ["COM7"], "interval": 2, "metrics": ["cpu", "ram", "cpu_temp", "gpu_temp"] }
 ```
 
 `port` = paksa port tertentu (contoh `"COM10"`), `exclude` = port yang tidak boleh dicoba sama sekali,
-`interval` = detik antar kirim (minimal 1). Log: `%APPDATA%\LokanaDesktop\log.txt` (menu **Buka folder log**).
+`interval` = detik antar kirim (1–10), `metrics` = metrik yang tampil, berurutan (`cpu`, `ram`, `cpu_temp`, `gpu_temp`,
+`gpu`, `down`, `up`, `disk`, `battery`; diatur dari jendela pengaturan). Log: `%APPDATA%\LokanaDesktop\log.txt` (menu **Buka folder log**).
 Port dibuka tanpa DTR/RTS sehingga board tidak ter-reset.
 
 ## Dari kode
@@ -82,6 +102,8 @@ python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt -r requirements-build.txt
 .venv\Scripts\python lokana_desktop.py              :: tray
 .venv\Scripts\python lokana_desktop.py --no-tray    :: tanpa tray, metrik dicetak ke terminal
+.venv\Scripts\python lokana_desktop.py --settings   :: tray + langsung buka jendela pengaturan
+.venv\Scripts\python oled_preview.py --compare COM10 :: cek pratinjau = layar Lokana asli (harus 0 piksel beda)
 build.bat                                           :: dist\LokanaDesktop.exe (PyInstaller, satu file)
 ```
 
@@ -91,7 +113,10 @@ Kode protokol (frame, CRC, payload) dipakai ulang dari `protocol/tools/lokana_li
 |---|---|
 | `lokana_desktop.py` | Tray, pengaturan, mulai bersama Windows (`HKCU\...\Run`), pekerja kirim metrik |
 | `link_usb.py` | Cari Lokana (HELLO → DEVICE_INFO), sambung ulang, TIME_SYNC, PC_STATS |
-| `sensors.py` | psutil, nvidia-smi, LibreHardwareMonitor |
+| `sensors.py` | psutil, nvidia-smi, LibreHardwareMonitor; daftar metrik ber-ID + template |
+| `settings_window.py` | Jendela pengaturan (tkinter bawaan Python) |
+| `oled_preview.py` | Render modul Monitor 128×64 di PC, port dari `firmware/src/modules/monitor_module.cpp`. **Kalau tata letak Monitor di firmware berubah, ubah juga file ini** lalu jalankan `--compare` |
+| `oled_font.py` | Font piksel 5×7 Lokana (Adafruit GFX `glcdfont.c`, BSD), dibuat `tools/gen_oled_font.py` |
 | `build.bat` | PyInstaller → `dist\LokanaDesktop.exe` |
 
 Rencana berikutnya (v0.8): kirim lewat WiFi UDP (tanpa kabel data), mDNS untuk menemukan Lokana.
