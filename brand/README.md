@@ -29,7 +29,13 @@ tools/gen_icons.py      generator semua file di atas (Pillow)
 ios/AppIcon.appiconset/   AppIcon-1024.png (+ versi mode gelap) + Contents.json (format Xcode 14+, satu ukuran)
 store/play_store_512.png  ikon Google Play (512×512, persegi penuh; Play membulatkan sendiri)
 web/                      favicon.svg/32, apple-touch-icon (180), icon-192/512, icon-maskable-512 (PWA)
+print/qr-quickstart.png   QR ke https://taicicaks01.github.io/lokana/ (1640 px, koreksi Q) untuk kartu paket
+print/qr-quickstart.svg   QR yang sama (vektor, untuk Canva / cetak)
 ```
+
+**QR kartu paket**: menunjuk ke halaman quick start `https://taicicaks01.github.io/lokana/` (`docs/index.html`).
+URL ini tetap; isi halaman boleh berubah tanpa mencetak ulang kartu. Jangan ganti nama repo atau matikan GitHub Pages
+setelah kartu dicetak. Ukuran cetak minimal ±2 × 2 cm (QR versi 4).
 
 ## Cara pasang
 

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mulai dengan Lokana</title>
+<meta name="description" content="Panduan cepat Lokana: isi daya, pasang aplikasi, sambungkan, gerakan sentuh, dan pembaruan firmware.">
+<meta name="theme-color" content="#1A161E">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<style>
+  @font-face {
+    font-family: "Baloo 2";
+    src: url("assets/fonts/Baloo2-Variable.ttf") format("truetype");
+    font-weight: 400 800;
+    font-display: swap;
+  }
+  :root {
+    --bg: #FBF7FA; --surface: #FFFFFF; --surface2: #F3ECF1; --line: #E6DCE3;
+    --text: #1B1720; --muted: #5E5563; --pink: #F478AA; --pink-text: #C4386F; --on-pink: #1B1720;
+    --oled: #0B0B0E; --oled-ink: #9EE7FF; --ok: #2E9E6B; --warn: #B4630F;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1A161E; --surface: #241F29; --surface2: #2E2834; --line: #3A3340; --text: #F6F1F5;
+      --muted: #BDB2C0; --pink-text: #F79BC0; --ok: #5CCB97; --warn: #F0A85A;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1, h2, h3 { font-family: "Baloo 2", system-ui, sans-serif; line-height: 1.2; margin: 0 0 .4em; }
+  h1 { font-size: 2.1rem; }
+  h2 { font-size: 1.45rem; }
+  h3 { font-size: 1.1rem; }
+  a { color: var(--pink-text); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  header.hero { background: #1A161E; color: #F6F1F5; padding: 28px 0 24px; }
+  header.hero .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  header.hero .brand img { width: 48px; height: 48px; border-radius: 12px; }
+  header.hero .brand span { font-family: "Baloo 2", sans-serif; font-weight: 700; font-size: 1.35rem; }
+  header.hero p { color: #D9CFDC; margin: 0 0 16px; }
+  .oled {
+    background: var(--oled); border-radius: 16px; padding: 14px; border: 1px solid #2C2631;
+    box-shadow: 0 0 0 4px #24202A inset, 0 10px 30px rgba(0,0,0,.35);
+  }
+  .oled img { display: block; width: 100%; height: auto; image-rendering: pixelated; border-radius: 4px; }
+  .hero .oled { max-width: 420px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  nav.toc a {
+    display: inline-block; padding: 6px 12px; border-radius: 99px; text-decoration: none; font-size: .9rem;
+    background: rgba(244,120,170,.16); color: #F79BC0;
+  }
+  main section { padding: 28px 0 8px; border-bottom: 1px solid var(--line); }
+  main section:last-of-type { border-bottom: 0; }
+  .step { display: flex; gap: 14px; align-items: flex-start; }
+  .num {
+    flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--pink); color: var(--on-pink);
+    display: grid; place-items: center; font-weight: 800; font-family: "Baloo 2", sans-serif;
+  }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px 18px; margin: 12px 0; }
+  .note { background: var(--surface2); border-radius: 14px; padding: 12px 14px; font-size: .95rem; color: var(--muted); margin: 12px 0; }
+  .note strong { color: var(--text); }
+  .btn {
+    display: inline-block; background: var(--pink); color: var(--on-pink); text-decoration: none; font-weight: 700;
+    padding: 12px 20px; border-radius: 99px; margin: 6px 0;
+  }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .grid figure { margin: 0; }
+  .grid figcaption { font-size: .85rem; color: var(--muted); margin-top: 6px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: "Baloo 2", sans-serif; font-size: 1.05rem; white-space: nowrap; color: var(--pink-text); width: 6.5em; }
+  tr:last-child td, tr:last-child th { border-bottom: 0; }
+  ul { padding-left: 1.2em; margin: .4em 0; }
+  li { margin: .25em 0; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p, details ul { color: var(--muted); }
+  footer { padding: 28px 0 40px; color: var(--muted); font-size: .9rem; }
+  kbd { font-family: inherit; background: var(--surface2); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+  @media (max-width: 420px) { h1 { font-size: 1.8rem; } .grid { gap: 8px; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><img src="assets/icon-192.png" alt=""><span>Lokana</span></div>
+    <h1>Halo, aku Lokana!</h1>
+    <p>Teman kecil yang melihat untukmu. Lima menit lagi kita sudah berteman: isi daya, pasang aplikasi, lalu sambungkan.</p>
+    <div class="oled"><img src="img/splash.gif" alt="Animasi pembuka Lokana: tulisan लोचन berubah menjadi dua mata"></div>
+    <nav class="toc" aria-label="Isi">
+      <a href="#nyalakan">Nyalakan</a><a href="#aplikasi">Aplikasi</a><a href="#sambungkan">Sambungkan</a>
+      <a href="#sentuh">Gerakan sentuh</a><a href="#fitur">Fitur</a><a href="#update">Update</a><a href="#masalah">Masalah</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="nyalakan">
+    <div class="step"><div class="num">1</div><div>
+      <h2>Isi daya &amp; nyalakan</h2>
+      <ul>
+        <li><strong>Port USB-C bawah</strong> = mengisi baterai. Saat dicolok, Lokana menampilkan <em>charging</em>. Penuh dari kosong ±2 jam.</li>
+        <li><strong>Saklar di sisi kiri</strong> → geser ke <strong>ON</strong>. Lokana menyapa dengan animasi pembuka, lalu membuka mata.</li>
+        <li><strong>Port USB-C kanan</strong> untuk komputer (Monitor PC dan pembaruan lewat kabel).</li>
+      </ul>
+      <div class="note">Sekali isi penuh cukup untuk <strong>sekitar sehari</strong> pemakaian biasa (perkiraan dari pengukuran). Saat baterai lemah Lokana memberi tahu; kalau habis, Lokana tidur sendiri. Isi daya, lalu sentuh untuk membangunkan.</div>
+    </div></div>
+  </section>
+
+  <section id="aplikasi">
+    <div class="step"><div class="num">2</div><div>
+      <h2>Pasang Aplikasi Lokana</h2>
+      <p>Untuk HP <strong>Android</strong>. Unduh APK terbaru dari halaman rilis resmi:</p>
+      <a class="btn" href="https://github.com/Taicicaks01/lokana/releases/latest">Unduh Aplikasi Lokana</a>
+      <p>Pilih berkas <kbd>lokana-app-…-arm64-v8a.apk</kbd> (HP Android 64-bit, hampir semua HP sekarang). Untuk HP lama, pilih <kbd>armeabi-v7a</kbd>.</p>
+      <div class="note"><strong>Muncul peringatan saat memasang?</strong> Android menanyakan izin "pasang dari sumber ini": izinkan. Google Play Protect mungkin memperingatkan karena aplikasi belum ada di Play Store: pilih <strong>Detail lainnya → Tetap instal</strong>. Kode aplikasinya terbuka di GitHub.</div>
+      <div class="note"><strong>iPhone:</strong> aplikasi iPhone belum tersedia. Kabarnya akan diumumkan di halaman ini.</div>
+    </div></div>
+  </section>
+
+  <section id="sambungkan">
+    <div class="step"><div class="num">3</div><div>
+      <h2>Sambungkan lewat Bluetooth</h2>
+      <ol>
+        <li>Buka Aplikasi Lokana, izinkan <strong>Bluetooth</strong> dan <strong>notifikasi</strong>.</li>
+        <li>Dekatkan Lokana yang menyala ke HP, lalu ketuk <strong>Cari Lokana</strong> dan pilih Lokana-mu.</li>
+        <li>Lokana menampilkan <strong>kode 6 digit</strong>. Ketik kode itu di HP.</li>
+      </ol>
+      <div class="note">Kolom di HP mungkin bertuliskan <em>"biasanya 0000 atau 1234"</em>. Abaikan saja dan ketik <strong>6 digit dari layar Lokana</strong>.</div>
+      <p>Setelah tersambung, aplikasi menyambung lagi sendiri setiap kali Lokana dan HP berdekatan.</p>
+    </div></div>
+  </section>
+
+  <section id="sentuh">
+    <h2>Gerakan sentuh</h2>
+    <p>Lokana hanya punya satu tombol: <strong>titik sentuh di bagian atas</strong> (cekungan kecil di dekat gantungan). Sentuh dengan <strong>bantalan jari</strong> yang menempel rata, bukan ujung kuku.</p>
+    <div class="card">
+      <table>
+        <tr><th>Tap</th><td>Aksi di layar yang tampil (colek Lokana, lempar dadu, halaman berikutnya, …)</td></tr>
+        <tr><th>2× tap</th><td>Pindah ke layar berikutnya: wajah, jam, notifikasi, cari HP, dadu, teks, gambar</td></tr>
+        <tr><th>3× tap</th><td>Buka menu: kecerahan, suara, layar mati, putar layar, panduan, lupakan HP, info</td></tr>
+        <tr><th>Tahan</th><td>Matikan layar (atau ubah nilai saat di menu). Sentuh lagi untuk menyalakan</td></tr>
+      </table>
+    </div>
+    <div class="note">Panduan gerakan ini juga tampil di Lokana sendiri: <strong>3× tap → Panduan → Putar sekarang</strong>.</div>
+  </section>
+
+  <section id="fitur">
+    <h2>Yang bisa dilakukan Lokana</h2>
+    <div class="grid">
+      <figure><div class="oled"><img src="img/oled_wajah.png" alt="Wajah Lokana: dua mata"></div><figcaption>Wajah &amp; ekspresi</figcaption></figure>
+      <figure><div class="oled"><img src="img/oled_jam.png" alt="Layar jam 12:50 dengan tanggal"></div><figcaption>Jam (sinkron dari HP)</figcaption></figure>
+      <figure><div class="oled"><img src="img/oled_navigasi.png" alt="Navigasi: panah belok kanan, 180 m, Belok kanan, Jl. Udayana"></div><figcaption>Navigasi Google Maps</figcaption></figure>
+      <figure><div class="oled"><img src="img/oled_monitor.png" alt="Monitor PC: CPU, RAM, suhu CPU dan GPU dengan bar"></div><figcaption>Monitor PC</figcaption></figure>
+    </div>
+    <ul>
+      <li><strong>Notifikasi &amp; panggilan masuk</strong> dari aplikasi pilihanmu (atur di halaman Notifikasi).</li>
+      <li><strong>Navigasi Google Maps</strong>: panah belokan dan jarak; layar menyala sendiri saat mendekati belokan.</li>
+      <li><strong>Cari kunci</strong> (Lokana berbunyi) dan <strong>Cari HP</strong> (HP berbunyi dari Lokana).</li>
+      <li><strong>Pengingat ketinggalan</strong>: Lokana dan HP saling mengingatkan kalau salah satu tertinggal.</li>
+      <li><strong>Teks, gambar, emoji, ekspresi, dadu</strong> dari tab Studio di aplikasi.</li>
+      <li><strong>Monitor PC</strong> di meja: jalankan <a href="https://github.com/Taicicaks01/lokana/releases/latest">Lokana Desktop</a> di Windows dan colok ke port kanan (<a href="https://github.com/Taicicaks01/lokana/blob/main/desktop/README.md">panduan</a>).</li>
+    </ul>
+  </section>
+
+  <section id="update">
+    <h2>Perbarui Lokana OS</h2>
+    <p>Aplikasi Lokana → <strong>Pengaturan → Pembaruan firmware → Cek pembaruan → Pasang</strong>. Prosesnya ±2 menit lewat Bluetooth; biarkan aplikasi terbuka dan Lokana dekat HP.</p>
+    <div class="note">Aman: kalau versi baru gagal menyala, Lokana <strong>kembali sendiri</strong> ke versi sebelumnya. Semua pembaruan, beserta daftar perubahannya, ada di <a href="https://github.com/Taicicaks01/lokana/releases">halaman rilis</a>.</div>
+  </section>
+
+  <section id="masalah">
+    <h2>Kalau ada masalah</h2>
+    <details><summary>Lokana tidak ditemukan di aplikasi</summary>
+      <ul><li>Pastikan saklar ON dan layar Lokana menyala (sentuh sekali).</li>
+      <li>Nyalakan Bluetooth dan izin lokasi/perangkat sekitar untuk Aplikasi Lokana.</li>
+      <li>Dekatkan Lokana ke HP, lalu ketuk Cari Lokana lagi.</li></ul></details>
+    <details><summary>Pairing gagal atau minta kode terus</summary>
+      <ul><li>Di Lokana: <strong>3× tap → Lupakan HP</strong>.</li>
+      <li>Di HP: Pengaturan Bluetooth → Lokana → <strong>Lupakan</strong>.</li>
+      <li>Sambungkan ulang dari aplikasi dan ketik 6 digit dari layar Lokana.</li></ul></details>
+    <details><summary>Notifikasi tidak muncul di Lokana</summary>
+      <ul><li>Aplikasi Lokana → Terhubung → Notifikasi: izinkan <strong>akses notifikasi</strong> dan pilih aplikasinya.</li>
+      <li>Atur baterai Aplikasi Lokana ke <strong>Tidak dibatasi</strong> supaya tetap berjalan di latar belakang.</li></ul></details>
+    <details><summary>Layar mati / Lokana tidak merespons</summary>
+      <ul><li>Layar mati sendiri untuk menghemat baterai: sentuh sekali untuk menyalakan.</li>
+      <li>Tidak bereaksi sama sekali: isi daya lewat port bawah beberapa menit, lalu geser saklar OFF lalu ON.</li></ul></details>
+    <p>Masih bingung? Buka <a href="https://github.com/Taicicaks01/lokana/issues">GitHub Issues</a> atau baca <a href="https://github.com/Taicicaks01/lokana">dokumentasi lengkap</a>.</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Lokana</strong> ("melihat untukmu") adalah proyek terbuka: kode firmware &amp; aplikasi berlisensi MIT, desain hardware CERN-OHL. Nama dan logo Lokana adalah merek dan tidak ikut lisensi.</p>
+    <p><a href="https://github.com/Taicicaks01/lokana">Kode sumber</a> · <a href="https://github.com/Taicicaks01/lokana/releases">Rilis &amp; unduhan</a> · <a href="https://github.com/Taicicaks01/lokana/blob/main/CHANGELOG.md">Catatan perubahan</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

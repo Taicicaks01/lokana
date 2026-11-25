@@ -7,6 +7,12 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 
 ## [Belum dirilis]
 
+### Quick start untuk pembeli
+- Halaman **GitHub Pages** `https://taicicaks01.github.io/lokana/` (`docs/index.html`): isi daya & nyalakan, pasang
+  aplikasi, sambungkan (kode 6 digit), gerakan sentuh, fitur dengan screenshot layar asli, pembaruan firmware,
+  masalah umum, tautan ke Releases. Ramah HP, mode gelap, tanpa skrip.
+- QR untuk kartu paket: `brand/print/qr-quickstart.png` / `.svg`.
+
 ## [0.7.0] - 2026-11-25
 
 **Monitor PC (Mode Meja)**: Lokana menampilkan CPU, RAM, suhu, jaringan, disk, dan baterai laptop lewat USB, dikirim

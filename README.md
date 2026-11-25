@@ -19,6 +19,8 @@ lalu memberi kabar lewat sepasang matanya.
 
 *Splash boot: लोचन (locana, "mata") turun dari garis atas yang lalu menjadi mata Lokana.*
 
+**Baru punya Lokana? Mulai di sini: [taicicaks01.github.io/lokana](https://taicicaks01.github.io/lokana/)**
+
 [Fitur](#3-fitur) · [Arsitektur](#4-arsitektur-sistem) · [Mulai cepat](#7-mulai-cepat-untuk-developer) ·
 [Roadmap](#9-roadmap) · [Kontribusi](#12-kontribusi)
 
@@ -186,7 +188,7 @@ Keterangan status: ✅ sudah jalan · 🔨 sedang/berikutnya · 📋 direncanaka
 | **Aplikasi Lokana** | Flutter (UI) + Kotlin (*NotificationListener*, *foreground service*) | Pusat kendali, pengaturan, notifikasi, navigasi, OTA |
 | **Lokana Desktop** | Aplikasi PC (Windows dulu) | Mengirim data sensor PC lewat USB atau WiFi |
 | **Lokana Link** | Protokol biner sederhana | Satu format pesan untuk BLE, USB, dan WiFi |
-| **Quick start** | GitHub Pages (`docs/`) + kartu Canva ber-QR di kemasan | Panduan pembeli |
+| **Quick start** | GitHub Pages (`docs/index.html` → [taicicaks01.github.io/lokana](https://taicicaks01.github.io/lokana/)) + kartu Canva ber-QR di kemasan (`brand/print/qr-quickstart.*`) | Panduan pembeli |
 
 Satu aplikasi dipakai untuk **semua gadget Lokana** di masa depan. Aplikasi mengenali
 jenis alat dari paket `DEVICE_INFO`.

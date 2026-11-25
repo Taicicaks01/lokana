@@ -34,7 +34,10 @@ Jangan diubah tanpa persetujuan pemilik proyek (Wayan):
 - HP ↔ Lokana lewat **BLE**. PC ↔ Lokana lewat **USB serial dulu**, WiFi UDP menyusul. BLE tidak dipakai untuk data PC.
 - **Tidak ada web portal maupun web flasher** di perangkat. Konfigurasi hanya lewat aplikasi (termasuk WiFi lewat BLE).
 - Pembaruan firmware punya **tiga jalur**: Mode Update, build dari kode, OTA lewat aplikasi. Semua bersumber dari **GitHub Releases**.
-- Quick start: **GitHub Pages** (`docs/`) + kartu Canva ber-QR di kemasan.
+- Quick start: **GitHub Pages** (`docs/`) + kartu Canva ber-QR di kemasan. **URL tetap untuk QR:
+  `https://taicicaks01.github.io/lokana/`** (`docs/index.html`, Pages dari `main` `/docs`, `.nojekyll`). QR siap cetak:
+  `brand/print/qr-quickstart.png`/`.svg` (koreksi Q, diverifikasi terbaca). Jangan ganti nama repo setelah kartu dicetak.
+  Screenshot OLED di `docs/img/oled_*.png` diambil dari unit 1 (`lokana_link.py screen`), label DEV dihapus.
 - Hardware tambahan (IR, MPU6050, sensor suhu, speaker) **ditunda**.
 - Urutan kerja: **protokol → firmware → skrip uji PC → aplikasi Android → Lokana Desktop**.
 
