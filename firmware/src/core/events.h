@@ -24,6 +24,7 @@ enum EventType : uint8_t {
                    // -100 firmware baru gagal boot dan sudah kembali ke versi lama
   EV_NAV,          // navigasi (navstore): 1 mulai, 2 belokan baru, 3 < 300 m ke belokan, 0 selesai (text = pesan)
   EV_STATS,        // monitor PC (statsstore): 1 data mulai masuk, 0 berhenti (10 dtk tanpa data)
+  EV_AUDIO,        // visualizer audio PC (audiostore): 1 mulai, 0 berhenti (1,5 dtk tanpa pesan)
 };
 
 struct Event {

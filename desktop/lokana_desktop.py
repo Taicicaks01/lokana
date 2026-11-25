@@ -3,6 +3,7 @@
 Ikon di system tray. Mencari Lokana di port USB, menyinkronkan jam, lalu mengirim metrik PC
 (CPU, RAM, suhu, jaringan, disk, baterai laptop) tiap 2 detik sebagai PC_STATS.
 Menu tray "Pengaturan..." (atau klik ganda ikon) membuka jendela pratinjau OLED + pilihan metrik (v0.8).
+Visualizer audio (v0.8): suara yang diputar PC (WASAPI loopback) dikirim sebagai AUDIO_BANDS ±25 fps selama ada suara.
 
   python lokana_desktop.py               # tray
   python lokana_desktop.py --no-tray     # tanpa tray, cetak metrik ke terminal (uji)
@@ -10,7 +11,8 @@ Menu tray "Pengaturan..." (atau klik ganda ikon) membuka jendela pratinjau OLED 
 
 Pengaturan: %APPDATA%\\LokanaDesktop\\config.json
             {"port": null, "exclude": ["COM7"], "interval": 2, "metrics": ["cpu", "ram", ...],
-             "labels": {"cpu": "Prosesor"}, "decimals": {"down": 2}, "pairs": ["cpu"], "decimal_sep": ","}  (layout.py)
+             "labels": {"cpu": "Prosesor"}, "decimals": {"down": 2}, "pairs": ["cpu"], "decimal_sep": ",",  (layout.py)
+             "audio": {"enabled": true, "bands": 32, "style": 0}}                                       (visualizer)
 Log:        %APPDATA%\\LokanaDesktop\\log.txt
 """
 import argparse
@@ -50,7 +52,8 @@ def log(msg):
 def load_cfg():
     from sensors import IDS
     cfg = {"port": None, "exclude": [], "interval": 2, "metrics": list(IDS),
-           "labels": {}, "decimals": {}, "pairs": [], "decimal_sep": ","}       # 0.8: lihat layout.py
+           "labels": {}, "decimals": {}, "pairs": [], "decimal_sep": ",",       # 0.8: lihat layout.py
+           "audio": {"enabled": True, "bands": 32, "style": 0}}
     try:
         with open(CFG_FILE, encoding="utf-8") as f:
             cfg.update(json.load(f))
@@ -127,6 +130,8 @@ class Worker(threading.Thread):
         self.last = []            # PC_STATS terakhir yang dikirim / akan dikirim
         self.layout = ([], [], [], [])   # (ids, metrics, texts, rows) dari layout.build()
         self.legacy = False       # Lokana tersambung tapi belum 0.8 (tanpa STATS_LAYOUT): pratinjau gaya lama
+        self.link_ok = False      # Lokana terkonfirmasi (bukan port lain yang sedang dicoba saat mencari)
+        self.audio = None         # AudioWorker (visualizer), diisi pemanggil
 
     def _set(self, status):
         if status != self.status:
@@ -134,6 +139,7 @@ class Worker(threading.Thread):
             self.on_change()
 
     def _connect(self):
+        self.link_ok = False
         self._set("Mencari Lokana...")
         try:
             found = self.usb.connect()
@@ -151,6 +157,7 @@ class Worker(threading.Thread):
         if self.legacy:
             log("Lokana OS di perangkat ini belum 0.8: label sendiri & dua metrik per baris belum tampil")
         self._set(f"Tersambung: {self.usb.info.get('device_name')} ({self.usb.port})")
+        self.link_ok = True
         return True
 
     def run(self):
@@ -179,6 +186,7 @@ class Worker(threading.Thread):
                         self.usb.send_stats(metrics, texts, rows)
                 except Exception as e:                       # kabel dicabut, Lokana restart
                     log(f"koneksi putus: {e.__class__.__name__}")
+                    self.link_ok = False
                     self.usb.close()
                     next_try = 0.0
                     continue
@@ -187,7 +195,90 @@ class Worker(threading.Thread):
             interval = max(1.0, float(self.cfg.get("interval", 2)))
             self.kick.wait(interval)
             self.kick.clear()
+        self.link_ok = False
         self.usb.close()
+
+
+class AudioWorker(threading.Thread):
+    """Visualizer (v0.8): tangkap suara PC (WASAPI loopback), kirim AUDIO_BANDS ±25 fps selama ada suara.
+    Hening HANG_S dtk -> berhenti mengirim; Lokana kembali ke modul sebelumnya 1,5 dtk kemudian.
+    Saat hening hanya level suara yang dihitung (tanpa FFT), jadi hampir tanpa beban CPU."""
+    FPS = 25
+    HANG_S = 10
+
+    def __init__(self, worker, cfg):
+        super().__init__(daemon=True)
+        self.worker, self.cfg = worker, cfg
+        self.bands = []           # pita terakhir (pratinjau di jendela pengaturan); kosong = tidak aktif
+        self.sending = False      # sedang dikirim ke Lokana
+        self.status = "Mati"
+
+    def _opts(self):
+        a = self.cfg.get("audio") or {}
+        nb = a.get("bands", 32)
+        return bool(a.get("enabled", True)), nb if nb in (16, 32) else 32, 1 if a.get("style") == 1 else 0
+
+    def run(self):
+        from audio_capture import LoopbackCapture
+        from spectrum import Spectrum
+        cap = sp = None
+        retry_at = last_sound = 0.0
+        prev = time.monotonic()
+        while not self.worker.stop_ev.is_set():
+            t0 = time.monotonic()
+            enabled, nb, style = self._opts()
+            if not enabled:
+                if cap:
+                    cap.close()
+                    cap = None
+                self.bands, self.sending, self.status = [], False, "Mati"
+                time.sleep(0.5)
+                continue
+            if cap is None:
+                if t0 < retry_at:
+                    time.sleep(0.5)
+                    continue
+                try:
+                    cap = LoopbackCapture()
+                    cap.open()
+                    sp = Spectrum(nb, cap.rate)
+                    log(f"visualizer: menangkap suara ({cap.rate} Hz, {cap.channels} kanal)")
+                except Exception as e:
+                    log(f"visualizer: tidak bisa menangkap suara ({e})")
+                    self.status = "Tidak bisa menangkap suara PC"
+                    cap = None
+                    retry_at = t0 + 10
+                    continue
+            try:
+                if cap.default_changed():
+                    raise OSError("perangkat output bawaan berganti")
+                samples = cap.read()
+            except OSError as e:
+                log(f"visualizer: buka ulang ({e})")
+                cap.close()
+                cap = None
+                continue
+            sp.set_bands(nb)
+            sp.push(samples)
+            now = time.monotonic()
+            dt, prev = now - prev, now
+            if samples and not sp.silent:
+                last_sound = now
+            if now - last_sound < self.HANG_S:
+                self.bands = sp.compute(dt) if samples else sp.decay()
+                ok = self.worker.link_ok and not self.worker.paused and self.worker.usb.supports_audio()
+                if ok:
+                    try:
+                        self.worker.usb.send_audio(self.bands, style)
+                    except Exception:
+                        ok = False            # sambung ulang diurus pekerja sensor
+                self.sending = ok
+                self.status = "Ada suara: dikirim ke Lokana" if ok else "Ada suara"
+            else:
+                self.bands, self.sending, self.status = [], False, "Hening"
+            time.sleep(max(0.0, 1.0 / self.FPS - (time.monotonic() - t0)))
+        if cap:
+            cap.close()
 
 
 # ---------------- Tray + jendela pengaturan ----------------
@@ -216,6 +307,7 @@ def run_tray(cfg, port, open_settings=False):
             icon.update_menu()
 
     worker = Worker(cfg, port, on_change=refresh)
+    worker.audio = AudioWorker(worker, cfg)
 
     def toggle_pause(_i, _item):
         worker.paused = not worker.paused
@@ -252,6 +344,7 @@ def run_tray(cfg, port, open_settings=False):
         root.after(150, poll)
 
     worker.start()
+    worker.audio.start()
     icon.run_detached()
     if open_settings:
         q.put("settings")
@@ -270,7 +363,9 @@ def main():
     log(f"Lokana Desktop {VERSION} mulai")
     if a.no_tray:
         w = Worker(cfg, a.port, verbose=True)
+        w.audio = AudioWorker(w, cfg)
         w.start()
+        w.audio.start()
         try:
             end = time.time() + a.seconds if a.seconds else None
             while w.is_alive() and (end is None or time.time() < end):

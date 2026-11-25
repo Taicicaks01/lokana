@@ -154,6 +154,7 @@ Arah: **H→D** host ke device, **D→H** device ke host.
 | `0x13` | `MEETING` | H→D | Status rapat (mikrofon/kamera) | v0.7 |
 | `0x14` | `PHONE_STATS` | H→D | Daftar metrik HP | v0.7 |
 | `0x15` | `CALL` | H→D | Panggilan masuk / selesai | v0.5 |
+| `0x16` | `AUDIO_BANDS` | H→D | Pita frekuensi audio PC untuk visualizer | v0.8 |
 | **Aksi** | | | | |
 | `0x20` | `FIND_KEYS` | dua arah | Bunyikan Lokana / hentikan; device melapor saat mulai/berhenti | v0.3 · v0.5 |
 | `0x21` | `FIND_PHONE` | dua arah | Minta HP berbunyi / hentikan | v0.4 |
@@ -223,7 +224,8 @@ Host memperlakukannya sama dengan balasan `HELLO`.
 
 Bit `caps`: 0 `NOTIF` · 1 `NAV` · 2 `PC_STATS` · 3 `PHONE_STATS` · 4 `CUSTOM_TEXT` ·
 5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE` · 12 `ANIM` · 13 `SCREEN` ·
-14 `TEXT_SLOT` · 15 `STATS_LAYOUT` (`PC_STATS` dengan teks nilai & dua metrik per baris, 0.8).
+14 `TEXT_SLOT` · 15 `STATS_LAYOUT` (`PC_STATS` dengan teks nilai & dua metrik per baris, 0.8) ·
+16 `AUDIO_VIS` (`AUDIO_BANDS`, 0.8).
 Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 
 ### `0x03` SETTINGS (dua arah)
@@ -443,6 +445,28 @@ Aturan tambahan (firmware 0.8, bit `caps` 15 `STATS_LAYOUT`):
 | Field | Tipe | Keterangan |
 |---|---|---|
 | `on` | u8 | `0` selesai, `1` sedang rapat |
+
+### `0x16` AUDIO_BANDS (H→D)
+
+Visualizer audio (Mode Meja, firmware 0.8). Host menangkap suara yang diputar komputer, mengolahnya jadi pita
+frekuensi (rendah di kiri, tinggi di kanan), dan mengirim ±25 kali per detik **tanpa ACK** (`seq = 0`).
+
+| Field | Tipe | Keterangan |
+|---|---|---|
+| `count` | u8 | Jumlah pita, 8–32 |
+| `bands` | u8 × `count` | Tinggi tiap pita, `0`–`255` (host sudah menghaluskan & menguatkan) |
+| `style` | u8 | *Opsional*. `0` Batang (dari bawah, titik puncak), `1` Cermin (dari garis tengah ke atas & bawah) |
+
+Aturan (firmware 0.8, bit `caps` 16 `AUDIO_VIS`):
+- `count` < 8 atau > 32, atau payload terpotong = `BAD_PAYLOAD`. `style` lain dari 0–1 = `0`.
+- Pesan pertama setelah tidak aktif membuka modul `"Visualizer"` dan menyalakan layar (kecuali layar sistem seperti
+  pairing/panggilan sedang tampil); pesan berikutnya tidak membuat event, jadi pengguna boleh pindah modul dengan
+  2× tap tanpa dipaksa kembali. Selama pesan masuk layar tetap menyala.
+- **1,5 detik** tanpa pesan = selesai: modul Visualizer kembali ke modul sebelumnya (biasanya Monitor). Host berhenti
+  mengirim sendiri setelah suara hening (Lokana Desktop: ±10 detik). `GOTO "Visualizer"` hanya berhasil selama aktif.
+- `style` diterapkan saat visualizer mulai dan setiap kali nilainya berbeda dari `style` terakhir yang dikirim host.
+  Tap di device mengganti gaya sampai host mengirim `style` yang berbeda.
+- Tinggi pita digambar proporsional (`band × tinggi layar / 255`); lebar batang = `lebar layar / count` − 1 px.
 | `mic` | u8 | `0` mati, `1` nyala, `255` tidak diketahui |
 | `cam` | u8 | `0` mati, `1` nyala, `255` tidak diketahui |
 
@@ -772,6 +796,7 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-25 | Untuk firmware 0.8 (tambahan, format lama tetap): pesan baru `0x16 AUDIO_BANDS` (visualizer audio PC, bit `caps` 16 `AUDIO_VIS`), modul `"Visualizer"` |
 | v1 | 2026-11-25 | Untuk firmware 0.8 (tambahan, format lama tetap): `PC_STATS` field akhir opsional `texts` & `rows` (dua metrik per baris), label maks 10, simbol derajat `°` di `PC_STATS`; bit `caps` 15 `STATS_LAYOUT` |
 | v1 | 2026-11-25 | Untuk firmware 0.7 (format lama tetap): `PC_STATS` diaktifkan (bit `caps` 2), aturan tampilan & batas, `GOTO "Monitor"` |
 | v1 | 2026-11-24 | Untuk firmware 0.6 (tambahan, format lama tetap): `NAV` diaktifkan (bit `caps` 1), format bitmap ikon, field akhir opsional `eta_text`, aturan layar & kedaluwarsa, `GOTO "Navigasi"` hanya saat aktif |

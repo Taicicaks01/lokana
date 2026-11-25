@@ -9,6 +9,7 @@ const char* typeName(uint8_t t) {
     case T_OTA: return "OTA";                 case T_ACK: return "ACK";
     case T_NOTIF: return "NOTIF";             case T_NAV: return "NAV";
     case T_PC_STATS: return "PC_STATS";       case T_MEETING: return "MEETING";
+    case T_AUDIO_BANDS: return "AUDIO_BANDS";
     case T_PHONE_STATS: return "PHONE_STATS"; case T_CALL: return "CALL";
     case T_FIND_KEYS: return "FIND_KEYS";     case T_FIND_PHONE: return "FIND_PHONE";
     case T_EXPRESSION: return "EXPRESSION";   case T_DICE: return "DICE";

@@ -25,6 +25,18 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
   (koma bawaan) di jendela pengaturan; `layout.py` dipakai bersama pengirim & pratinjau. Ke Lokana 0.7 tetap
   tampilan lama, dengan catatan di jendela. `oled_preview.py --compare`: 6/6 sama persis di unit 1.
 
+### Visualizer audio PC (v0.8, langkah 3)
+- Pesan baru `0x16 AUDIO_BANDS` (bit `caps` 16 `AUDIO_VIS`): 8–32 pita 0–255 ±25 fps tanpa ACK, `style` opsional.
+- Firmware: modul **Visualizer** (gaya Batang dengan titik puncak / Cermin, tap = ganti gaya), membuka sendiri saat
+  suara mulai dan kembali 1,5 dtk setelah pesan berhenti; console `viz` (demo tanpa PC).
+- Lokana Desktop: suara PC ditangkap lewat WASAPI loopback (ctypes) dan diolah jadi pita log 50 Hz–12 kHz dengan
+  FFT Python murni (`audio_capture.py`, `spectrum.py`), **tanpa dependensi baru**; berhenti mengirim setelah 10 dtk
+  hening. Kotak **Visualizer audio** di jendela pengaturan + pratinjau bergerak. 24,9 fps, ±9% satu core CPU.
+- `lokana_link.py audio` (demo) + `test_v08_audio` (16 uji); `oled_preview.py --compare` 9/9 sama persis.
+- Perbaikan: modul yang menutup sendiri (Monitor, Visualizer, Navigasi) bisa kembali ke modul yang sudah tidak aktif
+  (layar kosong). `core::back()` sekarang memakai riwayat dan melewati modul yang tidak tersedia
+  (Jam → Monitor → Visualizer → Monitor → kembali ke Jam).
+
 ### Quick start untuk pembeli
 - Halaman **GitHub Pages** `https://taicicaks01.github.io/lokana/` (`docs/index.html`): isi daya & nyalakan, pasang
   aplikasi, sambungkan (kode 6 digit), gerakan sentuh, fitur dengan screenshot layar asli, pembaruan firmware,

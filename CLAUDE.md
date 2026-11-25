@@ -176,6 +176,7 @@ Semua pin dan ukuran layar diatur di `firmware/include/config.h` dan bisa ditimp
 | OTA: data acak ditolak di CHUNK pertama, bukan di END | `esp_ota_write` memeriksa byte `0xE9` di tulisan pertama | Sudah dipetakan ke ABORT alasan 6; data uji harus diawali `0xE9` untuk menguji pemeriksaan di END |
 | Layar sistem (Tertinggal) langsung tertutup, kadang-kadang | `uint32_t t = now - _since` di `update(now)`: `enter()` memakai `millis()` yang bisa 1 ms lebih baru dari `now` loop → meluap → `t >= SHOW_MS`. Makin sering di CPU 80 MHz | Selalu `int32_t t = (int32_t)(now - x)` dan anggap negatif = 0 (diperbaiki 0.7 di `left_module`, `notif_module`, `guide_module` `elapsed()`, `splash_module` `elapsed()`, `clock.cpp`). Gejala uji: "Panduan tampil" / "layar Tertinggal tampil" gagal acak |
 | Pengaturan / GOTO / toast dari HP hilang saat layar Lokana mati | Jalur layar-mati di `core::loop` dulu hanya meneruskan event ke modul lalu `return` | Sejak 0.7: event membangunkan layar lalu diproses jalur biasa (`events::pending()`); uji regresi di `test_v07` |
+| Monitor/Visualizer selesai lalu layar kosong; tap berikutnya jatuh ke modul lain (mis. Jam pindah ke mode detik) | `core::back()` dulu hanya mengingat satu modul sebelumnya, tanpa cek `available()`: Monitor → Visualizer → Monitor → back() = Visualizer yang sudah tidak aktif | Sejak 0.8 riwayat 6 modul (`histPush`), back() melewati modul tersembunyi/tidak tersedia; uji regresi di `test_v08_audio` |
 | Uji widget Flutter: frame dari EventChannel tiruan tidak sampai | *Fake async* `testWidgets` | Bungkus penantian dengan `tester.runAsync`, atau uji logika link dengan `test()` biasa |
 | OTA lewat BLE 8 menit (±2,4 KB/s) | Kotlin menulis dengan *write with response* + interval koneksi bawaan | Sejak 0.5.6: `WRITE_TYPE_NO_RESPONSE` (karakteristik RX punya `WRITE_NR`) + `requestConnectionPriority(HIGH)` selama OTA → ±90 dtk |
 | Aplikasi bilang OTA "gagal menyala" padahal firmware baru sehat | `link.info` tidak dikosongkan saat putus; halaman Update membaca versi lama begitu tersambung lagi | Sejak 0.5.6 tunggu `link.infoCount` naik (DEVICE_INFO baru) sesudah putus. END ulang dibalas OK oleh firmware |
@@ -426,10 +427,16 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      `decimal_sep` (koma bawaan), kolom Label/Format/⤵ gabung, pratinjau gaya lama + catatan bila Lokana < 0.8
      (`worker.legacy`). Jebakan tkinter: Tcl tidak memanggil trace lagi dari dalam trace (`var.set` di callback).
      `test_v08` 11/11, `--compare` 6/6.
-  3. **Visualizer audio PC**: tangkap audio WASAPI loopback (Windows) di Desktop → kirim pita frekuensi ringkas
-     (mis. 16–32 batang, 0–255) ±20–30 fps lewat USB; modul baru di firmware, otomatis kembali ke monitor ±10 dtk
-     setelah suara berhenti. Cek dulu batas bandwidth USB-CDC & beban CPU; boleh pakai pustaka loopback ringan
-     (minta OK Wayan sebelum menambah dependensi).
+  3. ✅ **Visualizer audio PC** (2026-11-25): `0x16 AUDIO_BANDS` (8–32 pita, `style` opsional, tanpa ACK; caps 16
+     `AUDIO_VIS`). Firmware `services/audio_store` (1,5 dtk tanpa pesan = selesai, demo console `viz`) +
+     `modules/viz_module` (Batang + titik puncak / Cermin, tap = gaya; style host berlaku saat mulai/berubah).
+     Desktop: `audio_capture.py` = WASAPI loopback lewat ctypes (COM vtable: IMMDeviceEnumerator 4 GetDefault,
+     IMMDevice 3 Activate/5 GetId, IAudioClient 3 Initialize/8 GetMixFormat/10 Start/14 GetService,
+     IAudioCaptureClient 3 GetBuffer/4 Release/5 NextPacketSize), `spectrum.py` FFT 1024 Python murni setelah
+     turun ke 24 kHz, pita log 50 Hz–12 kHz, +3 dB/oktaf, referensi otomatis. `AudioWorker` 25 fps, berhenti 10 dtk
+     hening; `LokanaUsb.lock` (dua thread satu port); kirim hanya saat `worker.link_ok` (jangan ke port yang sedang
+     dicoba saat mencari). **Tanpa dependensi baru.** Batas sebenarnya OLED (I2C ±25 ms/frame), bukan USB (±1,1 KB/dtk).
+     Diukur di laptop Wayan: 24,9 fps, ±9% satu core. `test_v08_audio` 16/16, `--compare` 9/9, 230/230 uji USB.
   4. **Gaya jam animasi orisinal bertema Lokana** (mis. mata Lokana mengejar/menjemput angka, kubus menumpuk jadi
      angka, angka "berkedip" seperti mata). **Jangan** karakter/aset game atau merek dagang (Mario, Pac-Man, dll.)
      karena Lokana dijual. Pilihan gaya dari aplikasi & Desktop; jam biasa tetap bawaan.

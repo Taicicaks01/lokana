@@ -29,6 +29,7 @@
 #include "modules/update_module.h"
 #include "modules/nav_module.h"
 #include "modules/monitor_module.h"
+#include "modules/viz_module.h"
 #include "services/ota.h"
 
 // Daftar modul. Modul pertama = layar utama.
@@ -49,6 +50,7 @@ static GuideModule guideModule;                         // panduan cara pakai (t
 static LeftModule leftModule;                           // pengingat HP tertinggal (tersembunyi)
 static NavModule navModule;                             // navigasi (hanya ikut giliran saat aktif)
 static MonitorModule monitorModule;                     // monitor PC (hanya ikut giliran saat data masuk)
+static VizModule vizModule;                             // visualizer audio PC (hanya saat suara masuk)
 static UpdateModule updateModule;                       // layar pembaruan firmware (tersembunyi)
 
 static const char* resetReason() {
@@ -107,6 +109,7 @@ void setup() {
   core::addModule(&faceModule);
   core::addModule(&navModule);       // tepat setelah wajah: double-tap pertama saat navigasi
   core::addModule(&monitorModule);   // Mode Meja: data dari Lokana Desktop
+  core::addModule(&vizModule);       // Mode Meja: visualizer audio PC
   core::addModule(&clockModule);
   core::addModule(&notifModule);
   core::addModule(&phoneModule);

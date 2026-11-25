@@ -134,6 +134,19 @@ Data dari pesan `PC_STATS` (dikirim Lokana Desktop tiap ±2 dtk) disimpan di `se
   derajat font classic, hanya di `PC_STATS`. Halaman dihitung per baris.
 - Uji tanpa Desktop: `python lokana_link.py pcstats --seconds 20` (metrik contoh).
 
+## Modul Visualizer audio (v0.8, Mode Meja)
+
+Data dari pesan `AUDIO_BANDS` (dikirim Lokana Desktop ±25 fps selama PC memutar suara) disimpan di
+`services/audio_store`. Modul `Visualizer` (`modules/viz_module`) hanya ikut giliran double-tap selama pesan masuk,
+setelah Monitor.
+
+- Pesan pertama membuka Visualizer dan menyalakan layar; layar tetap menyala selama aktif. **1,5 dtk** tanpa pesan →
+  kembali ke modul sebelumnya (biasanya Monitor). Pindah modul dengan 2× tap tidak dipaksa kembali.
+- Gaya **Batang** (dari bawah, titik puncak ditahan 300 ms lalu turun ±1,2 dtk) dan **Cermin** (dari garis tengah).
+  **Tap** = ganti gaya; host bisa mengatur gaya lewat field `style` (berlaku saat mulai/berubah).
+- 8–32 pita; lebar batang = `SCREEN_W / count` − 1 px, dipusatkan.
+- Uji tanpa PC: console `viz [dtk] [cermin]`, atau `python lokana_link.py audio --seconds 15 [--style 1]`.
+
 ## Modul Navigasi (v0.6)
 
 Data dari pesan `NAV` disimpan di `services/nav_store` (bukan event, supaya pembaruan jarak tidak menyalakan layar).

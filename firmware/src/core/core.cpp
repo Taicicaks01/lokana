@@ -9,7 +9,21 @@
 
 static const uint8_t MAX_MODULES = 16;
 static Module* mods[MAX_MODULES];
-static uint8_t count = 0, active = 0, prevActive = 0;
+static uint8_t count = 0, active = 0;
+// Riwayat modul biasa (terbaru di depan) untuk back(): Jam -> Monitor -> Visualizer -> (hening) Monitor -> (PC berhenti)
+// harus kembali ke Jam, bukan ke Visualizer yang sudah tidak aktif. 0.8: dulu hanya satu modul sebelumnya.
+static const uint8_t HIST = 6;
+static uint8_t hist[HIST] = {0};
+static uint8_t histN = 0;
+
+static void histPush(uint8_t i) {
+  uint8_t k = 0;
+  while (k < histN && hist[k] != i) k++;          // sudah ada: pindah ke depan
+  if (k == histN && histN < HIST) histN++;
+  if (k >= HIST) k = HIST - 1;
+  for (; k > 0; k--) hist[k] = hist[k - 1];
+  hist[0] = i;
+}
 
 static bool menuOpen = false, infoOpen = false, screenIsOn = true;
 static uint8_t menuIdx = 0;
@@ -206,7 +220,7 @@ static void drawTab(Adafruit_GFX& g) {
 static void switchTo(uint8_t i, bool announce) {
   if (i >= count) return;
   if (i != active) {
-    if (!mods[active]->hidden()) prevActive = active;
+    if (!mods[active]->hidden()) histPush(active);
     mods[active]->exit(); active = i; mods[active]->enter();
     tabUntil = millis();                          // label modul sebelumnya tidak ikut ke modul baru
   }
@@ -250,7 +264,14 @@ void next() {
   buzzer::play(MEL_MENU);
 }
 
-void back() { switchTo(prevActive < count ? prevActive : 0, false); }
+void back() {
+  // Modul terakhir yang masih tersedia dan bukan modul ini; kalau tidak ada, wajah (modul pertama)
+  for (uint8_t k = 0; k < histN; k++) {
+    const uint8_t i = hist[k];
+    if (i < count && i != active && !mods[i]->hidden() && mods[i]->available()) { switchTo(i, false); return; }
+  }
+  switchTo(0, false);
+}
 
 void openMenu() { menuOpen = true; infoOpen = guideOpen = false; menuIdx = 0; menuLast = millis(); buzzer::play(MEL_SELECT); }
 

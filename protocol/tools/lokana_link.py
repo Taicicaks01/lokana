@@ -30,7 +30,8 @@ Contoh:
   python lokana_link.py screen                   # layar Lokana langsung di terminal (Ctrl+C keluar)
   python lokana_link.py screen --shot layar.png  # screenshot (butuh Pillow)
   python lokana_link.py press double             # gestur jarak jauh: tap double triple tahan
-  python lokana_link.py test                     # uji otomatis semua pesan v0.3 - v0.5
+  python lokana_link.py test                     # uji otomatis semua pesan v0.3 - v0.8
+  python lokana_link.py audio --seconds 15       # demo visualizer audio (--style 1 = Cermin)
   python lokana_link.py monitor                  # tampilkan log & frame dari device
 
 Port dipilih otomatis (USB VID 303A = ESP32-C3). Pakai --port COM9 kalau ada beberapa.
@@ -49,7 +50,7 @@ except ImportError:  # selftest tetap bisa jalan tanpa pyserial
 
 # ---------------- Konstanta protokol ----------------
 T = dict(HELLO=0x00, TIME_SYNC=0x01, DEVICE_INFO=0x02, SETTINGS=0x03, OTA=0x04, ACK=0x05, UNPAIR=0x06,
-         NOTIF=0x10, NAV=0x11, PC_STATS=0x12, MEETING=0x13, PHONE_STATS=0x14, CALL=0x15,
+         NOTIF=0x10, NAV=0x11, PC_STATS=0x12, MEETING=0x13, PHONE_STATS=0x14, CALL=0x15, AUDIO_BANDS=0x16,
          FIND_KEYS=0x20, FIND_PHONE=0x21, EXPRESSION=0x22, DICE=0x23, GOTO=0x24, BUTTON=0x25,
          CUSTOM_TEXT=0x30, BITMAP=0x31, ANIM=0x32, SCREEN=0x33, TEXT_SLOT=0x34, WIFI_PROV=0x40, WIFI_STATUS=0x41)
 TYPE_NAME = {v: k for k, v in T.items()}
@@ -57,7 +58,8 @@ STATUS = ["OK", "UNKNOWN_TYPE", "BAD_PAYLOAD", "BUSY", "NOT_SUPPORTED", "NOT_ALL
 EXPRESSIONS = ["netral", "senang", "sedih", "marah", "ngantuk", "kaget", "cinta",
                "pusing", "curiga", "bosan", "semangat", "gugup", "kedip"]
 CAPS = ["NOTIF", "NAV", "PC_STATS", "PHONE_STATS", "CUSTOM_TEXT", "BITMAP", "OTA", "WIFI",
-        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN", "TEXT_SLOT", "STATS_LAYOUT"]
+        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN", "TEXT_SLOT", "STATS_LAYOUT",
+        "AUDIO_VIS"]
 STYLES = {"diam": 0, "static": 0, "scroll": 1, "jalan": 1, "blink": 2, "kedip": 2}
 DICE = ["1d6", "2d6", "d4", "d8", "d10", "d12", "d20", "koin"]
 GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
@@ -181,6 +183,27 @@ def p_pcstats(metrics, texts=None, rows=None):
             for a, b in rows:
                 out += bytes([a, 255 if b is None else b])
     return bytes(out)
+
+
+def p_audio(bands, style=None):
+    """AUDIO_BANDS (0.8): count + pita 0-255 (+ style opsional: 0 Batang, 1 Cermin)."""
+    out = bytearray([len(bands)]) + bytes(max(0, min(255, int(b))) for b in bands)
+    if style is not None:
+        out.append(style)
+    return bytes(out)
+
+
+def demo_bands(t, n=32):
+    """Pita buatan untuk demo (tanpa audio): bass berdenyut, gelombang bergeser ke kanan."""
+    import math
+    beat = 0.5 + 0.5 * math.sin(t * 12.6)
+    out = []
+    for i in range(n):
+        x = i / (n - 1)
+        v = (1 - x) * (0.35 + 0.65 * beat) * 0.9 + 0.35 * (0.5 + 0.5 * math.sin(t * 3.1 + x * 9))
+        v *= 0.75 + 0.25 * math.sin(t * 7.3 + i * 1.7)
+        out.append(int(max(0, min(1, v)) * 255))
+    return out
 
 
 DEMO_STATS = [(1, "CPU", 37.5, "%"), (1, "RAM", 62.0, "%"), (2, "CPU", 58.0, "C"), (2, "GPU", 47.0, "C"),
@@ -888,6 +911,18 @@ def cmd_gallery(a):
     return 0
 
 
+def cmd_audio(a):
+    lk = Link(a.port, verbose=False)
+    lk.request(T["HELLO"], p_hello("lokana_link.py audio"))
+    t0 = time.time()
+    while time.time() - t0 < a.seconds:
+        lk.request(T["AUDIO_BANDS"], p_audio(demo_bands(time.time() - t0, a.bands), a.style), ack=False)
+        lk.poll(0.04)
+    lk.close()
+    print("selesai; Visualizer menutup sendiri 1,5 dtk lagi")
+    return 0
+
+
 def cmd_pcstats(a):
     import random
     lk = Link(a.port, verbose=False)
@@ -1228,6 +1263,57 @@ def test_v08(lk, expect):
     expect("PC_STATS teks terpotong = BAD_PAYLOAD", lk.request(P, p_pcstats(m, tx)[:-3]), 2)
     expect("PC_STATS format 0.7 tetap diterima", lk.request(P, p_pcstats(m)), 0)
     lk.request(P, bytes([0]))
+
+
+def test_v08_audio(lk, expect):
+    """v0.8: AUDIO_BANDS (visualizer) - validasi, gambar Batang/Cermin, GOTO hanya saat aktif, berhenti 1,5 dtk."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps AUDIO_VIS", bool(caps >> CAPS.index("AUDIO_VIS") & 1), True)
+    A = T["AUDIO_BANDS"]
+
+    def feed(bands, style, secs):                  # kirim terus ±25x/dtk seperti Desktop (tanpa ACK)
+        end = time.time() + secs
+        while time.time() < end:
+            lk.request(A, p_audio(bands, style), ack=False)
+            lk.poll(0.04)
+
+    def lit(d): return sum(bin(b).count("1") for b in d) if d else -1
+
+    def clock_bar(d): return d is not None and sum(bin(b).count("1") for b in d[56 * 16:60 * 16]) > 40
+    lk.request(T["GOTO"], s("jam"))
+    time.sleep(0.5)
+    expect("GOTO Visualizer sebelum aktif = ERROR", lk.request(T["GOTO"], s("Visualizer")), 6)
+    expect("AUDIO_BANDS 32 pita", lk.request(A, p_audio([255] * 32, 0)), 0)
+    feed([255] * 32, 0, 1.3)                       # tunggu label nama modul hilang
+    expect("Batang 32 pita penuh = 3/4 layar menyala", lit(_capture(lk)), 32 * 3 * 64)
+    lk.request(A, p_audio([255] * 32), ack=False)
+    expect("GOTO Visualizer saat aktif", lk.request(T["GOTO"], s("Visualizer")), 0)
+    expect("AUDIO_BANDS 16 pita", lk.request(A, p_audio([255] * 16)), 0)
+    feed([255] * 16, None, 1.3)                    # label nama modul dari GOTO tampil 0,9 dtk
+    expect("Batang 16 pita penuh = 7/8 layar menyala", lit(_capture(lk)), 16 * 7 * 64)
+    expect("AUDIO_BANDS 7 pita = BAD_PAYLOAD", lk.request(A, p_audio([1] * 7)), 2)
+    expect("AUDIO_BANDS 33 pita = BAD_PAYLOAD", lk.request(A, p_audio([1] * 33)), 2)
+    expect("AUDIO_BANDS terpotong = BAD_PAYLOAD", lk.request(A, p_audio([1] * 20)[:-3]), 2)
+    expect("AUDIO_BANDS style 9 diterima (jadi Batang)", lk.request(A, p_audio([0] * 32, 9)), 0)
+    feed([0] * 32, 1, 2.0)                         # Cermin + hening: titik puncak turun habis
+    expect("Cermin hening = hanya garis tengah (128 px)", lit(_capture(lk)), 128)
+    lk.poll(2.0)                                   # 1,5 dtk tanpa pesan -> selesai
+    expect("GOTO Visualizer setelah berhenti = ERROR", lk.request(T["GOTO"], s("Visualizer")), 6)
+    time.sleep(0.5)
+    expect("kembali ke Jam setelah berhenti", clock_bar(_capture(lk)), True)
+
+    # Regresi 0.8: Jam -> Monitor -> Visualizer -> (hening) Monitor -> (PC berhenti) harus kembali ke Jam,
+    # bukan ke Visualizer yang sudah tidak aktif (core::back dulu hanya mengingat satu modul)
+    lk.request(T["PC_STATS"], p_pcstats(DEMO_STATS))
+    time.sleep(0.3)
+    feed([128] * 32, 0, 1.0)
+    lk.poll(2.0)                                   # visualizer selesai -> Monitor
+    expect("visualizer selesai: kembali ke Monitor", lk.request(T["GOTO"], s("Monitor")), 0)
+    lk.poll(11)                                    # PC berhenti -> Monitor selesai
+    time.sleep(0.5)
+    expect("Monitor selesai: kembali ke Jam (bukan Visualizer)", clock_bar(_capture(lk)), True)
 
 
 def test_v056(lk, expect):
@@ -1609,6 +1695,7 @@ def cmd_test(a):
     test_v06(lk, expect)
     test_v07(lk, expect)
     test_v08(lk, expect)
+    test_v08_audio(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1666,6 +1753,10 @@ def main():
     t.add_argument("--stop", action="store_true", help="state 1: navigasi selesai")
     t = sub.add_parser("pcstats", help="PC_STATS: kirim metrik contoh (Monitor PC) tiap 2 dtk")
     t.add_argument("--seconds", type=int, default=20, help="lama mengirim; berhenti -> Monitor tutup 10 dtk kemudian")
+    t = sub.add_parser("audio", help="AUDIO_BANDS: demo visualizer (pita buatan ±25 fps)")
+    t.add_argument("--seconds", type=int, default=15)
+    t.add_argument("--bands", type=int, default=32, help="8-32")
+    t.add_argument("--style", type=int, default=None, help="0 Batang, 1 Cermin (kosong = tidak dikirim)")
     t = sub.add_parser("find", help="FIND_KEYS")
     t.add_argument("--duration", type=int, default=30)
     t.add_argument("--stop", action="store_true")
@@ -1751,6 +1842,7 @@ def main():
         "gallery": cmd_gallery,
         "screen": cmd_screen,
         "pcstats": cmd_pcstats,
+        "audio": cmd_audio,
         "press": cmd_press,
         "test": cmd_test,
         "monitor": cmd_monitor,

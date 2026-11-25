@@ -162,6 +162,67 @@ def render(metrics, page=0, shift=(0, 0), texts=None, rows=None, legacy=False):
     return g
 
 
+# ---------------- Visualizer audio (viz_module.cpp, 0.8) ----------------
+VIZ_HOLD_MS = 300
+VIZ_FALL_PER_S = 255 * 16 * 10 // 12
+
+
+class VizPeaks:
+    """Titik puncak per pita, sama dengan VizModule (satuan pita x 16): naik seketika, ditahan 300 ms, turun ±1,2 dtk."""
+
+    def __init__(self):
+        self.peak = [0] * 32
+        self.hold = [0] * 32
+        self.last = None
+
+    def update(self, bands, now_ms):
+        dt = 0 if self.last is None else now_ms - self.last
+        if dt < 0 or dt > 200:
+            dt = 0
+        self.last = now_ms
+        fall = VIZ_FALL_PER_S * dt // 1000
+        for i, b in enumerate(bands[:32]):
+            v16 = b * 16
+            if v16 >= self.peak[i]:
+                self.peak[i] = v16
+                self.hold[i] = now_ms + VIZ_HOLD_MS
+            elif now_ms - self.hold[i] >= 0:
+                self.peak[i] = self.peak[i] - fall if self.peak[i] > fall + v16 else v16
+        return self.peak
+
+
+def render_viz(bands, style=0, peaks=None):
+    """bands: pita 0-255 seperti AUDIO_BANDS; style 0 Batang, 1 Cermin; peaks dari VizPeaks (None = tanpa titik)."""
+    g = Canvas()
+    n = len(bands)
+    mid = H // 2
+    if style == 1:
+        g.hline(0, mid, W)
+    if not n:
+        return g
+    slot = W // n
+    bw = slot - 1 if slot > 1 else 1
+    x0 = (W - slot * n) // 2
+    for i, b in enumerate(bands[:32]):
+        x = x0 + i * slot
+        pk = peaks[i] if peaks else b * 16
+        if style == 1:
+            h = b * mid // 255
+            g.fill_rect(x, mid - h, bw, 2 * h + 1)
+            p = pk * mid // (255 * 16)
+            if p > h + 1:
+                g.hline(x, mid - p, bw)
+                g.hline(x, mid + p, bw)
+        else:
+            h = b * H // 255
+            if h:
+                g.fill_rect(x, H - h, bw, h)
+            p = pk * (H - 1) // (255 * 16)
+            if p > h:
+                g.hline(x, H - 1 - p, bw)
+    return g
+
+
 def to_image(canvas, scale=4, on=(0x9E, 0xE7, 0xFF), off=(0, 0, 0)):
     """Canvas -> PIL Image (warna OLED Lokana), diperbesar `scale` kali tanpa penghalusan."""
     from PIL import Image
@@ -233,6 +294,22 @@ def _compare(port):
     lk.request(L.T["PC_STATS"], bytes([0]))
     time.sleep(0.6)
     results.append(check("tanpa metrik", [], 0))
+
+    # 0.8 visualizer: pita tetap (titik puncak = batang, tidak tergambar), dikirim terus seperti Desktop
+    def viz(name, bands, style):
+        end = time.time() + 1.6                     # label nama modul 0,9 dtk + titik puncak turun habis
+        while time.time() < end:
+            lk.request(L.T["AUDIO_BANDS"], L.p_audio(bands, style), ack=False)
+            time.sleep(0.04)
+        dev = device()
+        diff = sum(1 for a, b in zip(render_viz(bands, style).px, dev) if a != b)
+        print("%-6s %s: %d piksel beda" % ("LULUS" if diff == 0 else "GAGAL", name, diff))
+        return diff == 0
+    ramp = [(i * 37 + 20) % 256 for i in range(32)]
+    results.append(viz("visualizer Batang 32 pita", ramp, 0))
+    results.append(viz("visualizer Cermin 32 pita", ramp, 1))
+    results.append(viz("visualizer Batang 20 pita (tidak habis dibagi)", ramp[:20], 0))
+    time.sleep(2)
     lk.close()
     print("%d/%d sama persis" % (sum(results), len(results)))
     return 0 if all(results) else 1

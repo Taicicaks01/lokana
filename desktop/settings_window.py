@@ -1,4 +1,5 @@
-"""Jendela pengaturan Lokana Desktop: pratinjau OLED 1:1 + pilih, urutkan, beri label, format, dan gabung metrik.
+"""Jendela pengaturan Lokana Desktop: pratinjau OLED 1:1 + pilih, urutkan, beri label, format, dan gabung metrik,
+plus visualizer audio (pratinjau bergerak selama PC memutar suara).
 
 tkinter bawaan Python (tanpa dependensi GUI tambahan). Semua perubahan langsung berlaku dan disimpan ke
 config Desktop (bukan firmware). Pratinjau dirender oleh oled_preview.py dari susunan yang sama dengan yang dikirim
@@ -18,6 +19,9 @@ PAGE_MS = 5000          # sama dengan modul Monitor: halaman berganti sendiri ti
 SCALE = 4
 FORMATS = [("Otomatis", "auto"), ("0 desimal", 0), ("1 desimal", 1), ("2 desimal", 2)]
 SEPS = [("Koma (1,25)", ","), ("Titik (1.25)", ".")]
+VIZ_STYLES = ["Batang", "Cermin"]
+VIZ_BANDS = [32, 16]
+VIZ_MS = 50             # pratinjau visualizer ±20 fps
 
 
 class SettingsWindow:
@@ -34,8 +38,10 @@ class SettingsWindow:
 
     def __init__(self, root, worker, cfg, save, icon_path):
         self.worker, self.cfg, self.save = worker, cfg, save
-        for key, default in (("labels", {}), ("decimals", {}), ("pairs", []), ("decimal_sep", ",")):
+        for key, default in (("labels", {}), ("decimals", {}), ("pairs", []), ("decimal_sep", ","),
+                             ("audio", {"enabled": True, "bands": 32, "style": 0})):
             cfg.setdefault(key, default)
+        self.viz_peaks = oled_preview.VizPeaks()
         self.win = tk.Toplevel(root)
         self.win.title("Lokana Desktop — Pengaturan")
         self.win.resizable(False, False)
@@ -54,6 +60,7 @@ class SettingsWindow:
         self._build()
         self._rebuild_list()
         self._tick()
+        self._viz_tick()
 
     # ---------------- tata letak ----------------
     def _build(self):
@@ -90,6 +97,26 @@ class SettingsWindow:
         ttk.Button(nav, text="▶", width=3, command=lambda: self._flip(1)).pack(side="left")
         self.note = ttk.Label(left, text="", wraplength=520, justify="center")
         self.note.pack(pady=(6, 0))
+
+        # Visualizer audio (0.8 langkah 3)
+        a = self.cfg["audio"]
+        vf = ttk.LabelFrame(left, text=" Visualizer audio ", padding=(10, 6))
+        vf.pack(fill="x", pady=(12, 0))
+        self.viz_on = tk.BooleanVar(value=a.get("enabled", True))
+        ttk.Checkbutton(vf, text="Tampilkan di Lokana saat PC memutar suara", variable=self.viz_on,
+                        command=self._viz_changed).grid(row=0, column=0, columnspan=4, sticky="w")
+        ttk.Label(vf, text="Gaya").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self.viz_style = ttk.Combobox(vf, state="readonly", width=9, values=VIZ_STYLES)
+        self.viz_style.current(1 if a.get("style") == 1 else 0)
+        self.viz_style.grid(row=1, column=1, sticky="w", padx=(6, 16), pady=(6, 0))
+        ttk.Label(vf, text="Pita").grid(row=1, column=2, sticky="w", pady=(6, 0))
+        self.viz_bands = ttk.Combobox(vf, state="readonly", width=5, values=[str(b) for b in VIZ_BANDS])
+        self.viz_bands.current(1 if a.get("bands") == 16 else 0)
+        self.viz_bands.grid(row=1, column=3, sticky="w", padx=6, pady=(6, 0))
+        for w in (self.viz_style, self.viz_bands):
+            w.bind("<<ComboboxSelected>>", lambda _e: self._viz_changed())
+        self.viz_status = ttk.Label(vf, text="", foreground="#6b6170")
+        self.viz_status.grid(row=2, column=0, columnspan=4, sticky="w", pady=(6, 0))
 
         right = ttk.Frame(self.win)
         right.grid(row=1, column=1, sticky="n", **pad)
@@ -258,6 +285,12 @@ class SettingsWindow:
         self._commit()
         self._say("Template %s dipakai." % name)
 
+    def _viz_changed(self):
+        self.cfg["audio"] = {"enabled": bool(self.viz_on.get()), "bands": VIZ_BANDS[self.viz_bands.current()],
+                             "style": self.viz_style.current()}
+        self.save()
+        self._render()
+
     def _interval_changed(self):
         try:
             v = max(1, min(10, int(self.interval.get())))
@@ -278,7 +311,17 @@ class SettingsWindow:
         self._render()
 
     # ---------------- pratinjau & nilai langsung ----------------
+    def _audio(self):
+        return getattr(self.worker, "audio", None)
+
+    def _viz_active(self):
+        a = self._audio()
+        return bool(a and a.bands)
+
     def _render(self):
+        if self._viz_active():
+            self._render_viz()
+            return
         _ids, metrics, texts, rows = self._layout()
         legacy = bool(self.worker.legacy)
         p = oled_preview.pages(len(metrics) if legacy else len(rows))
@@ -294,6 +337,25 @@ class SettingsWindow:
         else:
             self.note.config(foreground="#6b6170", text="Pratinjau 1:1 layar Monitor Lokana (128×64, diperbesar 4×)")
 
+    def _render_viz(self):
+        """Pratinjau visualizer: pita yang sama dengan yang dikirim, titik puncak ditiru seperti di Lokana."""
+        bands = list(self._audio().bands)
+        style = self.viz_style.current()
+        peaks = self.viz_peaks.update(bands, int(time.monotonic() * 1000))
+        canvas = oled_preview.render_viz(bands, style, peaks)
+        self._photo = ImageTk.PhotoImage(oled_preview.to_image(canvas, SCALE))
+        self.preview.config(image=self._photo)
+        self.page_lbl.config(text="Visualizer")
+        self.note.config(foreground="#6b6170", text="PC sedang memutar suara: Lokana menampilkan visualizer, lalu kembali "
+                                                    "ke Monitor ±10 dtk setelah hening.")
+
+    def _viz_tick(self):
+        if not self.win.winfo_exists():
+            return
+        if self._viz_active():
+            self._render_viz()
+        self.win.after(VIZ_MS, self._viz_tick)
+
     def _tick(self):
         if not self.win.winfo_exists():
             return
@@ -308,6 +370,12 @@ class SettingsWindow:
             self.page = (self.page + 1) % self._pages()
             self.page_at = time.monotonic()
         self._render()
+        a = self._audio()
+        if a:
+            note = a.status
+            if a.bands and self.worker.link_ok and not self.worker.usb.supports_audio():
+                note = "Ada suara, tapi Lokana ini belum Lokana OS 0.8 (visualizer belum didukung)"
+            self.viz_status.config(text="● " + note)
         st = self.worker.status + ("  ·  dijeda" if self.worker.paused else "")
         self.status.config(text="● " + st)
         if self.msg_until and time.monotonic() > self.msg_until:

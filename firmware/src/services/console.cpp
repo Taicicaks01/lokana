@@ -14,6 +14,7 @@
 #include "core/settings.h"
 #include "services/notif_store.h"
 #include "services/nav_store.h"
+#include "services/audio_store.h"
 #include <Wire.h>
 #include <esp_adc_cal.h>
 
@@ -46,6 +47,7 @@ static void help() {
     "btnraw [dtk]         rekam level mentah pin tombol + lamanya (bawaan 10 dtk)\r\n"
     "batt [cal <V>|cal reset]  status baterai; kalibrasi pembagi dari volt multimeter\r\n"
     "nav <m> <instr>|<jalan>  uji navigasi tanpa HP; nav stop\r\n"
+    "viz [dtk] [cermin]   demo visualizer audio tanpa PC (bawaan 10 dtk)\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
     "tap|double|triple|long   simulasi tombol\r\n"
@@ -256,6 +258,13 @@ static void handle(char* line) {
   else if (!strcasecmp(line, "btnraw")) btnRaw(arg);
   else if (!strcasecmp(line, "batt")) battCmd(arg);
   else if (!strcasecmp(line, "nav")) navCmd(arg);
+  else if (!strcasecmp(line, "viz")) {
+    int s = atoi(arg);
+    if (s <= 0) s = 10;
+    s = constrain(s, 1, 120);
+    audiostore::demo(s * 1000UL, strstr(arg, "cermin") ? 1 : 0);
+    Serial.printf("demo visualizer %d dtk\r\n", s);
+  }
   else if (!strcasecmp(line, "forget")) lklink::forgetBonds();
   else if (!strcasecmp(line, "time")) {
     int h, m;

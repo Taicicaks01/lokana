@@ -9,6 +9,7 @@ selama 5 menit. Port dibuka tanpa DTR/RTS supaya board tidak ter-reset.
 """
 import os
 import sys
+import threading
 import time
 
 import serial
@@ -37,10 +38,14 @@ class LokanaUsb:
         self.info = None
         self._buf = bytearray()
         self._others = {}               # port -> waktu terakhir dicoba (bukan Lokana)
+        self.lock = threading.RLock()    # pekerja sensor & pekerja audio memakai port yang sama
 
     # ---------- frame ----------
     def _send(self, type_, payload, seq=0):
-        self.ser.write(L.envelope(L.frame(type_, seq, payload)))
+        with self.lock:
+            if self.ser is None:
+                raise OSError("tidak tersambung")
+            self.ser.write(L.envelope(L.frame(type_, seq, payload)))
 
     def _read_frames(self, timeout):
         """Baca port selama `timeout` detik; hasil daftar (type, seq, payload)."""
@@ -130,14 +135,20 @@ class LokanaUsb:
         caps = (self.info or {}).get("caps", 0)
         return bool(caps >> L.CAPS.index("STATS_LAYOUT") & 1)
 
+    def supports_audio(self):
+        """Lokana OS 0.8+: visualizer audio (AUDIO_BANDS, bit caps AUDIO_VIS)."""
+        caps = (self.info or {}).get("caps", 0)
+        return bool(caps >> L.CAPS.index("AUDIO_VIS") & 1)
+
     def close(self):
-        if self.ser:
-            try:
-                self.ser.close()
-            except Exception:
-                pass
-        self.ser = None
-        self.port = None
+        with self.lock:
+            if self.ser:
+                try:
+                    self.ser.close()
+                except Exception:
+                    pass
+            self.ser = None
+            self.port = None
 
     # ---------- kirim ----------
     def sync_time(self):
@@ -146,5 +157,10 @@ class LokanaUsb:
     def send_stats(self, metrics, texts=None, rows=None):
         """PC_STATS tanpa ACK (seq 0) + buang data masuk (log device) supaya buffer tidak penuh.
         texts/rows (0.8) selalu boleh dikirim: Lokana OS 0.7 mengabaikan byte di belakang daftar metrik."""
-        self._send(L.T["PC_STATS"], L.p_pcstats(metrics, texts, rows))
-        self._read_frames(0)
+        with self.lock:
+            self._send(L.T["PC_STATS"], L.p_pcstats(metrics, texts, rows))
+            self._read_frames(0)
+
+    def send_audio(self, bands, style):
+        """AUDIO_BANDS tanpa ACK (±25x/dtk). Data masuk dibuang oleh send_stats tiap 2 dtk."""
+        self._send(L.T["AUDIO_BANDS"], L.p_audio(bands, style))

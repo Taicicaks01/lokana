@@ -59,6 +59,21 @@ Klik ganda ikon tray (atau menu **Pengaturan…**):
 
 Semua perubahan langsung dikirim ke Lokana dan **disimpan otomatis** di `config.json` (tanpa tombol Simpan).
 
+### Visualizer audio (sejak 0.8)
+
+Saat PC memutar suara (musik, video, game), Lokana membuka layar **Visualizer**: batang frekuensi, bass di kiri dan
+treble di kanan, ±25 kali per detik. Hening ±10 detik → Lokana kembali ke Monitor.
+
+- Di Lokana: **tap** = ganti gaya (**Batang** dari bawah dengan titik puncak / **Cermin** dari garis tengah),
+  **2× tap** = modul lain (tidak dipaksa kembali selama lagu masih berjalan), **tahan** = layar mati.
+- Di jendela pengaturan (kotak **Visualizer audio**): nyala/mati, gaya, 32 atau 16 pita. Selama ada suara,
+  pratinjau OLED ikut bergerak persis seperti di Lokana.
+- Suara ditangkap lewat **WASAPI loopback** Windows (yang keluar ke speaker/headset bawaan; ganti perangkat output
+  terdeteksi otomatis ±3 detik). Tidak ada yang direkam atau disimpan; hanya tinggi 16/32 batang yang dikirim.
+- Penguatan otomatis: volume kecil tetap terlihat, hening tidak diperkuat jadi derau.
+- Beban: ±9% satu core CPU selama musik (FFT Python murni, tanpa pustaka tambahan); saat hening hampir nol.
+- Butuh **Lokana OS 0.8**. Ke Lokana 0.7 tidak ada yang dikirim; kotak Visualizer memberi tahu.
+
 ### Suhu CPU
 
 **Bawaan (sejak 0.8)**: Lokana Desktop membaca zona termal ACPI dari penghitung kinerja Windows

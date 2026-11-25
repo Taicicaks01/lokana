@@ -6,6 +6,7 @@
 #include "notif_store.h"
 #include "nav_store.h"
 #include "stats_store.h"
+#include "audio_store.h"
 #include "config.h"
 #include "core/core.h"
 #include "core/events.h"
@@ -125,7 +126,7 @@ static uint16_t buildDeviceInfo(uint8_t* p, uint16_t cap) {
   infoPct = bat; infoFl = flags & BATT_FLAGS; infoAt = millis();
   uint32_t caps = CAP_NOTIF | CAP_NAV | CAP_PC_STATS | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
-  caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA | CAP_STATS_LAYOUT;
+  caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA | CAP_STATS_LAYOUT | CAP_AUDIO_VIS;
 #if PIN_BUZZER >= 0
   caps |= CAP_BUZZER;
 #endif
@@ -389,6 +390,22 @@ static uint8_t onPcStats(Reader& r) {
     }
   }
   if (statsstore::update(m, cnt, nrows ? rows : nullptr, nrows)) events::post(EV_STATS, 1);
+  return ST_OK;
+}
+
+// AUDIO_BANDS (v0.8): pita frekuensi audio PC ±25x/dtk tanpa ACK. Data di audiostore; event hanya saat mulai.
+static uint8_t onAudioBands(Reader& r) {
+  uint8_t cnt = r.u8();
+  if (!r.ok() || cnt < audiostore::MIN || cnt > audiostore::MAX) return ST_BAD_PAYLOAD;
+  uint8_t b[audiostore::MAX];
+  for (uint8_t i = 0; i < cnt; i++) b[i] = r.u8();
+  if (!r.ok()) return ST_BAD_PAYLOAD;
+  int style = -1;
+  if (r.has()) {                                   // field akhir opsional
+    uint8_t s = r.u8();
+    style = s <= 1 ? s : 0;
+  }
+  if (audiostore::update(b, cnt, style)) events::post(EV_AUDIO, 1);
   return ST_OK;
 }
 
@@ -757,6 +774,7 @@ void dispatch(Transport t, uint8_t type, uint8_t seq, const uint8_t* p, uint16_t
       case T_OTA:         st = onOta(t, r); break;
       case T_NAV:         st = onNav(r); break;
       case T_PC_STATS:    st = onPcStats(r); break;
+      case T_AUDIO_BANDS: st = onAudioBands(r); break;
       // Dikenal, tapi belum ada di firmware ini / arahnya hanya D->H
       case T_DEVICE_INFO: case T_BUTTON:
       case T_MEETING: case T_PHONE_STATS:
@@ -880,6 +898,11 @@ void update(uint32_t now) {
   pumpBattery(now);
   if (navstore::tick(now)) events::post(EV_NAV, navstore::NV_NONE, "Navigasi berhenti");
   if (statsstore::tick(now)) events::post(EV_STATS, 0);
+  switch (audiostore::tick(now)) {
+    case 1:  events::post(EV_AUDIO, 1); break;   // demo console `viz`
+    case -1: events::post(EV_AUDIO, 0); break;
+    default: break;
+  }
 #ifndef WOKWI_SIM
   // Hemat daya BLE: interval pendek hanya saat layar menyala, OTA, atau mirror layar berjalan
   bool mirroring = false;
