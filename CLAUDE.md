@@ -412,7 +412,9 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   - ✅ 3 Dokumentasi & rilis 0.7.0 (2026-11-25): `desktop/README.md` (pasang, pakai, LibreHardwareMonitor untuk suhu
     CPU AMD, tabel masalah umum), README/ARCHITECTURE (v0.6 & v0.7 selesai; monitor HP & timer/pomodoro pindah ke v0.9),
     CHANGELOG [0.7.0], `build.bat` melapor GAGAL bila `.exe` lama masih berjalan. Saat uji rilis ketemu & diperbaiki:
-    Panduan/splash/jam memakai selisih waktu unsigned (lihat tabel jebakan). 203/203 uji USB.
+    Panduan/splash/jam memakai selisih waktu unsigned (lihat tabel jebakan). 203/203 uji USB. **Uji OTA 0.6.0 → 0.7.0
+    lulus** (2026-11-25): unit 1 di-flash 0.6.0 resmi dari GitHub, aplikasi 0.7.0 → cek pembaruan → 0.7.0 dari GitHub
+    Releases lewat BLE ±103 dtk → boot, ditandai valid.
 - **v0.6 ✅ Navigasi Google Maps — dirilis v0.6.0 (2026-11-25)** di GitHub Releases. NAV (ikon panah dari notifikasi
   Maps → bitmap 1-bit), modul Navigasi. **OTA dari GitHub Releases terbukti** (2026-11-25): aplikasi 0.6.0 → cek
   pembaruan → unduh `lokana-os-0.6.0.bin` → BLE → unit 1 naik ke 0.6.0 dan ditandai sehat (uji Wayan).
