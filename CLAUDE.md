@@ -49,7 +49,7 @@ Masih terbuka: mekanisme Mode Update (WiFi AP + unggah lewat browser HP, atau le
 firmware/   Lokana OS (PlatformIO, Arduino framework)
 protocol/   spesifikasi Lokana Link + skrip uji Python (protocol/tools/lokana_link.py)
 app/        Aplikasi Lokana Android (Flutter UI + Kotlin BLE), lihat app/README.md
-desktop/    Lokana Desktop — belum dimulai
+desktop/    Lokana Desktop (Python + system tray, monitor PC lewat USB), lihat desktop/README.md
 hardware/   casing Lokana Cube v1.1 (hardware/case/); skema & PCB belum dimulai
 docs/       arsitektur, quick start (GitHub Pages)
 brand/      ikon & aset merek (Android, iOS, Play Store, web) + generator brand/tools/gen_icons.py
@@ -404,6 +404,25 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
   - Light sleep sungguhan (perkiraan ±3–6 mA saat layar mati, beberapa hari per isi): framework dengan
     `CONFIG_PM_ENABLE` + `CONFIG_BT_CTRL_MODEM_SLEEP` (mis. Arduino-ESP32 3.x lewat pioarduino `custom_sdkconfig`),
     migrasi NimBLE-Arduino 2.x. Proyek terpisah, perlu OK Wayan.
+- **v0.8 ⏳ Desktop & mode meja — backlog (disetujui Wayan 2026-11-25, belum dikerjakan).** Dikerjakan setelah rilis
+  0.7.0; urutan di bawah = prioritas, satu commit per langkah, uji di unit 1, tunggu OK Wayan tiap langkah.
+  Inspirasi: Keralots/SmallOLED-PCMonitor (ESP32-C3 + OLED 128×64). **Lisensinya tidak jelas → ambil idenya saja,
+  jangan salin kode/aset** ke Lokana (MIT). **Tetap BLE + USB**: tanpa WiFi/web portal/web flasher di perangkat.
+  1. **Jendela pengaturan Lokana Desktop**: buka dari menu tray; pratinjau OLED 1:1 langsung (pakai data `PC_STATS`
+     yang sama), pilih metrik dengan nilai langsung, urutan halaman, template cepat. Simpan ke config Desktop
+     (bukan firmware). Tetap ringan: tkinter bawaan Python, **tanpa** dependensi GUI besar kecuali Wayan setuju.
+  2. **Label sendiri + dua metrik per baris** (mis. "CPU 34% 61°C"), format angka (desimal, satuan). Perluas
+     `PC_STATS` secara kompatibel (field opsional; firmware lama mengabaikan field baru), perbarui `protocol/LOKANA_LINK.md` (sumber kebenaran) dulu
+     + `test_v07`/uji baru.
+  3. **Visualizer audio PC**: tangkap audio WASAPI loopback (Windows) di Desktop → kirim pita frekuensi ringkas
+     (mis. 16–32 batang, 0–255) ±20–30 fps lewat USB; modul baru di firmware, otomatis kembali ke monitor ±10 dtk
+     setelah suara berhenti. Cek dulu batas bandwidth USB-CDC & beban CPU; boleh pakai pustaka loopback ringan
+     (minta OK Wayan sebelum menambah dependensi).
+  4. **Gaya jam animasi orisinal bertema Lokana** (mis. mata Lokana mengejar/menjemput angka, kubus menumpuk jadi
+     angka, angka "berkedip" seperti mata). **Jangan** karakter/aset game atau merek dagang (Mario, Pac-Man, dll.)
+     karena Lokana dijual. Pilihan gaya dari aplikasi & Desktop; jam biasa tetap bawaan.
+  5. **Redup otomatis malam**: jadwal (mis. 22.00–06.00) → kecerahan Redup/kontras minimum, opsional layar mati saat
+     mode meja; atur dari aplikasi (dan Desktop). Pakai waktu dari sinkron jam yang sudah ada.
 - **v0.7 ✅ Lokana Desktop / Monitor PC — dirilis v0.7.0 (2026-11-25).** Keputusan Wayan: **Python + system tray** (lanjut dari
   `lokana_link.py`, psutil, `.exe` PyInstaller), layar **menyala terus + geser piksel** selama data masuk, metrik
   CPU/RAM %, suhu CPU/GPU (LibreHardwareMonitor), jaringan & disk, baterai laptop + jam. Langkah:
