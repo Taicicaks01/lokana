@@ -65,7 +65,7 @@ pio device monitor -b 115200                      # serial monitor, keluar: Ctrl
 |---|---|
 | Tap | Aksi modul: colek Lokana · tampilkan detik · notifikasi berikutnya · bunyikan/hentikan HP · lempar dadu · ganti slot teks/gambar |
 | Double-tap | Pindah modul (Lokana → Jam → Notif → Cari HP → Dadu → Teks → Gambar) |
-| Triple-tap | Menu: kecerahan, suara, layar mati, putar layar, **Panduan**, lupakan HP, info |
+| Triple-tap | Menu: kecerahan, suara, layar mati, **gaya jam**, putar layar, **Panduan**, lupakan HP, info |
 | Tahan | Dadu: ganti jenis dadu. Notif: hapus notifikasi yang tampil. Modul lain: layar mati |
 
 Di menu, tap = item berikutnya dan tahan = pilih/ubah. **Panduan** (0.5.3) membuka sub-menu: *Putar sekarang*,
@@ -117,6 +117,23 @@ Baterai: `batt` (tegangan, persen, charger, lemah/kritis). Kalibrasi per unit: u
 `guide [ms]` memutar Panduan (ms = bekukan di waktu itu, untuk screenshot).
 
 Navigasi (v0.6) tanpa HP: `nav 250 Belok kanan|Jl. Udayana` (meter, instruksi `|` jalan; panah bawaan), `nav stop`.
+
+Gaya jam (v0.8): `jam gaya <0-3>` (Klasik/Mata/Kubus/Kedip, disimpan), `jam anim` = putar animasi ganti menit sekarang
+(menit sebelumnya → sekarang) tanpa menunggu satu menit. Visualizer: `viz [dtk] [cermin]`.
+
+## Modul Jam: 4 gaya (v0.8)
+
+Dipilih dari menu Lokana (**Gaya jam**), SETTINGS `0x0A clock_style`, atau console `jam gaya <n>`; disimpan di NVS
+`cstyle`. Mengganti gaya lewat SET membuka modul Jam. **Tap** = mode detik di semua gaya. Varian 128×32 selalu Klasik.
+
+| Gaya | Diam | Saat menit berganti |
+|---|---|---|
+| 0 Klasik (bawaan) | angka besar, tanggal, bilah detik | angka yang berubah meluncur ke atas (350 ms) |
+| 1 Mata | angka sedang di atas, dua mata Lokana melirik kiri → kanan mengikuti detik, berkedip acak | mata melirik ke atas; angka lama tenggelam, angka baru jatuh; mata tersenyum (1,4 dtk) |
+| 2 Kubus | angka dari kubus 4×4 px (pola font classic 5×7), tanggal, bilah detik | kubus lama berjatuhan; kubus baru jatuh per baris dari bawah, memantul kecil (1,6 dtk) |
+| 3 Kedip | sama persis dengan Klasik; sesekali satu angka (atau semua) berkedip | angka memejam jadi garis lalu membuka sebagai angka baru (360 ms) |
+
+Pola angka Kubus/Kedip = `DIGIT_COLS` (glcdfont Adafruit GFX, BSD), jadi bentuknya sama dengan angka Klasik.
 
 ## Modul Monitor PC (v0.7, Mode Meja)
 

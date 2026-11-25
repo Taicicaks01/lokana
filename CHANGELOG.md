@@ -25,6 +25,14 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
   (koma bawaan) di jendela pengaturan; `layout.py` dipakai bersama pengirim & pratinjau. Ke Lokana 0.7 tetap
   tampilan lama, dengan catatan di jendela. `oled_preview.py --compare`: 6/6 sama persis di unit 1.
 
+### Gaya jam animasi (v0.8, langkah 4a: firmware)
+- Modul Jam punya 4 gaya: **Klasik** (bawaan), **Mata** (mata Lokana melirik mengikuti detik dan menjemput angka
+  baru), **Kubus** (angka dari kubus yang jatuh dan menumpuk), **Kedip** (angka berkedip seperti mata). Orisinal,
+  tanpa karakter/aset game. Tap = mode detik di semua gaya.
+- Pilih dari menu Lokana (**Gaya jam**) atau SETTINGS key baru `0x0A clock_style` (nilai salah = `BAD_PAYLOAD`);
+  mengganti gaya dari HP/PC langsung membuka Jam. Console `jam gaya <0-3>`, `jam anim`.
+- `lokana_link.py settings --clock-style`, `test_v08_clock` (21 uji, termasuk menu dan animasi ganti menit).
+
 ### Visualizer audio PC (v0.8, langkah 3)
 - Pesan baru `0x16 AUDIO_BANDS` (bit `caps` 16 `AUDIO_VIS`): 8–32 pita 0–255 ±25 fps tanpa ACK, `style` opsional.
 - Firmware: modul **Visualizer** (gaya Batang dengan titik puncak / Cermin, tap = ganti gaya), membuka sendiri saat

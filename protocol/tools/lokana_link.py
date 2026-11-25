@@ -67,7 +67,8 @@ GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
 SETTING_KEYS = {"brightness": (0x01, "<B"), "sound": (0x02, "<B"), "screen_timeout": (0x03, "<H"),
                 "flip": (0x04, "<B"), "device_name": (0x05, None), "button_events": (0x06, "<B"),
                 "notif_popup": (0x07, "<B"), "boot_guide": (0x08, "<B"),
-                "leave_alert": (0x09, "<B")}
+                "leave_alert": (0x09, "<B"), "clock_style": (0x0A, "<B")}
+CLOCK_STYLES = ["klasik", "mata", "kubus", "kedip"]
 FONTS = {"piksel": 0, "sans": 1, "sans-tebal": 2, "serif": 3, "mono-tebal": 4}
 SETTING_NAME = {k: n for n, (k, _) in SETTING_KEYS.items()}
 CLIENT_SCRIPT = 4
@@ -673,6 +674,8 @@ def cmd_settings(a):
     if a.notif_popup is not None: items["notif_popup"] = a.notif_popup
     if a.boot_guide is not None: items["boot_guide"] = onoff(a.boot_guide)
     if a.leave_alert is not None: items["leave_alert"] = onoff(a.leave_alert)
+    if a.clock_style is not None:
+        items["clock_style"] = CLOCK_STYLES.index(a.clock_style) if a.clock_style in CLOCK_STYLES else int(a.clock_style)
     st = lk.request(T["SETTINGS"], p_settings_set(**items) if items else p_settings_get())
     lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
     lk.close()
@@ -1316,6 +1319,117 @@ def test_v08_audio(lk, expect):
     expect("Monitor selesai: kembali ke Jam (bukan Visualizer)", clock_bar(_capture(lk)), True)
 
 
+def _bits(d):
+    """Bitmap SCREEN CAPTURE -> list baris (list 0/1)."""
+    return [[d[y * 16 + x // 8] >> (7 - x % 8) & 1 for x in range(128)] for y in range(64)] if d else None
+
+
+def test_v08_clock(lk, expect):
+    """v0.8: SETTINGS clock_style (Klasik/Mata/Kubus/Kedip), menu Gaya jam, gambar tiap gaya, animasi ganti menit."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    lk.frames.clear()
+    lk.request(T["SETTINGS"], p_settings_get())
+    r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    orig = parse_settings(r[2]) if r else {}
+    expect("REPORT berisi clock_style", "clock_style" in orig, True)
+
+    def setstyle(v):
+        lk.frames.clear()
+        st = lk.request(T["SETTINGS"], p_settings_set(clock_style=v))
+        r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+        return st, (parse_settings(r[2]).get("clock_style") if r else None)
+
+    def band(b, y0, y1, x0=0, x1=128):            # piksel menyala di kotak
+        return sum(b[y][x] for y in range(y0, y1) for x in range(x0, x1)) if b else -1
+
+    def digits(b):                                # pita angka tanpa titik dua (berkedip), untuk dibandingkan
+        return [row[:52] + row[76:] for row in b[:36]] if b else None
+
+    def runs4(b):                                 # Kubus: setiap deret piksel mendatar di pita angka tepat 4 px
+        n = []
+        for row in b[3:39]:
+            k = 0
+            for v in row + [0]:
+                if v: k += 1
+                elif k: n.append(k); k = 0
+        return bool(n) and all(x == 4 for x in n)
+
+    shots = {}
+    lk.request(T["GOTO"], s("lokana"))
+    for v, name in enumerate(["Klasik", "Mata", "Kubus", "Kedip"]):
+        expect(f"clock_style {v} ({name})", setstyle(v), (0, v), raw=True)
+        lk.request(T["GOTO"], s("jam"))           # gaya yang sama dengan sebelumnya tidak membuka Jam sendiri
+        time.sleep(1.8)                           # animasi masuk selesai
+        b = _bits(_capture(lk))
+        if v == 3:                                # Kedip: hindari tangkapan saat sedang berkedip sendiri
+            for _ in range(3):
+                if digits(b) == digits(shots.get(0)): break
+                time.sleep(0.4)
+                b = _bits(_capture(lk))
+        shots[v] = b
+    k, m, c, e = (shots.get(i) for i in range(4))
+    expect("Klasik: bilah detik", band(k, 56, 60, 4, 100) > 40, True)
+    expect("Mata: dua mata di bawah angka", band(m, 30, 60, 30, 100) > 600, True)
+    expect("Mata: tanpa tanggal & bilah", band(m, 56, 60, 4, 100) < band(k, 56, 60, 4, 100), True)
+    expect("Kubus: angka dari kubus 4 px", runs4(c), True)
+    expect("Kubus: bilah detik", band(c, 56, 60, 4, 100) > 40, True)
+    expect("Kedip saat diam: angka sama persis dengan Klasik", digits(e) == digits(k), True)
+
+    # Animasi ganti menit (console `jam anim`): bentuk berbeda dari saat diam, lalu kembali sama
+    for v, ms in ((2, 0.7), (1, 0.45), (3, 0.17)):
+        setstyle(v)
+        time.sleep(1.8)
+        t0 = time.time()
+        lk.write_raw(b"jam anim\r\n")
+        lk.request(T["HELLO"], p_hello("lokana_link.py test"))   # console menghentikan balasan SCREEN sampai HELLO
+        time.sleep(max(0.0, ms - (time.time() - t0)))
+        mid = _bits(_capture(lk))
+        time.sleep(1.8)
+        # "Kembali utuh" = layar diam lagi: dua tangkapan berurutan sama (tahan pergantian menit di tengah uji).
+        # Kedip bisa tertangkap saat berkedip sendiri: coba lagi.
+        after = _bits(_capture(lk))
+        stable = False
+        for _ in range(4):
+            time.sleep(0.4)
+            again = _bits(_capture(lk))
+            if digits(again) == digits(after):
+                stable = True
+                break
+            after = again
+        name = ["Klasik", "Mata", "Kubus", "Kedip"][v]
+        expect(f"{name}: animasi ganti menit tampil", digits(mid) != digits(after), True)
+        if v == 2:
+            expect("Kubus: setelah animasi kembali utuh (diam, kubus 4 px)", stable and runs4(after), True)
+        elif v == 3:
+            expect("Kedip: setelah animasi kembali utuh (diam)", stable, True)
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))   # console memutus pesan tanpa diminta
+
+    # Nilai salah ditolak; key lain di pesan yang sama tetap berlaku
+    setstyle(0)
+    bri = orig.get("brightness", 1)
+    lk.frames.clear()
+    st = lk.request(T["SETTINGS"], p_settings_set(brightness=(bri + 1) % 3, clock_style=4))
+    expect("clock_style 4 = BAD_PAYLOAD", st, 2)
+    lk.request(T["SETTINGS"], p_settings_get())
+    r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"], 1.0)
+    now = parse_settings(r[2]) if r else {}
+    expect("clock_style tetap setelah nilai salah", now.get("clock_style"), 0, raw=True)
+    expect("key lain di pesan yang sama tetap berlaku", now.get("brightness"), (bri + 1) % 3, raw=True)
+
+    # Menu Lokana: 3x tap -> tap 3x ke "Gaya jam" -> tahan = gaya berikutnya (REPORT tanpa diminta)
+    lk.frames.clear()
+    for g in (3, 1, 1, 1, 4):
+        lk.request(T["SCREEN"], bytes([SC["INPUT"], g]))
+        time.sleep(0.35)
+    lk.request(T["SCREEN"], bytes([SC["INPUT"], 2]))          # 2x tap = tutup menu
+    r = lk.wait_frame(lambda f: f[0] == T["SETTINGS"] and f[2][0] == 2, 2.0)
+    expect("menu Gaya jam: Klasik -> Mata", parse_settings(r[2]).get("clock_style") if r else None, 1, raw=True)
+
+    restore = {n: orig[n] for n in ("brightness", "clock_style") if n in orig}
+    expect("pengaturan dikembalikan", lk.request(T["SETTINGS"], p_settings_set(**restore)), 0)
+    lk.request(T["GOTO"], s("lokana"))
+
+
 def test_v056(lk, expect):
     """v0.5.6: baterai di DEVICE_INFO (battery_mv, bit mengisi/lemah) konsisten dengan persen."""
     lk.request(T["HELLO"], p_hello("lokana_link.py test"))
@@ -1696,6 +1810,7 @@ def cmd_test(a):
     test_v07(lk, expect)
     test_v08(lk, expect)
     test_v08_audio(lk, expect)
+    test_v08_clock(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()
@@ -1769,6 +1884,7 @@ def main():
     t.add_argument("--notif-popup", type=int, help="lama popup notifikasi (detik), 0 = tidak muncul")
     t.add_argument("--boot-guide", help="on/off: Panduan cara pakai setelah splash boot (firmware 0.5.3+)")
     t.add_argument("--leave-alert", help="on/off: Lokana berbunyi jika HP tertinggal (firmware 0.5.4+)")
+    t.add_argument("--clock-style", help="gaya jam: klasik/mata/kubus/kedip atau 0-3 (firmware 0.8+)")
     t = sub.add_parser("ota", help="OTA: kirim firmware .bin lewat USB, lalu cek versi setelah restart")
     t.add_argument("file", help="firmware.bin (mis. .pio/build/supermini/firmware.bin)")
     t.add_argument("--version", help="versi untuk BEGIN (bawaan: dibaca dari image)")

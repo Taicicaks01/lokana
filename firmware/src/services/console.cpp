@@ -15,6 +15,7 @@
 #include "services/notif_store.h"
 #include "services/nav_store.h"
 #include "services/audio_store.h"
+#include "modules/clock_module.h"
 #include <Wire.h>
 #include <esp_adc_cal.h>
 
@@ -48,6 +49,7 @@ static void help() {
     "batt [cal <V>|cal reset]  status baterai; kalibrasi pembagi dari volt multimeter\r\n"
     "nav <m> <instr>|<jalan>  uji navigasi tanpa HP; nav stop\r\n"
     "viz [dtk] [cermin]   demo visualizer audio tanpa PC (bawaan 10 dtk)\r\n"
+    "jam [gaya 0-3|anim]  gaya jam (Klasik/Mata/Kubus/Kedip); anim = putar animasi ganti menit\r\n"
     "forget               hapus semua pairing HP\r\n"
     "time HH:MM           atur jam manual\r\n"
     "tap|double|triple|long   simulasi tombol\r\n"
@@ -258,6 +260,20 @@ static void handle(char* line) {
   else if (!strcasecmp(line, "btnraw")) btnRaw(arg);
   else if (!strcasecmp(line, "batt")) battCmd(arg);
   else if (!strcasecmp(line, "nav")) navCmd(arg);
+  else if (!strcasecmp(line, "jam")) {
+    Settings& s = settings::get();
+    if (!strncasecmp(arg, "gaya", 4)) {
+      int v = atoi(arg + 4);
+      if (v < 0 || v >= CLOCK_STYLE_COUNT) { Serial.println("jam gaya <0-3>"); return; }
+      s.clockStyle = v;
+      settings::save();
+      lklink::reportSettings();
+    } else if (!strcasecmp(arg, "anim")) {
+      ClockModule::demoAnim();
+    }
+    events::post(EV_GOTO, 0, "Jam");
+    Serial.printf("gaya jam: %s\r\n", CLOCK_STYLE_LABEL[s.clockStyle]);
+  }
   else if (!strcasecmp(line, "viz")) {
     int s = atoi(arg);
     if (s <= 0) s = 10;

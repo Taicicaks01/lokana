@@ -437,9 +437,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      hening; `LokanaUsb.lock` (dua thread satu port); kirim hanya saat `worker.link_ok` (jangan ke port yang sedang
      dicoba saat mencari). **Tanpa dependensi baru.** Batas sebenarnya OLED (I2C ±25 ms/frame), bukan USB (±1,1 KB/dtk).
      Diukur di laptop Wayan: 24,9 fps, ±9% satu core. `test_v08_audio` 16/16, `--compare` 9/9, 230/230 uji USB.
-  4. **Gaya jam animasi orisinal bertema Lokana** (mis. mata Lokana mengejar/menjemput angka, kubus menumpuk jadi
-     angka, angka "berkedip" seperti mata). **Jangan** karakter/aset game atau merek dagang (Mario, Pac-Man, dll.)
-     karena Lokana dijual. Pilihan gaya dari aplikasi & Desktop; jam biasa tetap bawaan.
+  4. **Gaya jam animasi orisinal bertema Lokana**. **Jangan** karakter/aset game atau merek dagang (Mario, Pac-Man,
+     dll.) karena Lokana dijual. Dipecah (keputusan Wayan 2026-11-26):
+     - ✅ 4a firmware (2026-11-26): SETTINGS `0x0A clock_style` (0 Klasik, 1 Mata, 2 Kubus, 3 Kedip; NVS `cstyle`;
+       nilai salah = BAD_PAYLOAD, key lain tetap berlaku; SET yang mengubah gaya → `EV_GOTO "Jam"`), menu **Gaya jam**
+       (setelah Layar mati), `clock_module` per gaya (`DIGIT_COLS` = glcdfont BSD → Kedip diam = Klasik persis),
+       console `jam gaya <n>` / `jam anim`. `test_v08_clock` 21/21. Jebakan uji: setelah perintah console, balasan
+       SCREEN berhenti sampai HELLO (§3.2) → kirim HELLO sesudah `jam anim`; SET gaya yang sama tidak membuka Jam.
+     - 4b aplikasi (Pengaturan → Gaya jam, tampil hanya jika REPORT berisi 0x0A) + Desktop (pilihan Gaya jam).
   5. **Redup otomatis malam**: jadwal (mis. 22.00–06.00) → kecerahan Redup/kontras minimum, opsional layar mati saat
      mode meja; atur dari aplikasi (dan Desktop). Pakai waktu dari sinkron jam yang sudah ada.
 - **v0.7 ✅ Lokana Desktop / Monitor PC — dirilis v0.7.0 (2026-11-25).** Keputusan Wayan: **Python + system tray** (lanjut dari

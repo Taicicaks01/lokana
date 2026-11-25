@@ -4,6 +4,7 @@
 const uint32_t SCREEN_TIMEOUT_MS[SCREEN_TIMEOUT_COUNT] = {15000UL, 30000UL, 60000UL, 300000UL, 0UL};
 const char* const SCREEN_TIMEOUT_LABEL[SCREEN_TIMEOUT_COUNT] = {"15 dtk", "30 dtk", "1 mnt", "5 mnt", "Tidak"};
 const char* const BRIGHTNESS_LABEL[3] = {"Redup", "Sedang", "Terang"};
+const char* const CLOCK_STYLE_LABEL[CLOCK_STYLE_COUNT] = {"Klasik", "Mata", "Kubus", "Kedip"};
 
 static Settings s;
 static Preferences prefs;
@@ -23,6 +24,8 @@ void load() {
   s.notifPopupS = clampNotifPopup(prefs.getUChar("npop", 6));
   s.bootGuide  = prefs.getBool("guide", true);
   s.leaveAlert = prefs.getBool("leave", true);
+  s.clockStyle = prefs.getUChar("cstyle", 0);
+  if (s.clockStyle >= CLOCK_STYLE_COUNT) s.clockStyle = 0;
   prefs.end();
 }
 
@@ -37,6 +40,7 @@ void save() {
   prefs.putUChar("npop", s.notifPopupS);
   prefs.putBool("guide", s.bootGuide);
   prefs.putBool("leave", s.leaveAlert);
+  prefs.putUChar("cstyle", s.clockStyle);
   prefs.end();
 }
 

@@ -39,7 +39,7 @@ static Reply afterAck = nullptr;
 
 enum SettingKey : uint8_t {
   SK_BRIGHTNESS = 0x01, SK_SOUND = 0x02, SK_SCREEN_TIMEOUT = 0x03, SK_FLIP = 0x04,
-  SK_DEVICE_NAME = 0x05, SK_BUTTON_EVENTS = 0x06, SK_NOTIF_POPUP = 0x07, SK_BOOT_GUIDE = 0x08, SK_LEAVE_ALERT = 0x09,
+  SK_DEVICE_NAME = 0x05, SK_BUTTON_EVENTS = 0x06, SK_NOTIF_POPUP = 0x07, SK_BOOT_GUIDE = 0x08, SK_LEAVE_ALERT = 0x09, SK_CLOCK_STYLE = 0x0A,
 };
 enum SettingsOp : uint8_t { SO_GET = 0, SO_SET = 1, SO_REPORT = 2 };
 
@@ -175,6 +175,7 @@ static uint16_t buildReport(uint8_t* p, uint16_t cap, Transport t) {
   w.u8(SK_NOTIF_POPUP);   w.u8(1); w.u8(s.notifPopupS);
   w.u8(SK_BOOT_GUIDE);    w.u8(1); w.u8(s.bootGuide ? 1 : 0);
   w.u8(SK_LEAVE_ALERT);   w.u8(1); w.u8(s.leaveAlert ? 1 : 0);
+  w.u8(SK_CLOCK_STYLE);   w.u8(1); w.u8(s.clockStyle);
   return w.len();
 }
 
@@ -224,7 +225,7 @@ static uint8_t onSettings(Transport t, Reader& r) {
     if (!check.ok()) return ST_BAD_PAYLOAD;
   }
   Settings& s = settings::get();
-  bool display = false, changed = false, renamed = false;
+  bool display = false, changed = false, renamed = false, clockOpen = false, bad = false;
   while (r.has()) {
     uint8_t key = r.u8(), n = r.u8();
     const uint8_t* v = r.bytes(n);
@@ -239,6 +240,11 @@ static uint8_t onSettings(Transport t, Reader& r) {
       case SK_NOTIF_POPUP:    if (n) s.notifPopupS = settings::clampNotifPopup(v[0]); break;
       case SK_BOOT_GUIDE:     if (n) s.bootGuide = v[0] != 0; break;
       case SK_LEAVE_ALERT:    if (n) { s.leaveAlert = v[0] != 0; if (!s.leaveAlert) leaveAt = 0; } break;
+      case SK_CLOCK_STYLE:                        // 0.8: nilai di luar daftar ditolak, key lain tetap berlaku
+        if (!n || v[0] >= CLOCK_STYLE_COUNT) { bad = true; continue; }
+        clockOpen = v[0] != s.clockStyle;
+        s.clockStyle = v[0];
+        break;
       default: continue;                          // key dari versi lebih baru: abaikan
     }
     changed = true;
@@ -246,8 +252,9 @@ static uint8_t onSettings(Transport t, Reader& r) {
   if (changed) settings::save();
   if (display) events::post(EV_SETTINGS);
   if (renamed) lklink::rename(s.name);
+  if (clockOpen) events::post(EV_GOTO, 0, "Jam");   // tunjukkan gaya baru
   afterAck = sendReport;
-  return ST_OK;
+  return bad ? ST_BAD_PAYLOAD : ST_OK;
 }
 
 static uint8_t onNotif(Reader& r) {

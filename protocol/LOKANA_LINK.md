@@ -246,6 +246,7 @@ Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 | `0x07` | notif_popup | u8 detik: lama notifikasi baru tampil di layar (bawaan `6`). `0` = tidak muncul otomatis (tetap disimpan di modul Notif dan berbunyi) |
 | `0x08` | boot_guide | u8: `1` tampilkan **Panduan** (cara pakai Lokana) setelah splash boot (bawaan), `0` tidak |
 | `0x09` | leave_alert | u8: `1` Lokana berbunyi jika HP tertinggal (bawaan), `0` tidak. Lihat *Pengingat ketinggalan* di bawah |
+| `0x0A` | clock_style | u8 (0.8+): gaya modul Jam. `0` Klasik (bawaan), `1` Mata, `2` Kubus, `3` Kedip. Nilai lain = `BAD_PAYLOAD` (key lain di pesan yang sama tetap diterapkan). Saat nilainya berubah lewat SET, device membuka modul Jam. Host tahu fitur ini ada dari `REPORT` yang berisi key `0x0A` |
 
 Setelah GET atau SET, device mengirim `ACK` (jika `seq ≠ 0`) lalu `REPORT` berisi semua
 pengaturan saat ini ke host yang meminta. Pengaturan yang diubah dari menu Lokana juga
@@ -796,6 +797,7 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-26 | Untuk firmware 0.8 (tambahan, format lama tetap): key SETTINGS `0x0A clock_style` (gaya jam Klasik/Mata/Kubus/Kedip) |
 | v1 | 2026-11-25 | Untuk firmware 0.8 (tambahan, format lama tetap): pesan baru `0x16 AUDIO_BANDS` (visualizer audio PC, bit `caps` 16 `AUDIO_VIS`), modul `"Visualizer"` |
 | v1 | 2026-11-25 | Untuk firmware 0.8 (tambahan, format lama tetap): `PC_STATS` field akhir opsional `texts` & `rows` (dua metrik per baris), label maks 10, simbol derajat `°` di `PC_STATS`; bit `caps` 15 `STATS_LAYOUT` |
 | v1 | 2026-11-25 | Untuk firmware 0.7 (format lama tetap): `PC_STATS` diaktifkan (bit `caps` 2), aturan tampilan & batas, `GOTO "Monitor"` |

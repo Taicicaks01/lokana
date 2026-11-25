@@ -12,12 +12,15 @@ struct Settings {
   uint8_t notifPopupS = 6;             // lama popup notifikasi (detik), 0 = tidak muncul
   bool    bootGuide  = true;           // putar Panduan cara pakai setelah splash boot
   bool    leaveAlert = true;           // berbunyi jika HP tertinggal (SETTINGS leave_alert)
+  uint8_t clockStyle = 0;              // gaya Jam (SETTINGS clock_style, 0.8): 0 Klasik, 1 Mata, 2 Kubus, 3 Kedip
 };
 
 constexpr uint8_t SCREEN_TIMEOUT_COUNT = 5;
 extern const uint32_t SCREEN_TIMEOUT_MS[SCREEN_TIMEOUT_COUNT];
 extern const char* const SCREEN_TIMEOUT_LABEL[SCREEN_TIMEOUT_COUNT];
 extern const char* const BRIGHTNESS_LABEL[3];
+constexpr uint8_t CLOCK_STYLE_COUNT = 4;
+extern const char* const CLOCK_STYLE_LABEL[CLOCK_STYLE_COUNT];
 
 namespace settings {
 Settings& get();

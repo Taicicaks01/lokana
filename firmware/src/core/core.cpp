@@ -40,8 +40,8 @@ static uint32_t laterAt = 0;
 static uint8_t laterFrom = 0;
 
 // ---------------- Menu ----------------
-enum MenuItem : uint8_t { MI_BRIGHT, MI_SOUND, MI_SCREEN, MI_FLIP, MI_GUIDE, MI_FORGET, MI_INFO, MI_EXIT, MI_COUNT };
-static const char* const MENU_LABEL[MI_COUNT] = {"Kecerahan", "Suara", "Layar mati", "Putar layar", "Panduan",
+enum MenuItem : uint8_t { MI_BRIGHT, MI_SOUND, MI_SCREEN, MI_CLOCK, MI_FLIP, MI_GUIDE, MI_FORGET, MI_INFO, MI_EXIT, MI_COUNT };
+static const char* const MENU_LABEL[MI_COUNT] = {"Kecerahan", "Suara", "Layar mati", "Gaya jam", "Putar layar", "Panduan",
                                                  "Lupakan HP", "Info", "Keluar"};
 // Sub-menu Panduan
 enum GuideItem : uint8_t { GI_PLAY, GI_BOOT, GI_BACK, GI_COUNT };
@@ -64,6 +64,7 @@ static const char* menuValue(uint8_t i) {
     case MI_BRIGHT: return BRIGHTNESS_LABEL[s.brightness];
     case MI_SOUND:  return s.sound ? "On" : "Off";
     case MI_SCREEN: return SCREEN_TIMEOUT_LABEL[s.screenIdx];
+    case MI_CLOCK:  return CLOCK_STYLE_LABEL[s.clockStyle];
     case MI_FLIP:   return s.flip ? "On" : "Off";
     case MI_GUIDE:
     case MI_FORGET:
@@ -107,6 +108,7 @@ static void menuInput(Gesture g) {
       case MI_BRIGHT: s.brightness = (s.brightness + 1) % 3; applySettings(); break;
       case MI_SOUND:  s.sound = !s.sound; break;
       case MI_SCREEN: s.screenIdx = (s.screenIdx + 1) % SCREEN_TIMEOUT_COUNT; break;
+      case MI_CLOCK:  s.clockStyle = (s.clockStyle + 1) % CLOCK_STYLE_COUNT; break;
       case MI_FLIP:   s.flip = !s.flip; applySettings(); break;
       case MI_GUIDE:  guideOpen = true; guideIdx = 0; break;
       case MI_FORGET: lklink::forgetBonds(); core::toast("Pairing dihapus", 1200); break;
