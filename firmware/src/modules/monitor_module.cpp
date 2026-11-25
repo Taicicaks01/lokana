@@ -5,14 +5,14 @@
 #include "drivers/display.h"
 #include "services/stats_store.h"
 
-// Satu baris = 16 px: label kiri, nilai kanan, bar tipis di bawah (persen / suhu).
+// Satu baris = 16 px: label kiri, nilai kanan (satu atau dua metrik, 0.8), bar tipis di bawah (persen / suhu).
 static const int ROW_H = 16;
 static const int ROWS = SCREEN_H / ROW_H > 0 ? SCREEN_H / ROW_H : 1;   // 4 (128x64) atau 2 (128x32)
 static const uint32_t PAGE_MS = 5000;
 static const uint32_t SHIFT_MS = 120000;                              // geser piksel tiap 2 menit
 
 static uint8_t pages() {
-  uint8_t n = statsstore::count();
+  uint8_t n = statsstore::rowCount();
   return n ? (n + ROWS - 1) / ROWS : 1;
 }
 
@@ -23,6 +23,22 @@ static void formatValue(const Metric& m, char* out, size_t cap) {
     snprintf(out, cap, "%ld%s", (long)((v >= 0 ? v + 5 : v - 5) / 10), m.unit);
   else
     snprintf(out, cap, "%s%ld.%ld%s", v < 0 ? "-" : "", (long)(labs(v) / 10), (long)(labs(v) % 10), m.unit);
+}
+
+// Teks nilai: dari host (0.8) kalau ada, kalau tidak diformat sendiri
+static void valueText(const Metric& m, char* out, size_t cap) {
+  if (m.text[0]) strlcpy(out, m.text, cap);
+  else formatValue(m, out, cap);
+}
+
+static bool hasBar(const Metric& m) { return m.kind == 1 || m.kind == 2; }
+
+static void drawBar(Adafruit_GFX& g, int x, int y, int w, const Metric& m) {
+  int32_t pct = m.v10 / 10;
+  if (pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+  g.drawFastHLine(x, y + 12, w, 1);               // garis dasar
+  g.fillRect(x, y + 10, (int)(pct * w / 100), 3, 1);
 }
 
 bool MonitorModule::available() const { return statsstore::active(); }
@@ -68,25 +84,41 @@ void MonitorModule::render(Adafruit_GFX& g, uint32_t now) {
   const int ox = SX[s], oy = SY[s];
   const int barW = SCREEN_W - 3;
 
+  const uint8_t nrows = statsstore::rowCount();
   for (uint8_t r = 0; r < ROWS; r++) {
-    const uint8_t i = _page * ROWS + r;
-    if (i >= n) break;
-    const Metric& m = statsstore::get(i);
+    const uint8_t ri = _page * ROWS + r;
+    if (ri >= nrows) break;
+    const StatRow row = statsstore::row(ri);
+    const Metric& ma = statsstore::get(row.a);
+    const bool two = row.b != StatRow::NONE;
+    const Metric& mb = statsstore::get(two ? row.b : row.a);
     const int y = r * ROW_H + oy;
     g.setCursor(ox, y + 1);
-    g.print(m.label);
-    char v[16];
-    formatValue(m, v, sizeof(v));
-    g.setCursor(ox + SCREEN_W - 2 - display::textWidth(v), y + 1);
-    g.print(v);
-    if (m.kind == 1 || m.kind == 2) {             // bar 0..100 (persen, atau suhu dalam C)
-      int32_t pct = m.v10 / 10;
-      if (pct < 0) pct = 0;
-      if (pct > 100) pct = 100;
-      // Baris terakhir disisakan ruang untuk penanda halaman di kanan bawah
-      const int bw = (r == ROWS - 1 && pages() > 1) ? barW - 4 * pages() - 2 : barW;
-      g.drawFastHLine(ox, y + 12, bw, 1);           // garis dasar
-      g.fillRect(ox, y + 10, (int)(pct * bw / 100), 3, 1);
+    g.print(ma.label);
+    // Nilai rata kanan: "<a> <b>" (dua metrik) atau "<a>"
+    char va[12], vb[12];
+    valueText(ma, va, sizeof(va));
+    int right = ox + SCREEN_W - 2;
+    if (two) {
+      valueText(mb, vb, sizeof(vb));
+      right -= display::textWidth(vb);
+      g.setCursor(right, y + 1);
+      g.print(vb);
+      right -= 6;                                   // satu spasi
+    }
+    g.setCursor(right - display::textWidth(va), y + 1);
+    g.print(va);
+    // Bar: dua metrik bar -> dibagi dua; satu -> penuh untuk metrik itu. Baris terakhir menyisakan penanda halaman.
+    const int bw = (r == ROWS - 1 && pages() > 1) ? barW - 4 * pages() - 2 : barW;
+    const bool ba = hasBar(ma), bb = two && hasBar(mb);
+    if (ba && bb) {
+      const int half = (bw - 3) / 2;
+      drawBar(g, ox, y, half, ma);
+      drawBar(g, ox + half + 3, y, bw - half - 3, mb);
+    } else if (ba) {
+      drawBar(g, ox, y, bw, ma);
+    } else if (bb) {
+      drawBar(g, ox, y, bw, mb);
     }
   }
   // Penanda halaman (titik kecil di kanan bawah) kalau lebih dari satu halaman

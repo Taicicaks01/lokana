@@ -43,8 +43,17 @@ Klik ganda ikon tray (atau menu **Pengaturan…**):
 
 - **Pratinjau OLED 1:1**: gambar layar Monitor persis seperti di Lokana (piksel demi piksel), dengan nilai langsung
   dari PC. Halaman berganti sendiri tiap 5 detik seperti di Lokana; ◀ ▶ = tap.
-- **Metrik yang tampil**: centang untuk menampilkan, ↑ ↓ untuk mengurutkan (4 per halaman, maks 12). Nilai langsung
-  tampil di samping nama. Metrik yang tidak tersedia di PC ini tampil abu-abu dengan alasannya.
+- **Metrik yang tampil**: centang untuk menampilkan, ↑ ↓ untuk mengurutkan (4 baris per halaman, maks 12). Nilai
+  langsung tampil di samping nama. Metrik yang tidak tersedia di PC ini tampil abu-abu dengan alasannya.
+- **Label** (kolom teks): nama sendiri di Lokana, maks 10 huruf, huruf/angka ASCII plus `°`. Kosong = nama bawaan.
+  Tanda `+` baterai (sedang mengisi) tetap ikut di belakang label sendiri.
+- **Format**: Otomatis (persen & suhu bulat, angka lain 1 desimal di bawah 100) atau 0/1/2 desimal. Suhu tampil
+  dengan simbol derajat (`61°C`).
+- **⤵ gabung**: metrik ini dan metrik di bawahnya tampil **sebaris**, mis. `CPU  34% 61°C`. Bar dibagi dua kalau
+  keduanya persen/suhu. Metrik yang digabung ke atas ditandai `↳`.
+- **Pemisah desimal**: koma (`1,25MB/s`, bawaan) atau titik.
+- Label, format, dan gabung butuh **Lokana OS 0.8**. Lokana 0.7 tetap jalan dengan tampilan lama; pratinjau lalu
+  menampilkan tampilan lama itu dan memberi catatan untuk memperbarui.
 - **Template cepat**: Ringkas, Gamer, Jaringan, Laptop, Semua.
 - **Kirim tiap** 1–10 detik.
 

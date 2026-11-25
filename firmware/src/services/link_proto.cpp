@@ -73,19 +73,20 @@ const uint8_t* Reader::bytes(uint16_t n) {
   return p;
 }
 
-void Reader::str(char* out, size_t cap, bool keepNewline) {
+void Reader::str(char* out, size_t cap, bool keepNewline, bool degree) {
   uint8_t n = u8();
   if (!_ok) { if (cap) out[0] = 0; return; }
   if (_i + n > _n) { _ok = false; n = _n - _i; }
   const uint8_t* s = _p + _i;
   _i += n;
-  toAscii(s, n, out, cap, keepNewline);
+  toAscii(s, n, out, cap, keepNewline, degree);
 }
 
-void toAscii(const uint8_t* s, size_t n, char* out, size_t cap, bool keepNewline) {
+void toAscii(const uint8_t* s, size_t n, char* out, size_t cap, bool keepNewline, bool degree) {
   size_t o = 0;
   for (size_t k = 0; k < n && o + 1 < cap; k++) {
     uint8_t c = s[k];
+    if (degree && c == 0xC2 && k + 1 < n && s[k + 1] == 0xB0) { out[o++] = (char)0xF7; k++; continue; }
     if (c >= 0x80) {
       if ((c & 0xC0) == 0x80) continue;          // byte lanjutan UTF-8: sudah diwakili '?'
       out[o++] = '?';

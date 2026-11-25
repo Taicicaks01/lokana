@@ -125,6 +125,11 @@ class LokanaUsb:
         caps = (self.info or {}).get("caps", 0)
         return bool(caps >> L.CAPS.index("PC_STATS") & 1)
 
+    def supports_layout(self):
+        """Lokana OS 0.8+: teks nilai, label 10 huruf, dua metrik per baris (bit caps STATS_LAYOUT)."""
+        caps = (self.info or {}).get("caps", 0)
+        return bool(caps >> L.CAPS.index("STATS_LAYOUT") & 1)
+
     def close(self):
         if self.ser:
             try:
@@ -138,7 +143,8 @@ class LokanaUsb:
     def sync_time(self):
         self._send(L.T["TIME_SYNC"], L.p_time())
 
-    def send_stats(self, metrics):
-        """PC_STATS tanpa ACK (seq 0) + buang data masuk (log device) supaya buffer tidak penuh."""
-        self._send(L.T["PC_STATS"], L.p_pcstats(metrics))
+    def send_stats(self, metrics, texts=None, rows=None):
+        """PC_STATS tanpa ACK (seq 0) + buang data masuk (log device) supaya buffer tidak penuh.
+        texts/rows (0.8) selalu boleh dikirim: Lokana OS 0.7 mengabaikan byte di belakang daftar metrik."""
+        self._send(L.T["PC_STATS"], L.p_pcstats(metrics, texts, rows))
         self._read_frames(0)

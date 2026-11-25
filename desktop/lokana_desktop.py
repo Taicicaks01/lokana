@@ -9,7 +9,8 @@ Menu tray "Pengaturan..." (atau klik ganda ikon) membuka jendela pratinjau OLED 
   python lokana_desktop.py --port COM10  # paksa port
 
 Pengaturan: %APPDATA%\\LokanaDesktop\\config.json
-            {"port": null, "exclude": ["COM7"], "interval": 2, "metrics": ["cpu", "ram", ...]}
+            {"port": null, "exclude": ["COM7"], "interval": 2, "metrics": ["cpu", "ram", ...],
+             "labels": {"cpu": "Prosesor"}, "decimals": {"down": 2}, "pairs": ["cpu"], "decimal_sep": ","}  (layout.py)
 Log:        %APPDATA%\\LokanaDesktop\\log.txt
 """
 import argparse
@@ -48,7 +49,8 @@ def log(msg):
 
 def load_cfg():
     from sensors import IDS
-    cfg = {"port": None, "exclude": [], "interval": 2, "metrics": list(IDS)}
+    cfg = {"port": None, "exclude": [], "interval": 2, "metrics": list(IDS),
+           "labels": {}, "decimals": {}, "pairs": [], "decimal_sep": ","}       # 0.8: lihat layout.py
     try:
         with open(CFG_FILE, encoding="utf-8") as f:
             cfg.update(json.load(f))
@@ -123,6 +125,8 @@ class Worker(threading.Thread):
         self.status = "Mencari Lokana..."
         self.values = {}          # {id: (kind, label, value, unit) | None} semua metrik, untuk jendela pengaturan
         self.last = []            # PC_STATS terakhir yang dikirim / akan dikirim
+        self.layout = ([], [], [], [])   # (ids, metrics, texts, rows) dari layout.build()
+        self.legacy = False       # Lokana tersambung tapi belum 0.8 (tanpa STATS_LAYOUT): pratinjau gaya lama
 
     def _set(self, status):
         if status != self.status:
@@ -143,11 +147,14 @@ class Worker(threading.Thread):
             self._set(f"Perbarui Lokana OS ke 0.7 ({self.usb.port})")
             self.usb.close()
             return False
+        self.legacy = not self.usb.supports_layout()
+        if self.legacy:
+            log("Lokana OS di perangkat ini belum 0.8: label sendiri & dua metrik per baris belum tampil")
         self._set(f"Tersambung: {self.usb.info.get('device_name')} ({self.usb.port})")
         return True
 
     def run(self):
-        from sensors import select
+        from layout import build
         synced_at = 0.0
         next_try = 0.0
         while not self.stop_ev.is_set():
@@ -158,7 +165,8 @@ class Worker(threading.Thread):
                     next_try = time.monotonic() + (30 if "Perbarui" in self.status else 5)
             try:
                 self.values = self.sensors.read_all()
-                self.last = select(self.values, self.cfg.get("metrics") or [])
+                self.layout = build(self.values, self.cfg)
+                self.last = self.layout[1]
             except Exception as e:
                 log(f"sensor gagal dibaca: {e}")
             if self.usb.connected:
@@ -167,7 +175,8 @@ class Worker(threading.Thread):
                         self.usb.sync_time()
                         synced_at = time.time()
                     if not self.paused:
-                        self.usb.send_stats(self.last)
+                        _ids, metrics, texts, rows = self.layout
+                        self.usb.send_stats(metrics, texts, rows)
                 except Exception as e:                       # kabel dicabut, Lokana restart
                     log(f"koneksi putus: {e.__class__.__name__}")
                     self.usb.close()

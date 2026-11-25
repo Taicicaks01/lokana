@@ -57,7 +57,7 @@ STATUS = ["OK", "UNKNOWN_TYPE", "BAD_PAYLOAD", "BUSY", "NOT_SUPPORTED", "NOT_ALL
 EXPRESSIONS = ["netral", "senang", "sedih", "marah", "ngantuk", "kaget", "cinta",
                "pusing", "curiga", "bosan", "semangat", "gugup", "kedip"]
 CAPS = ["NOTIF", "NAV", "PC_STATS", "PHONE_STATS", "CUSTOM_TEXT", "BITMAP", "OTA", "WIFI",
-        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN", "TEXT_SLOT"]
+        "HID", "BUZZER", "DICE", "FIND_PHONE", "ANIM", "SCREEN", "TEXT_SLOT", "STATS_LAYOUT"]
 STYLES = {"diam": 0, "static": 0, "scroll": 1, "jalan": 1, "blink": 2, "kedip": 2}
 DICE = ["1d6", "2d6", "d4", "d8", "d10", "d12", "d20", "koin"]
 GESTURES = {1: "tap", 2: "double", 3: "triple", 4: "tahan"}
@@ -166,11 +166,20 @@ def p_nav(dist=200, text="", instr="Belok kanan", street="Jl. Udayana", eta=12, 
     return bytes(out)
 
 
-def p_pcstats(metrics):
-    """PC_STATS: [(kind, label, value, unit)] -> count + metrik (value dikali 10, i32)."""
+def p_pcstats(metrics, texts=None, rows=None):
+    """PC_STATS: [(kind, label, value, unit)] -> count + metrik (value dikali 10, i32).
+    0.8 (opsional): texts = teks nilai per metrik ("34%", "61°C"); rows = [(a, b)] susunan baris, b None = satu metrik.
+    rows tanpa texts dikirim dengan texts kosong (device memformat sendiri)."""
     out = bytearray([len(metrics)])
     for kind, label, value, unit in metrics:
         out += bytes([kind]) + s(label) + struct.pack("<i", int(round(value * 10))) + s(unit)
+    if texts is not None or rows is not None:
+        for t in (texts or [""] * len(metrics)):
+            out += s(t)
+        if rows is not None:
+            out += bytes([len(rows)])
+            for a, b in rows:
+                out += bytes([a, 255 if b is None else b])
     return bytes(out)
 
 
@@ -1199,6 +1208,28 @@ def test_v07(lk, expect):
     expect("GOTO saat layar mati membuka Jam (bilah detik)", clock_bar(_capture(lk)), True)
 
 
+def test_v08(lk, expect):
+    """v0.8: PC_STATS teks nilai + dua metrik per baris (STATS_LAYOUT), validasi susunan baris."""
+    lk.request(T["HELLO"], p_hello("lokana_link.py test"))
+    info = lk.wait_frame(lambda f: f[0] == T["DEVICE_INFO"], 1.0)
+    caps = parse_device_info(info[2])["caps"] if info else 0
+    expect("DEVICE_INFO caps STATS_LAYOUT", bool(caps >> CAPS.index("STATS_LAYOUT") & 1), True)
+    P = T["PC_STATS"]
+    m = [(1, "Prosesor", 34, "%"), (2, "CPU", 61, "C"), (1, "RAM", 61, "%"), (0, "Unduh", 1.25, "MB/s")]
+    tx = ["34%", "61°C", "61%", "1,25MB/s"]
+    expect("PC_STATS + teks nilai", lk.request(P, p_pcstats(m, tx)), 0)
+    expect("PC_STATS + teks + dua metrik per baris", lk.request(P, p_pcstats(m, tx, [(0, 1), (2, None), (3, None)])), 0)
+    expect("PC_STATS susunan baris tanpa teks (teks kosong)", lk.request(P, p_pcstats(m, None, [(0, 1), (2, 3)])), 0)
+    expect("PC_STATS row_count 0 = satu per baris", lk.request(P, p_pcstats(m, tx, [])), 0)
+    expect("PC_STATS baris a di luar daftar = BAD_PAYLOAD", lk.request(P, p_pcstats(m, tx, [(4, None)])), 2)
+    expect("PC_STATS baris b di luar daftar = BAD_PAYLOAD", lk.request(P, p_pcstats(m, tx, [(0, 7)])), 2)
+    expect("PC_STATS baris a = b = BAD_PAYLOAD", lk.request(P, p_pcstats(m, tx, [(1, 1)])), 2)
+    expect("PC_STATS 13 baris = BAD_PAYLOAD", lk.request(P, p_pcstats(m, tx, [(0, None)] * 13)), 2)
+    expect("PC_STATS teks terpotong = BAD_PAYLOAD", lk.request(P, p_pcstats(m, tx)[:-3]), 2)
+    expect("PC_STATS format 0.7 tetap diterima", lk.request(P, p_pcstats(m)), 0)
+    lk.request(P, bytes([0]))
+
+
 def test_v056(lk, expect):
     """v0.5.6: baterai di DEVICE_INFO (battery_mv, bit mengisi/lemah) konsisten dengan persen."""
     lk.request(T["HELLO"], p_hello("lokana_link.py test"))
@@ -1577,6 +1608,7 @@ def cmd_test(a):
     test_v056(lk, expect)
     test_v06(lk, expect)
     test_v07(lk, expect)
+    test_v08(lk, expect)
 
     # Console teks tetap jalan di port yang sama
     lk.text.clear()

@@ -21,12 +21,15 @@ def v10(value):
     return int(round(value * 10))
 
 
-def to_ascii(s, cap):
-    """Sama dengan toAscii() firmware: non-ASCII -> '?', kontrol -> spasi, dipotong ke cap-1 karakter."""
+def to_ascii(s, cap, degree=False):
+    """Sama dengan toAscii() firmware: non-ASCII -> '?', kontrol -> spasi, dipotong ke cap-1 karakter.
+    degree (PC_STATS, 0.8): '°' -> chr(0xF7), simbol derajat font classic."""
     out = []
     for ch in s:
         c = ord(ch)
-        if c >= 0x80:
+        if degree and ch == "\u00b0":
+            out.append(chr(0xF7))
+        elif c >= 0x80:
             out.append("?")
         elif c < 0x20 or c == 0x7F:
             out.append(" ")
@@ -74,6 +77,8 @@ class Canvas:
             c = ord(ch)
             if c == 10:
                 continue
+            if c >= 176:                 # Adafruit GFX dengan cp437 mati: karakter >= 176 digeser satu
+                c += 1
             for i in range(5):
                 line = GLCD[c * 5 + i]
                 for j in range(8):
@@ -91,34 +96,62 @@ def pages(n):
     return (n + ROWS - 1) // ROWS if n else 1
 
 
-def render(metrics, page=0, shift=(0, 0)):
-    """metrics: [(kind, label, value, unit)] seperti PC_STATS. Hasil: Canvas 128x64."""
+def render(metrics, page=0, shift=(0, 0), texts=None, rows=None, legacy=False):
+    """metrics: [(kind, label, value, unit)] seperti PC_STATS. Hasil: Canvas 128x64.
+    texts/rows (0.8): teks nilai per metrik & susunan baris [(a, b|None)], sama dengan field PC_STATS.
+    legacy: tampilan Lokana OS 0.7 (label 6 huruf, tanpa teks/susunan baris, tanpa simbol derajat)."""
     g = Canvas()
     n = min(len(metrics), 12)
     if not n:
         msg = "Menunggu data PC"
         g.text(max(0, (W - text_width(msg)) // 2), H // 2 - 4, msg)
         return g
-    p = pages(n)
+    deg = not legacy
+    lab_cap = 7 if legacy else 11
+    ms = []
+    for i in range(n):
+        kind, label, value, unit = metrics[i]
+        val10 = v10(value)
+        unit_a = to_ascii(unit, 5, deg)
+        txt = "" if legacy or not texts else to_ascii(texts[i], 12, True)
+        ms.append((kind, to_ascii(label, lab_cap, deg), val10, txt or format_value(kind, val10, unit_a)))
+    rws = [(i, None) for i in range(n)] if (legacy or not rows) else rows[:12]
+    p = pages(len(rws))
     page = page % p
     ox, oy = shift
     bar_w = W - 3
+
+    def bar(x, y, w, val10):
+        pct = max(0, min(100, _cdiv(val10, 10)))
+        g.hline(x, y + 12, w)
+        g.fill_rect(x, y + 10, pct * w // 100, 3)
+
     for r in range(ROWS):
-        i = page * ROWS + r
-        if i >= n:
+        ri = page * ROWS + r
+        if ri >= len(rws):
             break
-        kind, label, value, unit = metrics[i]
-        val10 = v10(value)
-        label, unit = to_ascii(label, 7), to_ascii(unit, 5)
+        a, b = rws[ri]
+        ka, la, va10, ta = ms[a]
         y = r * ROW_H + oy
-        g.text(ox, y + 1, label)
-        v = format_value(kind, val10, unit)
-        g.text(ox + W - 2 - text_width(v), y + 1, v)
-        if kind in (1, 2):
-            pct = max(0, min(100, _cdiv(val10, 10)))
-            bw = bar_w - 4 * p - 2 if (r == ROWS - 1 and p > 1) else bar_w
-            g.hline(ox, y + 12, bw)
-            g.fill_rect(ox, y + 10, pct * bw // 100, 3)
+        g.text(ox, y + 1, la)
+        right = ox + W - 2
+        if b is not None:
+            kb, _lb, vb10, tb = ms[b]
+            right -= text_width(tb)
+            g.text(right, y + 1, tb)
+            right -= 6
+        g.text(right - text_width(ta), y + 1, ta)
+        bw = bar_w - 4 * p - 2 if (r == ROWS - 1 and p > 1) else bar_w
+        has_a = ka in (1, 2)
+        has_b = b is not None and ms[b][0] in (1, 2)
+        if has_a and has_b:
+            half = (bw - 3) // 2
+            bar(ox, y, half, va10)
+            bar(ox + half + 3, y, bw - half - 3, ms[b][2])
+        elif has_a:
+            bar(ox, y, bw, va10)
+        elif has_b:
+            bar(ox, y, bw, ms[b][2])
     if p > 1:
         for k in range(p):
             x, yy = ox + W - 2 - (p - 1 - k) * 4, H - 2 + oy - 1
@@ -157,11 +190,11 @@ def _compare(port):
         d = L._capture(lk)
         return bytearray(1 if d[y * 16 + x // 8] >> (7 - x % 8) & 1 else 0 for y in range(H) for x in range(W))
 
-    def check(name, metrics, page):
+    def check(name, metrics, page, texts=None, rows=None):
         dev = device()
         best = None
         for s in ((0, 0), (1, 0), (1, 1), (0, 1)):
-            diff = sum(1 for a, b in zip(render(metrics, page, s).px, dev) if a != b)
+            diff = sum(1 for a, b in zip(render(metrics, page, s, texts, rows).px, dev) if a != b)
             if best is None or diff < best[0]:
                 best = (diff, s)
         ok = best[0] == 0
@@ -182,6 +215,21 @@ def _compare(port):
     time.sleep(0.6)
     lk.request(L.T["PC_STATS"], L.p_pcstats(sample))
     results.append(check("halaman 3 (negatif, label panjang, kind lain)", sample, 2))
+    # 0.8: teks nilai (derajat, koma), label 10 huruf, dua metrik per baris, bar terbagi / satu sisi
+    m8 = [(1, "Prosesor", 34, "%"), (2, "CPU", 61.4, "C"), (1, "RAM", 61, "%"), (0, "Unduh", 1.25, "MB/s"),
+          (2, "GPU", 47, "C"), (0, "Unggah", 0.3, "KB/s"), (1, "Laptop", 80, "%"), (0, "Disk", 12.5, "MB/s")]
+    t8 = ["34%", "61\u00b0C", "61%", "1,25MB/s", "47\u00b0C", "0,3KB/s", "80%", "12,5MB/s"]
+    r8 = [(0, 1), (2, 3), (4, None), (5, 6), (7, None)]
+    lk.request(L.T["PC_STATS"], L.p_pcstats(m8, t8, r8))
+    time.sleep(0.8)
+    lk.request(L.T["GOTO"], L.s("Monitor"))       # label nama modul tampil 0,9 dtk: tunggu hilang
+    time.sleep(1.5)
+    lk.request(L.T["PC_STATS"], L.p_pcstats(m8, t8, r8))
+    results.append(check("0.8 halaman 1 (dua metrik, bar terbagi/satu sisi, derajat, koma)", m8, 0, t8, r8))
+    lk.request(L.T["SCREEN"], bytes([L.SC["INPUT"], 1]))
+    time.sleep(0.6)
+    lk.request(L.T["PC_STATS"], L.p_pcstats(m8, t8, r8))
+    results.append(check("0.8 halaman 2 (angka + persen sebaris)", m8, 1, t8, r8))
     lk.request(L.T["PC_STATS"], bytes([0]))
     time.sleep(0.6)
     results.append(check("tanpa metrik", [], 0))

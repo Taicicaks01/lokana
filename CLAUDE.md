@@ -418,9 +418,14 @@ jadi uji BUTTON butuh sentuhan sungguhan (`test --touch`), bukan perintah `tap`.
      Temperature` (0,1 K) lewat ctypes, tanpa admin; di laptop Wayan TZ01 mengikuti beban CPU (50 → 61 °C). Urutan
      sumber: LibreHardwareMonitor → zona termal. Jebakan ctypes: buffer `PdhGetFormattedCounterArrayW` harus `size` byte
      (string nama zona ikut di belakang larik), bukan `count × item` → segfault. WMI MSAcpi_ThermalZone butuh admin.
-  2. **Label sendiri + dua metrik per baris** (mis. "CPU 34% 61°C"), format angka (desimal, satuan). Perluas
-     `PC_STATS` secara kompatibel (field opsional; firmware lama mengabaikan field baru), perbarui `protocol/LOKANA_LINK.md` (sumber kebenaran) dulu
-     + `test_v07`/uji baru.
+  2. ✅ **Label sendiri + dua metrik per baris** (2026-11-25): `PC_STATS` + field opsional `texts`, `row_count`,
+     `rows` (bit caps 15 `STATS_LAYOUT`; 0.7 mengabaikannya). Firmware: `stats_store` (`StatRow`, label 11 B, teks
+     12 B), `monitor_module` per baris (nilai kanan rata kanan, nilai kiri 6 px di sebelahnya, bar dibagi dua),
+     `toAscii(..., degree)` → `°` jadi glyph 0xF7 (**dikirim sebagai 0xF7**: Adafruit GFX cp437 mati menggeser
+     karakter ≥ 176 satu). Desktop: `layout.py` (dipakai pengirim & pratinjau), config `labels`/`decimals`/`pairs`/
+     `decimal_sep` (koma bawaan), kolom Label/Format/⤵ gabung, pratinjau gaya lama + catatan bila Lokana < 0.8
+     (`worker.legacy`). Jebakan tkinter: Tcl tidak memanggil trace lagi dari dalam trace (`var.set` di callback).
+     `test_v08` 11/11, `--compare` 6/6.
   3. **Visualizer audio PC**: tangkap audio WASAPI loopback (Windows) di Desktop → kirim pita frekuensi ringkas
      (mis. 16–32 batang, 0–255) ±20–30 fps lewat USB; modul baru di firmware, otomatis kembali ke monitor ±10 dtk
      setelah suara berhenti. Cek dulu batas bandwidth USB-CDC & beban CPU; boleh pakai pustaka loopback ringan

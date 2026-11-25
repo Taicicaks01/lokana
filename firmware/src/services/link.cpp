@@ -125,7 +125,7 @@ static uint16_t buildDeviceInfo(uint8_t* p, uint16_t cap) {
   infoPct = bat; infoFl = flags & BATT_FLAGS; infoAt = millis();
   uint32_t caps = CAP_NOTIF | CAP_NAV | CAP_PC_STATS | CAP_CUSTOM_TEXT | CAP_DICE | CAP_FIND_PHONE;
   if (imgstore::ready()) caps |= CAP_BITMAP | CAP_ANIM;
-  caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA;
+  caps |= CAP_SCREEN | CAP_TEXT_SLOT | CAP_OTA | CAP_STATS_LAYOUT;
 #if PIN_BUZZER >= 0
   caps |= CAP_BUZZER;
 #endif
@@ -366,12 +366,29 @@ static uint8_t onPcStats(Reader& r) {
   Metric m[statsstore::MAX];
   for (uint8_t i = 0; i < cnt; i++) {
     m[i].kind = r.u8();
-    r.str(m[i].label, sizeof(m[i].label));
+    r.str(m[i].label, sizeof(m[i].label), false, true);
     m[i].v10 = (int32_t)r.u32();
-    r.str(m[i].unit, sizeof(m[i].unit));
+    r.str(m[i].unit, sizeof(m[i].unit), false, true);
   }
   if (!r.ok()) return ST_BAD_PAYLOAD;
-  if (statsstore::update(m, cnt)) events::post(EV_STATS, 1);
+  // 0.8 (opsional): teks nilai per metrik, lalu susunan baris
+  StatRow rows[statsstore::MAX];
+  uint8_t nrows = 0;
+  if (r.has()) {
+    for (uint8_t i = 0; i < cnt; i++) r.str(m[i].text, sizeof(m[i].text), false, true);
+    if (!r.ok()) return ST_BAD_PAYLOAD;
+    if (r.has()) {
+      nrows = r.u8();
+      if (!r.ok() || nrows > statsstore::MAX) return ST_BAD_PAYLOAD;
+      for (uint8_t i = 0; i < nrows; i++) {
+        rows[i].a = r.u8();
+        rows[i].b = r.u8();
+        if (!r.ok() || rows[i].a >= cnt || rows[i].a == rows[i].b ||
+            (rows[i].b != StatRow::NONE && rows[i].b >= cnt)) return ST_BAD_PAYLOAD;
+      }
+    }
+  }
+  if (statsstore::update(m, cnt, nrows ? rows : nullptr, nrows)) events::post(EV_STATS, 1);
   return ST_OK;
 }
 

@@ -223,7 +223,7 @@ Host memperlakukannya sama dengan balasan `HELLO`.
 
 Bit `caps`: 0 `NOTIF` · 1 `NAV` · 2 `PC_STATS` · 3 `PHONE_STATS` · 4 `CUSTOM_TEXT` ·
 5 `BITMAP` · 6 `OTA` · 7 `WIFI` · 8 `HID` · 9 `BUZZER` · 10 `DICE` · 11 `FIND_PHONE` · 12 `ANIM` · 13 `SCREEN` ·
-14 `TEXT_SLOT`.
+14 `TEXT_SLOT` · 15 `STATS_LAYOUT` (`PC_STATS` dengan teks nilai & dua metrik per baris, 0.8).
 Aplikasi menyembunyikan menu untuk kemampuan yang tidak dimiliki device.
 
 ### `0x03` SETTINGS (dua arah)
@@ -402,14 +402,17 @@ dikirim; device hanya menampilkan. Jadi metrik baru tidak butuh update firmware.
 |---|---|---|
 | `count` | u8 | Jumlah metrik (maks 12) |
 | `metrics` | … × `count` | Lihat di bawah |
+| `texts` | str × `count` | *Opsional (0.8+)*. Teks nilai siap tampil per metrik, urutan sama dengan `metrics` (contoh `"34%"`, `"61°C"`, `"1,25MB/s"`). Kosong = device memformat sendiri dari `value_x10` + `unit` |
+| `row_count` | u8 | *Opsional (0.8+, hanya setelah `texts`)*. Jumlah baris tampilan (maks 12); `0` = satu metrik per baris |
+| `rows` | (`a` u8, `b` u8) × `row_count` | Susunan baris: metrik `a`, lalu metrik `b` di baris yang sama (`b = 255` = satu metrik). Label baris = label metrik `a` |
 
 Setiap metrik:
 
 | Field | Tipe | Keterangan |
 |---|---|---|
 | `kind` | u8 | `0` angka, `1` persen (ditampilkan dengan bar), `2` suhu |
-| `label` | str | Maks 6 karakter, contoh `"CPU"`, `"GPU°"`, `"RAM"` |
-| `value_x10` | i32 | Nilai × 10, contoh `45.3` → `453` |
+| `label` | str | Maks 10 karakter (0.8+; firmware 0.7 memotong ke 6), contoh `"CPU"`, `"Prosesor"`, `"RAM"` |
+| `value_x10` | i32 | Nilai × 10, contoh `45.3` → `453` (selalu diisi: dipakai bar walau `texts` dikirim) |
 | `unit` | str | Maks 4 karakter, contoh `"%"`, `"C"`, `"MB/s"` |
 
 Host mengirim setiap **2–3 detik**. Jika tidak ada data selama **10 detik**, device
@@ -423,6 +426,17 @@ Aturan `PC_STATS` (firmware 0.7):
   menyala (Mode Meja, daya USB) dengan isi digeser 1 px tiap 2 menit (anti *burn-in* OLED). Pembaruan berikutnya
   tidak membuat event. `GOTO "Monitor"` hanya berhasil selama data masuk.
 - Device yang mendukung `PC_STATS` menyalakan bit `caps` 2.
+
+Aturan tambahan (firmware 0.8, bit `caps` 15 `STATS_LAYOUT`):
+- `texts` dan `rows` boleh tidak dikirim (format 0.7 tetap sah). Firmware 0.7 mengabaikan byte di belakang `metrics`,
+  jadi host boleh selalu mengirimnya; host memakai bit `caps` 15 untuk tahu apakah tampilannya didukung.
+- `texts` dipotong ke 11 byte, `label` ke 10 byte. Di `PC_STATS` saja, tanda derajat UTF-8 `°` (U+00B0) di `label`,
+  `unit`, dan `texts` ditampilkan sebagai simbol derajat; karakter non-ASCII lain tetap `?`.
+- `row_count` > 12, `a` ≥ `count`, `b` ≥ `count` (kecuali 255), atau `a = b` = `BAD_PAYLOAD`. Metrik yang tidak
+  disebut di `rows` tidak tampil.
+- Tampilan baris dua metrik: label `a` di kiri; teks `b` rata kanan, teks `a` di kirinya dengan jarak satu spasi.
+  Bar: kalau `a` dan `b` sama-sama persen/suhu, bar dibagi dua (kiri `a`, kanan `b`); kalau hanya salah satu, bar
+  penuh untuk metrik itu. 4 baris per halaman.
 
 ### `0x13` MEETING (H→D)
 
@@ -758,6 +772,7 @@ a5 5a  01 00 06 00 b0 71 fa 6a e0 01  13 e9
 | v1 | 2026-11-17 | Untuk firmware 0.5.2 (tambahan, format lama tetap): key SETTINGS `0x07 notif_popup`; field akhir opsional `font` di `CUSTOM_TEXT` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.3 (tambahan, format lama tetap): pesan baru `0x34 TEXT_SLOT` (bit `caps` 14); key SETTINGS `0x08 boot_guide`; `GOTO "Panduan"` |
 | v1 | 2026-11-17 | Untuk firmware 0.5.4 (tambahan, format lama tetap): key SETTINGS `0x09 leave_alert` dan aturan pengingat ketinggalan; `GOTO "Tertinggal"` |
+| v1 | 2026-11-25 | Untuk firmware 0.8 (tambahan, format lama tetap): `PC_STATS` field akhir opsional `texts` & `rows` (dua metrik per baris), label maks 10, simbol derajat `°` di `PC_STATS`; bit `caps` 15 `STATS_LAYOUT` |
 | v1 | 2026-11-25 | Untuk firmware 0.7 (format lama tetap): `PC_STATS` diaktifkan (bit `caps` 2), aturan tampilan & batas, `GOTO "Monitor"` |
 | v1 | 2026-11-24 | Untuk firmware 0.6 (tambahan, format lama tetap): `NAV` diaktifkan (bit `caps` 1), format bitmap ikon, field akhir opsional `eta_text`, aturan layar & kedaluwarsa, `GOTO "Navigasi"` hanya saat aktif |
 | v1 | 2026-11-21 | Untuk firmware 0.5.6 (tambahan, format lama tetap): `DEVICE_INFO` bit `flags` 3 (charger terdeteksi) dan 4 (baterai lemah), field akhir opsional `battery_mv`, dikirim tanpa diminta saat status daya berubah; `OTA END` ulang setelah image terpasang dibalas `OK` |

@@ -16,6 +16,15 @@ versi firmware dan aplikasi berjalan bersama (`0.MINOR.PATCH`). Detail protokol 
 - `oled_preview.py --compare COMx`: bandingkan pratinjau dengan layar Lokana asli per piksel (0 beda di unit 1).
 - Perbaikan: dijalankan dari kode di konsol Windows, nama Lokana berhuruf Dewanagari membuat log gagal dan koneksi batal.
 
+### Monitor PC: label sendiri, dua metrik per baris, format angka (v0.8, langkah 2)
+- `PC_STATS` diperluas secara kompatibel (field opsional di akhir, bit `caps` 15 `STATS_LAYOUT`): teks nilai per
+  metrik, label sampai 10 huruf, dan susunan baris (dua metrik sebaris). Lokana OS 0.7 mengabaikan field baru.
+- Firmware: Monitor menggambar dua metrik sebaris (`CPU  34% 61°C`), bar dibagi dua, simbol derajat asli; halaman
+  dihitung per baris. `lokana_link.py`: `test_v08` (11 uji).
+- Lokana Desktop: kolom **Label**, **Format** (Otomatis/0/1/2 desimal), **⤵ gabung**, dan **Pemisah desimal**
+  (koma bawaan) di jendela pengaturan; `layout.py` dipakai bersama pengirim & pratinjau. Ke Lokana 0.7 tetap
+  tampilan lama, dengan catatan di jendela. `oled_preview.py --compare`: 6/6 sama persis di unit 1.
+
 ### Quick start untuk pembeli
 - Halaman **GitHub Pages** `https://taicicaks01.github.io/lokana/` (`docs/index.html`): isi daya & nyalakan, pasang
   aplikasi, sambungkan (kode 6 digit), gerakan sentuh, fitur dengan screenshot layar asli, pembaruan firmware,

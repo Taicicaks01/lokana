@@ -34,13 +34,15 @@ enum Cap : uint32_t {
   CAP_NOTIF = 1u << 0, CAP_NAV = 1u << 1, CAP_PC_STATS = 1u << 2, CAP_PHONE_STATS = 1u << 3,
   CAP_CUSTOM_TEXT = 1u << 4, CAP_BITMAP = 1u << 5, CAP_OTA = 1u << 6, CAP_WIFI = 1u << 7,
   CAP_HID = 1u << 8, CAP_BUZZER = 1u << 9, CAP_DICE = 1u << 10, CAP_FIND_PHONE = 1u << 11,
-  CAP_ANIM = 1u << 12, CAP_SCREEN = 1u << 13, CAP_TEXT_SLOT = 1u << 14,
+  CAP_ANIM = 1u << 12, CAP_SCREEN = 1u << 13, CAP_TEXT_SLOT = 1u << 14, CAP_STATS_LAYOUT = 1u << 15,
 };
 
 const char* typeName(uint8_t t);
 
 // Byte UTF-8 -> ASCII yang bisa ditampilkan (huruf non-ASCII jadi '?'), dipotong ke cap-1
-void toAscii(const uint8_t* s, size_t n, char* out, size_t cap, bool keepNewline = false);
+// degree: UTF-8 '°' (C2 B0) -> 0xF7 = simbol derajat di font classic GFX (cp437 mati: 0xF7 digambar glyph 0xF8).
+// Hanya untuk teks yang digambar dengan font classic (PC_STATS); font lain tidak punya glyph ini.
+void toAscii(const uint8_t* s, size_t n, char* out, size_t cap, bool keepNewline = false, bool degree = false);
 
 // CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, tanpa refleksi, tanpa XOR akhir
 inline uint16_t crc16(uint16_t crc, uint8_t b) {
@@ -89,7 +91,7 @@ public:
   // n byte mentah; nullptr (dan ok() = false) jika sisa payload kurang
   const uint8_t* bytes(uint16_t n);
   // str -> ASCII yang bisa ditampilkan (huruf non-ASCII jadi '?'), dipotong ke cap-1
-  void str(char* out, size_t cap, bool keepNewline = false);
+  void str(char* out, size_t cap, bool keepNewline = false, bool degree = false);
 
 private:
   const uint8_t* _p;

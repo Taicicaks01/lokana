@@ -128,6 +128,10 @@ Data dari pesan `PC_STATS` (dikirim Lokana Desktop tiap ±2 dtk) disimpan di `se
 - Data pertama menyalakan layar dan membuka Monitor; selama data masuk layar **tetap menyala** (dapat daya USB),
   isi digeser 1 px tiap 2 menit supaya OLED tidak *burn-in*. **Tahan** = layar mati seperti biasa.
 - 10 dtk tanpa data → kembali ke modul sebelumnya.
+- **Sejak 0.8** (caps `STATS_LAYOUT`): host boleh mengirim teks nilai siap tampil (`61°C`, `1,25MB/s`), label sampai
+  10 huruf, dan susunan baris: dua metrik sebaris (nilai kanan diratakan kanan, nilai kiri 6 px di sebelahnya; bar
+  dibagi dua kalau keduanya persen/suhu, satu bar penuh kalau hanya satu). `°` (UTF-8 C2 B0) digambar dengan glyph
+  derajat font classic, hanya di `PC_STATS`. Halaman dihitung per baris.
 - Uji tanpa Desktop: `python lokana_link.py pcstats --seconds 20` (metrik contoh).
 
 ## Modul Navigasi (v0.6)
